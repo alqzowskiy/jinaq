@@ -3,7 +3,6 @@ firebase-admin
 Werkzeug
 python-dotenv
 uuid
-datetime
 json
 functools
 gunicorn
