@@ -3,3 +3,4 @@ firebase-admin
 python-dotenv
 werkzeug
 uuid
+gunicorn
