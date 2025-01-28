@@ -25,11 +25,48 @@ cred = credentials.Certificate(firebase_credentials)
 firebase_admin.initialize_app(cred, {
     'storageBucket': 'jinaq-1b755.firebasestorage.app'
 })
+# В самом начале файла после импортов добавьте константу для типов верификации
+VERIFICATION_TYPES = {
+    'official': {
+        'icon': '🏛️',
+        'color': 'blue',
+        'label': 'Официальный аккаунт'
+    },
+    'creator': {
+        'icon': '🎨',
+        'color': 'purple',
+        'label': 'Создатель контента'
+    },
+    'business': {
+        'icon': '💼',
+        'color': 'green',
+        'label': 'Бизнес-аккаунт'
+    }
+}
 
 
 db = firestore.client()
 bucket = storage.bucket()
+def get_current_user_avatar():
+    """Helper function to get current user's avatar"""
+    if 'user_id' not in session:
+        return None
+    
+    try:
+        current_user_id = session['user_id']
+        current_user_doc = db.collection('users').document(current_user_id).get()
+        current_user_data = current_user_doc.to_dict()
+        
+        return generate_avatar_url(current_user_data)
+    except Exception as e:
+        print(f"Error getting current user avatar: {e}")
+        return None
 
+def get_current_username():
+    """Helper function to get current user's username"""
+    if 'username' in session:
+        return session['username']
+    return None
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -61,6 +98,9 @@ def settings():
 
 @app.route('/')
 def index():
+    current_username = get_current_username()
+    current_user_avatar = get_current_user_avatar()
+    
     if 'user_id' in session:
         user_id = session['user_id']
         user_doc = db.collection('users').document(user_id).get()
@@ -71,32 +111,29 @@ def index():
         return render_template('index.html', 
                                user_data=user_data, 
                                avatar_url=avatar_url,
-                               current_user_avatar=avatar_url)  # Добавьте эту строку
+                               current_user_avatar=current_user_avatar,
+                               current_username=current_username)
+    
     return render_template('index.html', 
                            user_data=None, 
                            avatar_url=None,
-                           current_user_avatar=None)  # И сюда
+                           current_user_avatar=current_user_avatar,
+                           current_username=current_username)
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
-    # Redirect if user is already logged in
-    if 'user_id' in session:
-        flash('You are already registered and logged in')
-        return redirect(url_for('profile'))
-
     if request.method == 'POST':
         email = request.form['email']
         password = request.form['password']
-        username = request.form['username']
+        username = request.form['username'].lower()  # Преобразуем к нижнему регистру
 
         try:
-            # Check if username already exists
+            # Проверка уникальности username (теперь в нижнем регистре)
             users_ref = db.collection('users')
             username_query = users_ref.where('username', '==', username).get()
             if len(list(username_query)) > 0:
                 flash('Username already taken')
                 return redirect(url_for('register'))
-
             # Create user in Firebase Auth
             user = auth.create_user(
                 email=email,
@@ -107,10 +144,16 @@ def register():
             # Create user document in Firestore с добавлением academic_info
             user_data = {
                 'username': username,
+                'display_username': request.form['username'],
                 'email': email,
                 'created_at': datetime.datetime.now(tz=datetime.timezone.utc),
                 'uid': user.uid,
-                'academic_info': {  # Добавляем эту секцию
+                # Новые поля для верификации
+                'verified': False,
+                'verification_type': None,
+                'verified_by': None,
+                'verified_at': None,
+                'academic_info': {
                     'gpa': '',
                     'sat_score': '',
                     'toefl_score': '',
@@ -130,28 +173,23 @@ def register():
     return render_template('register.html')
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    # Redirect if user is already logged in
-    if 'user_id' in session:
-        flash('You are already logged in')
-        return redirect(url_for('profile'))
-
     if request.method == 'POST':
         email = request.form['email']
         password = request.form['password']
-
+        
         try:
-            # Get user by email through Admin SDK
             user = auth.get_user_by_email(email)
             
-            # Get user data from Firestore
+            # Получаем пользователя по email, используя lowercase username для поиска
             user_doc = db.collection('users').document(user.uid).get()
             user_data = user_doc.to_dict()
 
             if user_data:
-                # Set session data
+                # Устанавливаем сессию с оригинальным регистром
                 session['user_id'] = user.uid
-                session['username'] = user_data.get('username')
+                session['username'] = user_data.get('display_username', user_data['username'])
                 return redirect(url_for('profile'))
+        
             else:
                 flash('User data not found')
                 return redirect(url_for('login'))
@@ -501,7 +539,20 @@ def profile():
                          certificates=certificates)
 @app.route('/<username>')
 def public_profile(username):
+    current_username = get_current_username()
+    current_user_avatar = get_current_user_avatar()
+    
     try:
+        users_ref = db.collection('users')
+        # Ищем пользователя без учета регистра
+        query = users_ref.where('username', '==', username.lower()).limit(1).stream()
+        user_doc = next(query, None)
+
+        if user_doc is None:
+            flash('User not found')
+            return redirect(url_for('index'))
+
+        viewed_user_data = user_doc.to_dict()
         users_ref = db.collection('users')
         query = users_ref.where('username', '==', username).limit(1).stream()
         user_doc = next(query, None)
@@ -513,15 +564,6 @@ def public_profile(username):
         viewed_user_data = user_doc.to_dict()
         viewed_user_avatar = generate_avatar_url(viewed_user_data)
         
-        # Проверяем, авторизован ли пользователь
-        current_user_avatar = None
-        if 'user_id' in session:
-            current_user_id = session['user_id']
-            current_user_doc = db.collection('users').document(current_user_id).get()
-            current_user_data = current_user_doc.to_dict()
-            current_user_avatar = generate_avatar_url(current_user_data)
-        
-        # Получаем список сертификатов и считаем их количество
         certificates = list(db.collection('users').document(user_doc.id).collection('certificates').stream())
         certificates_count = len(certificates)
 
@@ -529,12 +571,12 @@ def public_profile(username):
                              user_data=viewed_user_data,
                              avatar_url=viewed_user_avatar,
                              current_user_avatar=current_user_avatar,
+                             current_username=current_username,
                              certificates=certificates,
                              certificates_count=certificates_count)
     except Exception as e:
         flash(f'Error: {str(e)}')
         return redirect(url_for('index'))
-
 from firebase_admin import auth
 
 @app.route('/update_links', methods=['POST'])
@@ -577,7 +619,90 @@ def update_links():
     except Exception as e:
         print(f"Error updating links: {str(e)}")
         return jsonify(success=False, error=str(e)), 500
+@app.route('/admin/migrate_usernames', methods=['GET'])
+@login_required  # Добавьте декоратор для защиты
+def migrate_usernames():
+    # Проверка, что это администратор
+    if session.get('user_id') != 'admin_user_id':  # Замените на ваш реальный admin ID
+        return "Unauthorized", 403
     
+    users_ref = db.collection('users')
+    users = users_ref.stream()
+    
+    for user_doc in users:
+        user_data = user_doc.to_dict()
+        
+        # Добавляем display_username, если его нет
+        if 'display_username' not in user_data:
+            users_ref.document(user_doc.id).update({
+                'username': user_data['username'].lower(),
+                'display_username': user_data['username']
+            })
+    
+    return "Migration completed successfully"    
+
+# В app.py добавьте:
+ADMIN_PASSWORD = os.getenv('ADMIN_PASSWORD', 'default_secret_password')
+
+@app.route('/admin/login', methods=['GET', 'POST'])
+def admin_login():
+    if request.method == 'POST':
+        password = request.form.get('password')
+        if password == ADMIN_PASSWORD:
+            session['admin_logged_in'] = True
+            return redirect(url_for('admin_dashboard'))
+        else:
+            flash('Incorrect admin password', 'error')
+    return render_template('admin_login.html')
+
+# Маршрут для верификации пользователей
+# Маршрут для верификации пользователей
+@app.route('/admin/verify_user', methods=['POST'])
+@login_required
+def verify_user():
+    # Список администраторов, кто может верифицировать
+    ADMIN_IDS = ['vVbXL4LKGidXtrKnvqa21gWRY3V2']  # Замените на реальный ID администратора
+
+    if session['user_id'] not in ADMIN_IDS:
+        return jsonify({'error': 'Unauthorized'}), 403
+    
+    data = request.json
+    user_id = data.get('user_id')
+    verification_type = data.get('type', 'official')
+    
+    try:
+        db.collection('users').document(user_id).update({
+            'verified': True,
+            'verification_type': verification_type,
+            'verified_by': session['user_id'],
+            'verified_at': firestore.SERVER_TIMESTAMP
+        })
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/admin/dashboard')
+def admin_dashboard():
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('admin_login'))
+    
+    # Получаем список всех пользователей
+    users_ref = db.collection('users')
+    users = users_ref.stream()
+    
+    user_list = []
+    for user_doc in users:
+        user_data = user_doc.to_dict()
+        user_data['id'] = user_doc.id
+        user_list.append(user_data)
+    
+    return render_template('admin_dashboard.html', users=user_list)
+
+@app.route('/admin/logout')
+def admin_logout():
+    session.pop('admin_logged_in', None)
+    return redirect(url_for('admin_login'))
+
 @app.route('/logout')
 def logout():
     session.clear()

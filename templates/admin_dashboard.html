@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="bg-white shadow-md rounded-lg">
+        <div class="px-6 py-4 border-b flex justify-between items-center">
+            <h1 class="text-2xl font-bold">Admin Dashboard - User Verification</h1>
+            <a href="{{ url_for('admin_logout') }}" class="btn bg-red-500 text-white">Logout</a>
+        </div>
+
+        <table class="w-full">
+            <thead class="bg-gray-100">
+                <tr>
+                    <th class="px-6 py-3 text-left">Username</th>
+                    <th class="px-6 py-3 text-left">Email</th>
+                    <th class="px-6 py-3 text-left">Verified</th>
+                    <th class="px-6 py-3 text-left">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in users %}
+                <tr class="border-b">
+                    <td class="px-6 py-4">{{ user.display_username }}</td>
+                    <td class="px-6 py-4">{{ user.email }}</td>
+                    <td class="px-6 py-4">
+                        <span class="{{ 'text-green-600' if user.get('verified') else 'text-gray-500' }}">
+                            {{ 'Verified' if user.get('verified') else 'Not Verified' }}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4">
+                        <div class="dropdown">
+                            <label tabindex="0" class="btn m-1">Verify</label>
+                            <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-base-100 rounded-box w-52">
+                                <li>
+                                    <a onclick="verifyUser('{{ user.id }}', 'official')">
+                                        🏛️ Official Account
+                                    </a>
+                                </li>
+                                <li>
+                                    <a onclick="verifyUser('{{ user.id }}', 'creator')">
+                                        🎨 Content Creator
+                                    </a>
+                                </li>
+                                <li>
+                                    <a onclick="verifyUser('{{ user.id }}', 'business')">
+                                        💼 Business Account
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    function verifyUser(userId, type = 'official') {
+        fetch('/admin/verify_user', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                user_id: userId,
+                type: type
+            })
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(`User verified as ${type} successfully`);
+                    location.reload();
+                } else {
+                    alert('Failed to verify user');
+                }
+            })
+            .catch(error => {
+                console.error('Verification error:', error);
+                alert('Error verifying user');
+            });
+    }
+</script>
+{% endblock %}

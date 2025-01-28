@@ -1,406 +1,748 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen flex flex-col">
-    <div class="container mx-auto px-4 py-8 md:py-16 flex-grow">
-        <div class="max-w-7xl mx-auto space-y-12 md:space-y-16">
-            <!-- Hero Section -->
-            <div class="bg-white rounded-3xl shadow-lg overflow-hidden relative group px-4 py-12 md:p-16 text-center">
-                <div class="absolute inset-0 bg-gradient-to-br from-gray-50/50 to-gray-100/50 opacity-50 -z-10"></div>
+<!-- Добавляем контейнер для фоновых эффектов перед основным контентом -->
+<div class="relative overflow-hidden min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+    <!-- Animated background layers -->
+    <div class="fixed inset-0">
+        <!-- Gradient circles -->
+        <div
+            class="absolute top-0 -left-48 w-96 h-96 bg-gradient-to-r from-gray-200 to-gray-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob">
+        </div>
+        <div
+            class="absolute top-0 -right-48 w-96 h-96 bg-gradient-to-l from-gray-100 to-gray-200 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-2000">
+        </div>
+        <div
+            class="absolute -bottom-48 left-48 w-96 h-96 bg-gradient-to-t from-gray-200 to-gray-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-4000">
+        </div>
 
-                <div class="max-w-4xl mx-auto relative z-10">
-                    <h1 class="text-4xl md:text-6xl lg:text-7xl font-bold mb-6 text-black tracking-tight leading-tight">
-                        Your Professional Story,<br class="hidden md:block" />All in One Place
-                    </h1>
+        <!-- Floating particles -->
+        <div class="particle-container absolute inset-0">
+            {% for i in range(20) %}
+            <div class="particle absolute bg-gray-200 rounded-full"></div>
+            {% endfor %}
+        </div>
 
-                    <p class="text-lg md:text-2xl text-gray-600 mb-8 max-w-2xl mx-auto">
-                        Create a stunning digital portfolio that showcases your achievements, projects, and expertise
-                        with style and professionalism.
-                    </p>
+        <!-- Animated gradient lines -->
+        <div class="absolute inset-0 overflow-hidden">
+            <div class="gradient-lines"></div>
+        </div>
 
-                    <div class="flex flex-col md:flex-row justify-center gap-4 mb-10">
-                        {% if 'user_id' in session %}
-                        <a href="{{ url_for('profile') }}"
-                            class="w-full md:w-auto inline-block bg-black text-white px-6 py-4 rounded-xl hover:bg-gray-800 transition-colors text-center">
-                            View Your Portfolio
-                        </a>
-                        {% else %}
-                        <a href="{{ url_for('register') }}"
-                            class="w-full md:w-auto inline-block bg-black text-white px-6 py-4 rounded-xl hover:bg-gray-800 transition-colors text-center">
-                            Create Portfolio
-                        </a>
-                        <a href="{{ url_for('login') }}"
-                            class="w-full md:w-auto inline-block bg-white text-black border border-gray-200 px-6 py-4 rounded-xl hover:bg-gray-50 transition-colors text-center">
-                            Sign In
-                        </a>
-                        {% endif %}
-                    </div>
-
-                    <div class="flex flex-wrap justify-center gap-4 mt-8">
-                        <div
-                            class="bg-gray-50 px-4 py-3 rounded-full flex items-center gap-2 hover:bg-gray-100 transition">
-                            <svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                            </svg>
-                            <span class="text-sm text-gray-700">Free to Start</span>
-                        </div>
-                        <div
-                            class="bg-gray-50 px-4 py-3 rounded-full flex items-center gap-2 hover:bg-gray-100 transition">
-                            <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                            </svg>
-                            <span class="text-sm text-gray-700">Secure Storage</span>
-                        </div>
-                        <div
-                            class="bg-gray-50 px-4 py-3 rounded-full flex items-center gap-2 hover:bg-gray-100 transition">
-                            <svg class="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                            </svg>
-                            <span class="text-sm text-gray-700">Regular Updates</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Features Grid -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {% set features = [
-                {
-                'title': 'Beautiful Design',
-                'description': 'Professional templates that make your portfolio stand out.',
-                'icon': 'M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5
-                5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4
-                0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z'
-                },
-                {
-                'title': 'Easy Sharing',
-                'description': 'Get a personalized link to share your portfolio.',
-                'icon': 'M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0
-                2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0
-                105.368 2.684 3 3 0 00-5.368-2.684z'
-                },
-                {
-                'title': 'Centralized Portfolio',
-                'description': 'Combine achievements, projects, and links in one space.',
-                'icon': 'M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5
-                11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10'
-                }
-                ] %}
-
-                {% for feature in features %}
+        <!-- Ripple effect container -->
+        <div class="ripple-container absolute inset-0"></div>
+    </div>
+    <div class="bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen flex flex-col animate-gradient">
+        <div class="container mx-auto px-4 py-8 md:py-16 flex-grow">
+            <div class="max-w-7xl mx-auto space-y-12 md:space-y-16">
+                <!-- Hero Section -->
                 <div
-                    class="bg-white rounded-2xl p-6 shadow-md hover:shadow-xl transition-all transform hover:-translate-y-2">
-                    <div class="mb-4 bg-gray-50 rounded-full w-12 h-12 flex items-center justify-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-700" fill="none"
-                            viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                                d="{{ feature.icon }}" />
-                        </svg>
+                    class="bg-white rounded-3xl shadow-lg overflow-hidden relative group px-4 py-12 md:p-16 text-center animate-fade-in">
+                    <div
+                        class="absolute inset-0 bg-gradient-to-br from-gray-50/50 to-gray-100/50 opacity-50 -z-10 animate-pulse">
                     </div>
-                    <h3 class="text-xl font-semibold mb-3">{{ feature.title }}</h3>
-                    <p class="text-gray-600">{{ feature.description }}</p>
-                </div>
-                {% endfor %}
-            </div>
+                    <div
+                        class="absolute -top-40 -right-40 w-[600px] h-[600px] bg-gradient-to-br from-gray-50 via-gray-100 to-gray-50 rounded-full opacity-40 group-hover:scale-110 transition-transform duration-1000 ease-in-out animate-float">
+                    </div>
+                    <div
+                        class="absolute -bottom-40 -left-40 w-[600px] h-[600px] bg-gradient-to-tr from-gray-50 via-gray-100 to-gray-50 rounded-full opacity-40 group-hover:scale-110 transition-transform duration-1000 ease-in-out animate-float-delay">
+                    </div>
 
-            <!-- Who Uses Jinaq -->
-            <div class="bg-white rounded-2xl p-8 md:p-12">
-                <h2 class="text-3xl font-bold text-center mb-10">Who Uses Jinaq?</h2>
+                    <div class="max-w-4xl mx-auto relative z-10">
+                        <h1
+                            class="text-4xl md:text-6xl lg:text-7xl font-bold mb-6 text-black tracking-tight leading-tight animate-title">
+                            Your Professional Story,<br class="hidden md:block" />All in One Place
+                        </h1>
+
+                        <p class="text-lg md:text-2xl text-gray-600 mb-8 max-w-2xl mx-auto animate-fade-up">
+                            Create a stunning digital portfolio that showcases your achievements, projects, and
+                            expertise
+                            with style and professionalism.
+                        </p>
+
+                        <div class="flex flex-col md:flex-row justify-center gap-4 mb-10 animate-fade-up delay-200">
+                            {% if 'user_id' in session %}
+                            <a href="{{ url_for('profile') }}"
+                                class="w-full md:w-auto inline-block bg-black text-white px-6 py-4 rounded-xl hover:bg-gray-800 transition-all duration-300 transform hover:scale-105">
+                                View Your Portfolio
+                            </a>
+                            {% else %}
+                            <a href="{{ url_for('register') }}"
+                                class="w-full md:w-auto inline-block bg-black text-white px-6 py-4 rounded-xl hover:bg-gray-800 transition-all duration-300 transform hover:scale-105">
+                                Create Portfolio
+                            </a>
+                            <a href="{{ url_for('login') }}"
+                                class="w-full md:w-auto inline-block bg-white text-black border border-gray-200 px-6 py-4 rounded-xl hover:bg-gray-50 transition-all duration-300 transform hover:scale-105">
+                                Sign In
+                            </a>
+                            {% endif %}
+                        </div>
+
+                        <div class="flex flex-wrap justify-center gap-4 mt-8 animate-fade-up delay-400">
+                            <div
+                                class="bg-gray-50 px-4 py-3 rounded-full flex items-center gap-2 hover:bg-gray-100 transition-all duration-300 transform hover:scale-105">
+                                <svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor"
+                                    viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                <span class="text-sm text-gray-700">Free to Start</span>
+                            </div>
+                            <div
+                                class="bg-gray-50 px-4 py-3 rounded-full flex items-center gap-2 hover:bg-gray-100 transition-all duration-300 transform hover:scale-105">
+                                <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor"
+                                    viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                <span class="text-sm text-gray-700">Secure Storage</span>
+                            </div>
+                            <div
+                                class="bg-gray-50 px-4 py-3 rounded-full flex items-center gap-2 hover:bg-gray-100 transition-all duration-300 transform hover:scale-105">
+                                <svg class="w-5 h-5 text-purple-500" fill="none" stroke="currentColor"
+                                    viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                <span class="text-sm text-gray-700">Regular Updates</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Features Grid -->
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {% set user_types = [
+                    {% set features = [
                     {
-                    'title': 'Professionals',
-                    'description': 'Showcase work experience and achievements to employers.',
-                    'icon': 'M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0
-                    00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z'
+                    'title': 'Beautiful Design',
+                    'description': 'Professional templates that make your portfolio stand out.',
+                    'icon': 'M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828
+                    9.9a5
+                    5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4
+                    0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z'
                     },
                     {
-                    'title': 'Creatives',
-                    'description': 'Display artistic portfolio and design work.',
-                    'icon': 'M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6
-                    20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z'
+                    'title': 'Easy Sharing',
+                    'description': 'Get a personalized link to share your portfolio.',
+                    'icon': 'M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0
+                    110-2.684m0
+                    2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0
+                    105.368 2.684 3 3 0 00-5.368-2.684z'
                     },
                     {
-                    'title': 'Students',
-                    'description': 'Organize academic achievements and activities.',
-                    'icon': 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18
-                    7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832
-                    18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253'
+                    'title': 'Centralized Portfolio',
+                    'description': 'Combine achievements, projects, and links in one space.',
+                    'icon': 'M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0
+                    00-2-2M5
+                    11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10'
                     }
                     ] %}
 
-                    {% for user in user_types %}
-                    <div class="bg-gray-50 rounded-2xl p-6 hover:bg-gray-100 transition-colors">
-                        <div class="mb-4 bg-white rounded-full w-12 h-12 flex items-center justify-center">
+                    {% for feature in features %}
+                    <div
+                        class="bg-white rounded-2xl p-6 shadow-md hover:shadow-xl transition-all duration-500 transform hover:-translate-y-2 animate-fade-up delay-{{ loop.index * 200 }}">
+                        <div class="mb-4 bg-gray-50 rounded-full w-12 h-12 flex items-center justify-center">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-700" fill="none"
                                 viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                                    d="{{ user.icon }}" />
+                                    d="{{ feature.icon }}" />
                             </svg>
                         </div>
-                        <h3 class="text-xl font-semibold mb-3">{{ user.title }}</h3>
-                        <p class="text-gray-600">{{ user.description }}</p>
+                        <h3 class="text-xl font-semibold mb-3">{{ feature.title }}</h3>
+                        <p class="text-gray-600">{{ feature.description }}</p>
                     </div>
                     {% endfor %}
                 </div>
-            </div>
 
-            <!-- CTA Section -->
-            <div class="bg-black text-white rounded-2xl p-12 text-center">
-                <h2 class="text-3xl md:text-4xl font-bold mb-6">Ready to Create Your Professional Portfolio?</h2>
-                <p class="text-lg md:text-xl mb-8 opacity-80">Join thousands of professionals who trust Jinaq to
-                    showcase their work</p>
-                <div class="flex justify-center">
-                    <a href="{{ url_for('register') }}"
-                        class="bg-white text-black px-8 py-4 rounded-xl hover:bg-gray-100 transition-colors inline-block">
-                        Get Started for Free
-                    </a>
+                <!-- Who Uses Section -->
+                <div class="bg-white rounded-2xl p-8 md:p-12 animate-fade-up">
+                    <h2 class="text-3xl font-bold text-center mb-10">Who Uses Jinaq?</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        {% set user_types = [
+                        {
+                        'title': 'Professionals',
+                        'description': 'Showcase work experience and achievements to employers.',
+                        'icon': 'M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2
+                        0
+                        00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z'
+                        },
+                        {
+                        'title': 'Creatives',
+                        'description': 'Display artistic portfolio and design work.',
+                        'icon': 'M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20
+                        14m-6-6h.01M6
+                        20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z'
+                        },
+                        {
+                        'title': 'Students',
+                        'description': 'Organize academic achievements and activities.',
+                        'icon': 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754
+                        18
+                        7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5
+                        1.253v13C19.832
+                        18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253'
+                        }
+                        ] %}
+
+                        {% for user in user_types %}
+                        <div
+                            class="bg-gray-50 rounded-2xl p-6 hover:bg-gray-100 transition-all duration-500 transform hover:-translate-y-2 animate-fade-up delay-{{ loop.index * 200 }}">
+                            <div class="mb-4 bg-white rounded-full w-12 h-12 flex items-center justify-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-700" fill="none"
+                                    viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                        d="{{ user.icon }}" />
+                                </svg>
+                            </div>
+                            <h3 class="text-xl font-semibold mb-3">{{ user.title }}</h3>
+                            <p class="text-gray-600">{{ user.description }}</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- CTA Section -->
+                <div
+                    class="bg-black text-white rounded-2xl p-12 text-center transform hover:scale-[1.01] transition-all duration-500 animate-fade-up">
+                    <h2 class="text-3xl md:text-4xl font-bold mb-6">Ready to Create Your Professional Portfolio?</h2>
+                    <p class="text-lg md:text-xl mb-8 opacity-80">Join thousands of professionals who trust Jinaq to
+                        showcase their work</p>
+                    <div class="flex justify-center">
+                        <a href="{{ url_for('register') }}"
+                            class="bg-white text-black px-8 py-4 rounded-xl hover:bg-gray-100 transition-all duration-300 transform hover:scale-105 inline-block">
+                            Get Started for Free
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-</div>
 
-<style>
-    .btn-primary {
-        @apply inline-block bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold py-4 px-8 rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-lg;
-    }
-
-    .btn-secondary {
-        @apply inline-block bg-white text-gray-700 font-semibold py-4 px-8 rounded-xl border-2 border-gray-200 transition-all duration-300 transform hover:scale-105 hover:shadow-lg hover:border-gray-300;
-    }
-
-    @keyframes fadeIn {
-        from {
-            opacity: 0;
-            transform: translateY(20px);
-        }
-
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
-
-    @keyframes slideUp {
-        from {
-            opacity: 0;
-            transform: translateY(40px);
-        }
-
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
-
-    @keyframes popIn {
-        from {
-            opacity: 0;
-            transform: scale(0.8);
-        }
-
-        to {
-            opacity: 1;
-            transform: scale(1);
-        }
-    }
-
-    @keyframes fadeInDelayed {
-        0% {
-            opacity: 0;
-            transform: translateY(20px);
-        }
-
-        50% {
-            opacity: 0;
-            transform: translateY(20px);
-        }
-
-        100% {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
-
-    .animate-fade-in {
-        animation: fadeIn 1s ease-out;
-    }
-
-    .animate-slide-up {
-        animation: slideUp 1s ease-out 0.3s;
-        opacity: 0;
-        animation-fill-mode: forwards;
-    }
-
-    .animate-pop-in {
-        animation: popIn 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) 0.6s;
-        opacity: 0;
-        animation-fill-mode: forwards;
-    }
-
-    .animate-fade-in-delayed {
-        animation: fadeInDelayed 2s ease-out;
-        opacity: 0;
-        animation-fill-mode: forwards;
-    }
-
-    /* Gradient text animation */
-    @keyframes gradientFlow {
-        0% {
-            background-position: 0% 50%;
-        }
-
-        50% {
-            background-position: 100% 50%;
-        }
-
-        100% {
-            background-position: 0% 50%;
-        }
-    }
-
-    .bg-gradient-to-r {
-        background-size: 200% auto;
-        animation: gradientFlow 8s ease infinite;
-    }
-
-    /* Hover effects */
-    .group:hover .group-hover\:scale-110 {
-        transform: scale(1.1);
-    }
-
-    .group:hover .group-hover\:text-purple-600 {
-        color: #7C3AED;
-    }
-
-
-    /* Responsive adjustments */
-    @media (max-width: 768px) {
-        .container {
-            padding-left: 1rem;
-            padding-right: 1rem;
-        }
-
-        h1 {
-            font-size: 2.5rem;
-        }
-
-        .text-2xl {
-            font-size: 1.25rem;
-        }
-
-        .p-12 {
-            padding: 2rem;
-        }
-
-        .gap-8 {
-            gap: 1.5rem;
-        }
-
-        .mb-16 {
-            margin-bottom: 2rem;
-        }
-    }
-
-    /* Loading animation for images and content */
-    .loading {
-        position: relative;
-        overflow: hidden;
-    }
-
-    .loading::after {
-        content: "";
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(90deg,
-                rgba(255, 255, 255, 0) 0%,
-                rgba(255, 255, 255, 0.4) 50%,
-                rgba(255, 255, 255, 0) 100%);
-        animation: shimmer 1.5s infinite;
-    }
-
-    @keyframes shimmer {
-        0% {
-            transform: translateX(-100%);
-        }
-
-        100% {
-            transform: translateX(100%);
-        }
-    }
-
-    /* Focus styles for accessibility */
-    a:focus,
-    button:focus {
-        outline: none;
-        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5);
-        border-radius: 0.5rem;
-    }
-
-    /* Print styles */
-    @media print {
-
-        .animate-fade-in,
-        .animate-slide-up,
-        .animate-pop-in,
-        .animate-fade-in-delayed {
-            animation: none !important;
-            opacity: 1 !important;
-        }
-
-        .shadow-lg,
-        .shadow-xl {
-            box-shadow: none !important;
-        }
-
-        .text-transparent {
-            -webkit-text-fill-color: initial;
-        }
-
-        .bg-gradient-to-r {
-            background: none !important;
-            color: #1a1a1a !important;
-        }
-    }
-</style>
-
-<!-- Add this before the closing body tag -->
-<script>
-    // Intersection Observer for lazy loading animations
-    const observerOptions = {
-        root: null,
-        rootMargin: '0px',
-        threshold: 0.1
-    };
-
-    const observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                entry.target.classList.add('animate-fade-in');
-                observer.unobserve(entry.target);
+    <style>
+        /* Animation Keyframes */
+        @keyframes fadeIn {
+            0% {
+                opacity: 0;
             }
-        });
-    }, observerOptions);
 
-    // Observe all sections that should animate on scroll
-    document.querySelectorAll('.bg-white').forEach(element => {
-        observer.observe(element);
-    });
+            100% {
+                opacity: 1;
+            }
+        }
 
-    // Smooth scroll for anchor links
-    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-        anchor.addEventListener('click', function (e) {
-            e.preventDefault();
-            document.querySelector(this.getAttribute('href')).scrollIntoView({
-                behavior: 'smooth'
+        @keyframes fadeUp {
+            0% {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes title {
+            0% {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes float {
+            0% {
+                transform: translateY(0px);
+            }
+
+            50% {
+                transform: translateY(-20px);
+            }
+
+            100% {
+                transform: translateY(0px);
+            }
+        }
+
+        @keyframes gradient {
+            0% {
+                background-position: 0% 50%;
+            }
+
+            50% {
+                background-position: 100% 50%;
+            }
+
+            100% {
+                background-position: 0% 50%;
+            }
+        }
+
+        /* Animation Classes */
+        .animate-gradient {
+            background-size: 200% 200%;
+            animation: gradient 15s ease infinite;
+        }
+
+        .animate-fade-in {
+            animation: fadeIn 1s ease-out forwards;
+        }
+
+        .animate-fade-up {
+            opacity: 0;
+            animation: fadeUp 1s ease-out forwards;
+        }
+
+        .animate-title {
+            opacity: 0;
+            animation: title 1.2s cubic-bezier(0.215, 0.610, 0.355, 1) forwards;
+        }
+
+        @keyframes title {
+            0% {
+                opacity: 0;
+                transform: translateY(-20px) scale(0.95);
+                filter: blur(8px);
+            }
+
+            50% {
+                opacity: 0.5;
+                transform: translateY(-10px) scale(0.97);
+                filter: blur(4px);
+            }
+
+            100% {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+                filter: blur(0);
+            }
+        }
+
+        .animate-title {
+            opacity: 0;
+            animation: title 1.2s cubic-bezier(0.215, 0.610, 0.355, 1) forwards;
+        }
+
+        /* Добавим задержки для каждого заголовка, если их несколько */
+        .animate-title-delay-1 {
+            animation-delay: 200ms;
+        }
+
+        .animate-title-delay-2 {
+            animation-delay: 400ms;
+        }
+
+        .animate-title-delay-3 {
+            animation-delay: 600ms;
+        }
+
+        .animate-float {
+            animation: float 6s ease-in-out infinite;
+        }
+
+        .animate-float-delay {
+            animation: float 6s ease-in-out infinite;
+            animation-delay: 2s;
+        }
+
+        .delay-200 {
+            animation-delay: 200ms;
+        }
+
+        .delay-400 {
+            animation-delay: 400ms;
+        }
+
+        .delay-600 {
+            animation-delay: 600ms;
+        }
+
+        /* Enhanced Hover Effects */
+        .hover\:scale-105:hover {
+            transform: scale(1.05);
+        }
+
+        /* Card and Button Styles */
+        .btn-primary {
+            @apply inline-block bg-black text-white font-semibold py-4 px-8 rounded-xl transition-all duration-300;
+        }
+
+        .btn-secondary {
+            @apply inline-block bg-white text-gray-700 font-semibold py-4 px-8 rounded-xl border-2 border-gray-200 transition-all duration-300;
+        }
+
+        /* Responsive Design Adjustments */
+        @media (max-width: 768px) {
+            .container {
+                padding-left: 1rem;
+                padding-right: 1rem;
+            }
+
+            h1 {
+                font-size: 2.5rem;
+                line-height: 1.2;
+            }
+
+            .text-2xl {
+                font-size: 1.25rem;
+            }
+
+            .p-12 {
+                padding: 2rem;
+            }
+
+            .gap-8 {
+                gap: 1.5rem;
+            }
+
+            .mb-16 {
+                margin-bottom: 2rem;
+            }
+
+            .rounded-3xl {
+                border-radius: 1.5rem;
+            }
+        }
+
+        /* Loading States */
+        .loading {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .loading::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg,
+                    rgba(255, 255, 255, 0) 0%,
+                    rgba(255, 255, 255, 0.4) 50%,
+                    rgba(255, 255, 255, 0) 100%);
+            animation: shimmer 1.5s infinite;
+        }
+
+        @keyframes shimmer {
+            0% {
+                transform: translateX(-100%);
+            }
+
+            100% {
+                transform: translateX(100%);
+            }
+        }
+
+        /* Focus Styles */
+        a:focus,
+        button:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1);
+            border-radius: 0.5rem;
+        }
+
+        /* Print Styles */
+        @media print {
+
+            .animate-gradient,
+            .animate-fade-in,
+            .animate-fade-up,
+            .animate-title,
+            .animate-float,
+            .animate-float-delay {
+                animation: none !important;
+                opacity: 1 !important;
+            }
+
+            .shadow-lg,
+            .shadow-xl {
+                box-shadow: none !important;
+            }
+        }
+
+        /* Анимация плавающих кругов */
+        @keyframes blob {
+            0% {
+                transform: translate(0px, 0px) scale(1);
+            }
+
+            33% {
+                transform: translate(30px, -50px) scale(1.1);
+            }
+
+            66% {
+                transform: translate(-20px, 20px) scale(0.9);
+            }
+
+            100% {
+                transform: translate(0px, 0px) scale(1);
+            }
+        }
+
+        .animate-blob {
+            animation: blob 7s infinite;
+        }
+
+        .animation-delay-2000 {
+            animation-delay: 2s;
+        }
+
+        .animation-delay-4000 {
+            animation-delay: 4s;
+        }
+
+        /* Анимация частиц */
+        .particle {
+            width: 4px;
+            height: 4px;
+            opacity: 0.3;
+            animation: float-particle 20s infinite linear;
+        }
+
+        @keyframes float-particle {
+            0% {
+                transform: translateY(100vh) translateX(0);
+            }
+
+            100% {
+                transform: translateY(-100px) translateX(100px);
+            }
+        }
+
+
+
+        /* Градиентные линии */
+        .gradient-lines {
+            position: absolute;
+            width: 200%;
+            height: 200%;
+            background: repeating-linear-gradient(45deg,
+                    transparent,
+                    transparent 100px,
+                    rgba(128, 128, 128, 0.03) 100px,
+                    rgba(128, 128, 128, 0.03) 200px);
+            animation: move-lines 20s linear infinite;
+        }
+
+        @keyframes move-lines {
+            0% {
+                transform: translate(-50%, -50%) rotate(0deg);
+            }
+
+            100% {
+                transform: translate(-50%, -50%) rotate(360deg);
+            }
+        }
+
+        /* Эффект ряби */
+        .ripple {
+            position: absolute;
+            border: 2px solid rgba(128, 128, 128, 0.1);
+            border-radius: 50%;
+            animation: ripple 4s ease-out infinite;
+            pointer-events: none;
+        }
+
+        @keyframes ripple {
+            0% {
+                width: 0;
+                height: 0;
+                opacity: 0.5;
+            }
+
+            100% {
+                width: 500px;
+                height: 500px;
+                opacity: 0;
+            }
+        }
+
+        /* Дополнительные эффекты для контента */
+        .content-section {
+            backdrop-filter: blur(10px);
+            background: rgba(255, 255, 255, 0.8);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .content-section:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Анимация градиентной подсветки */
+        @keyframes gradient-shine {
+            0% {
+                background-position: 0% 50%;
+            }
+
+            50% {
+                background-position: 100% 50%;
+            }
+
+            100% {
+                background-position: 0% 50%;
+            }
+        }
+
+        .gradient-shine {
+            background: linear-gradient(120deg,
+                    transparent 0%,
+                    transparent 45%,
+                    rgba(128, 128, 128, 0.1) 50%,
+                    transparent 55%,
+                    transparent 100%);
+            background-size: 200% 100%;
+            animation: gradient-shine 3s infinite;
+        }
+
+        /* Улучшенная анимация для карточек */
+        .card-hover-effect {
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .card-hover-effect:hover {
+            transform: translateY(-10px) scale(1.02);
+            box-shadow:
+                0 20px 40px rgba(0, 0, 0, 0.1),
+                0 0 0 1px rgba(0, 0, 0, 0.05);
+        }
+
+        /* Анимированный бордер */
+        @keyframes border-pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(128, 128, 128, 0.2);
+            }
+
+            70% {
+                box-shadow: 0 0 0 10px rgba(128, 128, 128, 0);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(128, 128, 128, 0);
+            }
+        }
+
+        .animate-border {
+            animation: border-pulse 2s infinite;
+        }
+    </style>
+
+    <script>
+        // Intersection Observer for scroll animations
+        document.addEventListener('DOMContentLoaded', function () {
+            const observerOptions = {
+                root: null,
+                rootMargin: '0px',
+                threshold: 0.1
+            };
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.style.opacity = '1';
+                        entry.target.style.transform = 'translateY(0)';
+                        observer.unobserve(entry.target);
+                    }
+                });
+            }, observerOptions);
+
+            // Observe all animated elements
+            document.querySelectorAll('.animate-fade-up').forEach(element => {
+                element.style.opacity = '0';
+                element.style.transform = 'translateY(20px)';
+                observer.observe(element);
+            });
+
+            // Smooth scroll for anchor links
+            document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+                anchor.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    const target = document.querySelector(this.getAttribute('href'));
+                    if (target) {
+                        target.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'start'
+                        });
+                    }
+                });
+            });
+
+            // Add loading animation to images
+            document.querySelectorAll('img').forEach(img => {
+                if (!img.complete) {
+                    img.classList.add('loading');
+                    img.addEventListener('load', () => {
+                        img.classList.remove('loading');
+                    });
+                }
+            });
+
+            // Enhanced hover effects for cards
+            document.querySelectorAll('.bg-white').forEach(card => {
+                card.addEventListener('mouseenter', function () {
+                    this.style.transform = 'translateY(-8px)';
+                    this.style.boxShadow = '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)';
+                });
+
+                card.addEventListener('mouseleave', function () {
+                    this.style.transform = 'translateY(0)';
+                    this.style.boxShadow = '';
+                });
             });
         });
-    });
-</script>
-{% endblock %}
+
+        // Disable animations if user prefers reduced motion
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            document.querySelectorAll('*').forEach(element => {
+                element.style.animation = 'none !important';
+                element.style.transition = 'none !important';
+            });
+        }
+        /* Генерация частиц с разными позициями и задержками */
+
+        document.addEventListener('DOMContentLoaded', function () {
+            // Создание эффекта ряби при клике
+            document.addEventListener('click', function (e) {
+                const ripple = document.createElement('div');
+                ripple.classList.add('ripple');
+                ripple.style.left = e.pageX - 250 + 'px';
+                ripple.style.top = e.pageY - 250 + 'px';
+                document.querySelector('.ripple-container').appendChild(ripple);
+
+                // Удаление элемента после завершения анимации
+                setTimeout(() => {
+                    ripple.remove();
+                }, 4000);
+            });
+
+            // Параллакс эффект для фоновых элементов
+            document.addEventListener('mousemove', function (e) {
+                const moveX = (e.clientX - window.innerWidth / 2) * 0.01;
+                const moveY = (e.clientY - window.innerHeight / 2) * 0.01;
+
+                document.querySelectorAll('.particle').forEach(particle => {
+                    const speed = parseFloat(particle.getAttribute('data-speed') || Math.random());
+                    particle.style.transform = `translate(${moveX * speed}px, ${moveY * speed}px)`;
+                });
+            });
+
+            // Динамическое создание частиц
+            function createParticles() {
+                const container = document.querySelector('.particle-container');
+                for (let i = 0; i < 20; i++) {
+                    const particle = document.createElement('div');
+                    particle.classList.add('particle');
+                    particle.style.left = Math.random() * 100 + '%';
+                    particle.style.top = Math.random() * 100 + '%';
+                    particle.setAttribute('data-speed', Math.random() * 2 + 0.5);
+                    container.appendChild(particle);
+                }
+            }
+
+            createParticles();
+        });
+    </script>
+    {% endblock %}

@@ -85,7 +85,7 @@
         x-transition:leave-end="opacity-0 translate-x-full" class="mobile-nav-menu">
         <div class="p-6 space-y-4">
             <div class="border-b pb-4 mb-4 flex justify-between items-center">
-                <span class="text-xl font-bold">JINAQ Menu</span>
+                <span class="text-xl font-bold"><img src="/static/jinaq_logo.svg" alt="Logo" class="h-8 w-auto"></span>
                 <button @click="toggleMobileMenu()" class="text-gray-600 hover:text-black">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -101,7 +101,9 @@
                         class="w-full h-full object-cover" alt="Profile" />
                 </div>
                 <div>
-                    <div class="font-semibold">{{ user_data.username if user_data else 'User' }}</div>
+                    <div class="font-semibold">{{ current_username if current_username else user_data.display_username
+                        if
+                        user_data else 'User' }}</div>
                     <div class="text-sm text-gray-500">Welcome back</div>
                 </div>
             </div>
@@ -133,8 +135,7 @@
             <div class="hidden md:flex justify-between items-center">
                 <a href="{{ url_for('index') }}" class="flex items-center space-x-2 nav-hover">
                     {% if config.get('LOGO_SVG_PATH') %}
-                    <img src="{{ url_for('static', filename=config.get('LOGO_SVG_PATH')) }}" alt="Logo"
-                        class="h-12 w-auto">
+                    <img src="/static/jinaq_logo.svg" alt="Logo" class="h-12 w-auto">
                     {% else %}
                     <span class="text-2xl font-bold text-black">JINAQ</span>
                     {% endif %}
@@ -190,7 +191,8 @@
 
             <!-- Mobile Navigation -->
             <div class="md:hidden flex justify-between items-center py-2">
-                <a href="{{ url_for('index') }}" class="text-xl font-bold">JINAQ</a>
+                <a href="{{ url_for('index') }}" class="text-xl font-bold"><img src="/static/jinaq_logo.svg" alt="Logo"
+                        class="h-8 w-auto"></a>
 
                 <button @click="toggleMobileMenu()"
                     class="hamburger-btn z-50 p-2 rounded-md hover:bg-gray-100 transition-colors">

@@ -13,6 +13,15 @@
 
                         <div class="text-center md:text-left">
                             <div class="flex items-center justify-center md:justify-start gap-4">
+                                {% if user_data.verified %}
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-500 mr-2"
+                                    viewBox="0 0 20 20" fill="currentColor"
+                                    title="{{ 'Официально подтвержденный аккаунт' if user_data.verification_type == 'official' else 'Верифицированный аккаунт' }}">
+                                    <path fill-rule="evenodd"
+                                        d="M6.267 3.455a3.066 3.066 0 001.562-.863 3.066 3.066 0 014.342 0 3.066 3.066 0 001.562.863 3.066 3.066 0 012.837 2.837c.146.577.354 1.122.611 1.620a3.066 3.066 0 010 2.717 3.066 3.066 0 00-.611 1.619 3.066 3.066 0 01-2.837 2.837 3.066 3.066 0 00-1.562.863 3.066 3.066 0 01-4.342 0 3.066 3.066 0 00-1.562-.863 3.066 3.066 0 01-2.837-2.837 3.066 3.066 0 00-.611-1.62 3.066 3.066 0 010-2.716 3.066 3.066 0 00.611-1.619 3.066 3.066 0 012.837-2.837z"
+                                        clip-rule="evenodd" />
+                                </svg>
+                                {% endif %}
                                 <h1 class="text-2xl font-bold">
                                     {{ user_data.full_name if user_data else 'User' }}
                                 </h1>
@@ -27,7 +36,6 @@
                                 </button>
                             </div>
                             <p class="text-gray-600 mt-1">@{{ user_data.username if user_data else '' }}</p>
-
                         </div>
 
                         <div class="flex justify-center gap-2 mt-4">
