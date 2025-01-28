@@ -1,9 +1,9 @@
-<!-- templates/login.html -->
 {% extends "base.html" %}
 {% block content %}
-<div
-    class="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-gray-50 to-gray-100">
+<div class="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-gray-50 to-gray-100"
+    x-data="loginForm()">
     <div class="max-w-md w-full">
+        <!-- Login Card -->
         <div class="bg-white border border-gray-100 rounded-3xl shadow-2xl overflow-hidden">
             <div class="p-10 space-y-8">
                 <div class="text-center">
@@ -17,8 +17,9 @@
                     </p>
                 </div>
 
-                <form class="space-y-6" method="POST" x-data="loginForm()">
+                <form class="space-y-6" method="POST">
                     <div class="space-y-4">
+                        <!-- Email Input -->
                         <div>
                             <label for="email" class="label">
                                 <span class="label-text font-medium">Email address</span>
@@ -37,6 +38,7 @@
                             </div>
                         </div>
 
+                        <!-- Password Input -->
                         <div>
                             <label for="password" class="label">
                                 <span class="label-text font-medium">Password</span>
@@ -86,9 +88,55 @@
         </div>
 
         <div class="mt-6 text-center">
-            <a href="#" class="text-sm text-gray-600 hover:text-black transition-colors">
+            <a href="#" @click.prevent="showResetModal = true"
+                class="text-sm text-gray-600 hover:text-black transition-colors">
                 Forgot your password?
             </a>
+        </div>
+    </div>
+
+    <!-- Reset Password Modal -->
+    <div x-show="showResetModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center"
+        x-cloak @keydown.escape.window="closeResetModal()">
+        <div class="bg-white rounded-lg p-8 max-w-md w-full mx-4" @click.away="closeResetModal()">
+            <h3 class="text-2xl font-bold mb-4">Reset Password</h3>
+            <p class="text-gray-600 mb-6">Enter your email address and we'll send you instructions to reset your
+                password.</p>
+
+            <form @submit.prevent="submitResetPassword">
+                <div class="mb-6">
+                    <label for="reset-email" class="label">
+                        <span class="label-text font-medium">Email address</span>
+                    </label>
+                    <input id="reset-email" type="email" x-model="resetEmail"
+                        class="input input-bordered bg-gray-50 w-full" required>
+                </div>
+
+                <div class="flex justify-end space-x-4">
+                    <button type="button" @click="closeResetModal" class="btn btn-ghost">
+                        Cancel
+                    </button>
+                    <button type="submit" class="btn bg-black text-white hover:bg-gray-800" :disabled="isResetting">
+                        <span x-show="!isResetting">Send Instructions</span>
+                        <span x-show="isResetting">Sending...</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Message Modal -->
+    <div x-show="showMessage" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center" x-cloak
+        @keydown.escape.window="showMessage = false">
+        <div class="bg-white text-black rounded-lg p-6 max-w-md w-full mx-4 border border-white"
+            @click.away="showMessage = false">
+            <p class="text-lg mb-6" x-text="message"></p>
+            <div class="flex justify-end">
+                <button @click="showMessage = false"
+                    class="px-4 py-2 rounded bg-black hover:bg-black text-white transition-colors">
+                    OK
+                </button>
+            </div>
         </div>
     </div>
 </div>
@@ -99,7 +147,55 @@
         return {
             email: '',
             password: '',
-            showPassword: false
+            showPassword: false,
+            showResetModal: false,
+            resetEmail: '',
+            isResetting: false,
+            showMessage: false,
+            message: '',
+
+            showMessageModal(text) {
+                this.message = text;
+                this.showMessage = true;
+            },
+
+            closeResetModal() {
+                this.showResetModal = false;
+                this.resetEmail = '';
+                this.isResetting = false;
+            },
+
+            async submitResetPassword() {
+                if (!this.resetEmail) {
+                    this.showMessageModal('Please enter your email address');
+                    return;
+                }
+
+                this.isResetting = true;
+
+                try {
+                    const response = await fetch('/reset-password', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ email: this.resetEmail })
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        this.closeResetModal();
+                        this.showMessageModal(data.message);
+                    } else {
+                        this.showMessageModal(data.error || 'An error occurred');
+                    }
+                } catch (error) {
+                    this.showMessageModal('An error occurred. Please try again.');
+                } finally {
+                    this.isResetting = false;
+                }
+            }
         }
     }
 </script>

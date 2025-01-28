@@ -75,7 +75,6 @@
                             </a>
                             {% endif %}
                         </div>
-
                         <div class="flex flex-wrap justify-center gap-4 mt-8 animate-fade-up delay-400">
                             <div
                                 class="bg-gray-50 px-4 py-3 rounded-full flex items-center gap-2 hover:bg-gray-100 transition-all duration-300 transform hover:scale-105">
@@ -702,7 +701,6 @@
             });
         }
         /* Генерация частиц с разными позициями и задержками */
-
         document.addEventListener('DOMContentLoaded', function () {
             // Создание эффекта ряби при клике
             document.addEventListener('click', function (e) {
@@ -744,5 +742,22 @@
 
             createParticles();
         });
+        fetch(`/search_users?query=${query}`)
+            .then(response => {
+                // Проверяем, что ответ в формате JSON
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(users => {
+                // Остальной код без изменений
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                // Показываем пользователю сообщение об ошибке
+                searchResults.innerHTML = '<div class="p-4 text-red-500">Ошибка поиска</div>';
+                searchResults.classList.remove('hidden');
+            });
     </script>
     {% endblock %}

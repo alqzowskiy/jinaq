@@ -93,9 +93,47 @@ def update_academic_portfolio():
 def settings():
     user_id = session['user_id']
     user_doc = db.collection('users').document(user_id).get()
+    user_data = user_doc.to_dict() if user_doc.exists else {}
     
-    return render_template('settings.html', user_data=user_doc.to_dict())
-
+    # Получаем аватар текущего пользователя
+    current_user_avatar = get_current_user_avatar()
+    current_username = get_current_username()
+    
+    return render_template(
+        'settings.html',
+        user_data=user_data,
+        current_user_avatar=current_user_avatar,
+        current_username=current_username,
+        avatar_url=generate_avatar_url(user_data)
+    )
+@app.route('/update-email', methods=['POST'])
+@login_required
+def update_email():
+    user_id = session['user_id']
+    current_password = request.json.get('currentPassword')
+    new_email = request.json.get('newEmail')
+    
+    try:
+        # Get user's current email from Firestore
+        user_doc = db.collection('users').document(user_id).get()
+        user_data = user_doc.to_dict()
+        current_email = user_data['email']
+        
+        # Update email in Firebase Auth
+        user = auth.update_user(
+            user_id,
+            email=new_email
+        )
+        
+        # Update email in Firestore
+        db.collection('users').document(user_id).update({
+            'email': new_email,
+            'updated_at': datetime.datetime.now(tz=datetime.timezone.utc)
+        })
+        
+        return jsonify({'success': True, 'message': 'Email updated successfully'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 @app.route('/')
 def index():
     current_username = get_current_username()
@@ -654,6 +692,167 @@ def admin_login():
         else:
             flash('Incorrect admin password', 'error')
     return render_template('admin_login.html')
+
+
+@app.route('/update-username', methods=['POST'])
+@login_required
+def update_username():
+    user_id = session['user_id']
+    new_username = request.json.get('username').lower()
+    display_username = request.json.get('username')  # Original case for display
+    
+    try:
+        # Check if username is taken
+        users_ref = db.collection('users')
+        username_query = users_ref.where('username', '==', new_username).get()
+        if len(list(username_query)) > 0:
+            return jsonify({'error': 'Username already taken'}), 400
+            
+        # Update username in Firestore
+        user_ref = db.collection('users').document(user_id)
+        user_ref.update({
+            'username': new_username,
+            'display_username': display_username,
+            'updated_at': datetime.datetime.now(tz=datetime.timezone.utc)
+        })
+        
+        # Update session
+        session['username'] = display_username
+        
+        return jsonify({'success': True, 'message': 'Username updated successfully'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/update-password', methods=['POST'])
+@login_required
+def update_password():
+    user_id = session['user_id']
+    current_password = request.json.get('current_password')
+    new_password = request.json.get('new_password')
+    
+    try:
+        # Get user's email from Firestore
+        user_doc = db.collection('users').document(user_id).get()
+        user_data = user_doc.to_dict()
+        
+        # Verify current password through Firebase Auth
+        user = auth.get_user_by_email(user_data['email'])
+        
+        # Update password in Firebase Auth
+        auth.update_user(
+            user_id,
+            password=new_password
+        )
+        
+        return jsonify({'success': True, 'message': 'Password updated successfully'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/delete-account', methods=['POST'])
+@login_required
+def delete_account():
+    user_id = session['user_id']
+    password = request.json.get('password')
+    
+    try:
+        # Get user's email from Firestore
+        user_doc = db.collection('users').document(user_id).get()
+        user_data = user_doc.to_dict()
+        
+        # Verify password through Firebase Auth
+        user = auth.get_user_by_email(user_data['email'])
+        
+        # Delete user's data from Firestore
+        # First, delete subcollections
+        certificates_ref = db.collection('users').document(user_id).collection('certificates')
+        comments_ref = db.collection('users').document(user_id).collection('comments')
+        
+        # Delete certificates
+        certs = certificates_ref.stream()
+        for cert in certs:
+            cert.reference.delete()
+            
+        # Delete comments
+        comments = comments_ref.stream()
+        for comment in comments:
+            comment.reference.delete()
+            
+        # Delete main user document
+        db.collection('users').document(user_id).delete()
+        
+        # Delete user from Firebase Auth
+        auth.delete_user(user_id)
+        
+        # Clear session
+        session.clear()
+        
+        return jsonify({'success': True, 'message': 'Account deleted successfully'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/reset-password', methods=['POST'])
+def reset_password():
+    email = request.json.get('email')
+    
+    try:
+        # Проверяем существует ли пользователь с таким email
+        user = auth.get_user_by_email(email)
+        
+        # Генерируем ссылку для сброса пароля
+        action_code_settings = auth.ActionCodeSettings(
+            url=f"{request.host_url}login",  # URL куда пользователь вернется после сброса пароля
+            handle_code_in_app=False
+        )
+        
+        # Отправляем email для сброса пароля
+        reset_link = auth.generate_password_reset_link(
+            email, 
+            action_code_settings
+        )
+        
+        return jsonify({
+            'success': True,
+            'message': 'Password reset instructions have been sent to your email'
+        })
+        
+    except auth.UserNotFoundError:
+        # Не сообщаем пользователю что email не найден (безопасность)
+        return jsonify({
+            'success': True,
+            'message': 'If an account exists with this email, you will receive password reset instructions'
+        })
+        
+    except Exception as e:
+        print(f"Error in reset_password: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'An error occurred. Please try again later.'
+        }), 500
+
+@app.route('/search_users')
+def search_users():
+    query = request.args.get('query', '').lower()
+    
+    try:
+        users_ref = db.collection('users')
+        query_result = users_ref.where('username', '>=', query).where('username', '<', query + '\uf8ff').limit(10).stream()
+        
+        users = []
+        for user_doc in query_result:
+            user_data = user_doc.to_dict()
+            # Проверяем, что данные есть
+            if user_data and 'display_username' in user_data:
+                users.append({
+                    'username': user_data['display_username'],
+                    'avatar': generate_avatar_url(user_data),
+                    'verified': user_data.get('verified', False),
+                    'verification_type': user_data.get('verification_type', None)
+                })
+        
+        return jsonify(users)
+    except Exception as e:
+        print(f"Search error: {e}")
+        return jsonify([]), 500
 
 # Маршрут для верификации пользователей
 # Маршрут для верификации пользователей

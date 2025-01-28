@@ -1,55 +1,357 @@
-<!-- templates/settings.html -->
 {% extends "base.html" %}
 
 {% block content %}
-<div class="max-w-4xl mx-auto">
-    <div class="card bg-base-100 shadow-xl">
-        <div class="card-body">
-            <h2 class="card-title text-2xl mb-4">Account Settings</h2>
+<div class="container mx-auto px-4 py-8" x-data="settingsPage()">
+    <div class="max-w-2xl mx-auto">
+        <!-- Header with Avatar -->
+        <div class="bg-white rounded-xl border border-gray-200 overflow-hidden mb-8">
+            <div class="p-6">
+                <div class="flex items-center space-x-4">
+                    <div class="relative">
+                        <div class="w-24 h-24 rounded-full overflow-hidden ring-4 ring-gray-50">
+                            <img src="{{ user_data.get('avatar_url', url_for('static', filename='default-avatar.png')) }}"
+                                class="w-full h-full object-cover" alt="Profile Avatar">
+                        </div>
+                    </div>
+                    <div>
+                        <h2 class="text-xl font-semibold">{{ user_data.get('display_username', '') }}</h2>
+                        <p class="text-gray-500">{{ user_data.get('email', '') }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-            <form method="POST" class="space-y-6">
-                <div class="form-control">
-                    <label class="label">
-                        <span class="label-text">Email</span>
-                    </label>
-                    <input type="email" value="{{ user_data.email }}" class="input input-bordered" disabled>
+        <!-- Header -->
+        <div class="mb-8">
+            <h1 class="text-3xl font-bold mb-2">Account Settings</h1>
+            <p class="text-gray-600">Manage your account preferences</p>
+        </div>
+
+        <!-- Settings Card -->
+        <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <div class="p-6 space-y-6">
+                <!-- Username Change -->
+                <div class="pb-6 border-b border-gray-200">
+                    <h3 class="text-lg font-medium mb-4">Change Username</h3>
+                    <form @submit.prevent="updateUsername" class="flex flex-col sm:flex-row gap-4">
+                        <input type="text" x-model="newUsername" class="input input-bordered flex-1"
+                            placeholder="New username">
+                        <button type="submit" class="btn bg-black hover:bg-gray-800 text-white">
+                            Update Username
+                        </button>
+                    </form>
                 </div>
 
-                <div class="form-control">
-                    <label class="label">
-                        <span class="label-text">Username</span>
-                    </label>
-                    <input type="text" value="{{ user_data.username }}" class="input input-bordered" disabled>
+                <!-- Email Change -->
+                <div class="pb-6 border-b border-gray-200">
+
+                    <h3 class="text-lg font-medium mb-4">Change Email</h3>
+                    <form @submit.prevent="updateEmail" class="space-y-4">
+
+                        <input type="email" x-model="emailData.currentPassword" class="input input-bordered w-full"
+                            placeholder="Current Email">
+                        <input type="email" x-model="emailData.newEmail" class="input input-bordered w-full"
+                            placeholder="New email address">
+                        <button type="submit" class="btn bg-black hover:bg-gray-800 text-white w-full">
+                            Update Email
+                        </button>
+                    </form>
                 </div>
 
-                <div class="divider">Change Password</div>
-
-                <div class="form-control">
-                    <label class="label">
-                        <span class="label-text">Current Password</span>
-                    </label>
-                    <input type="password" name="current_password" class="input input-bordered">
+                <!-- Password Change -->
+                <div class="pb-6 border-b border-gray-200">
+                    <h3 class="text-lg font-medium mb-4">Change Password</h3>
+                    <form @submit.prevent="updatePassword" class="space-y-4">
+                        <input type="password" x-model="passwordData.currentPassword"
+                            class="input input-bordered w-full" placeholder="Current password">
+                        <input type="password" x-model="passwordData.newPassword" class="input input-bordered w-full"
+                            placeholder="New password">
+                        <input type="password" x-model="passwordData.confirmPassword"
+                            class="input input-bordered w-full" placeholder="Confirm new password">
+                        <button type="submit" class="btn bg-black hover:bg-gray-800 text-white w-full">
+                            Update Password
+                        </button>
+                    </form>
                 </div>
 
-                <div class="form-control">
-                    <label class="label">
-                        <span class="label-text">New Password</span>
-                    </label>
-                    <input type="password" name="new_password" class="input input-bordered">
+                <!-- Delete Account -->
+                <div>
+                    <h3 class="text-lg font-medium mb-2">Delete Account</h3>
+                    <p class="text-gray-600 mb-4">Once you delete your account, there is no going back. Please be
+                        certain.</p>
+                    <button @click="confirmDelete" class="btn btn-error text-white hover:bg-red-600">
+                        Delete Account
+                    </button>
                 </div>
-
-                <div class="form-control">
-                    <label class="label">
-                        <span class="label-text">Confirm New Password</span>
-                    </label>
-                    <input type="password" name="confirm_password" class="input input-bordered">
-                </div>
-
-                <div class="form-control mt-6">
-                    <button class="btn btn-primary">Update Settings</button>
-                </div>
-            </form>
+            </div>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+
+    function settingsPage() {
+        return {
+
+            newUsername: '{{ user_data.get('display_username', '') }}',
+            emailData: {
+                currentPassword: '',
+                newEmail: ''
+            },
+            passwordData: {
+                currentPassword: '',
+                newPassword: '',
+                confirmPassword: ''
+            },
+
+            async updateUsername() {
+                try {
+                    const response = await fetch('/update-username', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ username: this.newUsername })
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        alert('Username updated successfully');
+                        window.location.reload();
+                    } else {
+                        alert(data.error);
+                    }
+                } catch (error) {
+                    alert('An error occurred. Please try again.');
+                }
+            },
+            async updateUsername() {
+                showModal('Are you sure you want to change your username?', async (confirmed) => {
+                    if (!confirmed) return;
+
+                    try {
+                        const response = await fetch('/update-username', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ username: this.newUsername })
+                        });
+
+                        const data = await response.json();
+
+                        if (data.success) {
+                            showModal('Username updated successfully', () => {
+                                window.location.reload();
+                            }, { showCancel: false });
+                        } else {
+                            showModal(data.error, null, { showCancel: false });
+                        }
+                    } catch (error) {
+                        showModal('An error occurred. Please try again.', null, { showCancel: false });
+                    }
+                });
+            },
+
+            async updateEmail() {
+                showModal('Are you sure you want to change your email?', async (confirmed) => {
+                    if (!confirmed) return;
+
+                    try {
+                        const response = await fetch('/update-email', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(this.emailData)
+                        });
+
+                        const data = await response.json();
+
+                        if (data.success) {
+                            showModal('Email updated successfully', () => {
+                                window.location.reload();
+                            }, { showCancel: false });
+                        } else {
+                            showModal(data.error, null, { showCancel: false });
+                        }
+                    } catch (error) {
+                        showModal('An error occurred. Please try again.', null, { showCancel: false });
+                    }
+                });
+            },
+
+            async updatePassword() {
+                if (this.passwordData.newPassword !== this.passwordData.confirmPassword) {
+                    showModal('New passwords do not match', null, { showCancel: false });
+                    return;
+                }
+
+                showModal('Are you sure you want to change your password?', async (confirmed) => {
+                    if (!confirmed) return;
+
+                    try {
+                        const response = await fetch('/update-password', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(this.passwordData)
+                        });
+
+                        const data = await response.json();
+
+                        if (data.success) {
+                            showModal('Password updated successfully', () => {
+                                this.passwordData = {
+                                    currentPassword: '',
+                                    newPassword: '',
+                                    confirmPassword: ''
+                                };
+                            }, { showCancel: false });
+                        } else {
+                            showModal(data.error, null, { showCancel: false });
+                        }
+                    } catch (error) {
+                        showModal('An error occurred. Please try again.', null, { showCancel: false });
+                    }
+                });
+            },
+
+            async confirmDelete() {
+                showModal('Are you sure you want to delete your account? This action cannot be undone.', async (confirmed) => {
+                    if (!confirmed) return;
+
+                    showModal('Please enter your password to confirm deletion:', async (confirmed) => {
+                        if (!confirmed) return;
+
+                        const password = document.querySelector('#deleteAccountPassword').value;
+                        if (!password) return;
+
+                        try {
+                            const response = await fetch('/delete-account', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ password })
+                            });
+
+                            const data = await response.json();
+
+                            if (data.success) {
+                                showModal('Account deleted successfully', () => {
+                                    window.location.href = '/';
+                                }, { showCancel: false });
+                            } else {
+                                showModal(data.error, null, { showCancel: false });
+                            }
+                        } catch (error) {
+                            showModal('An error occurred. Please try again.', null, { showCancel: false });
+                        }
+                    }, {
+                        confirmText: 'Confirm',
+                        template: `
+                        <input 
+                            type="password" 
+                            id="deleteAccountPassword"
+                            class="input input-bordered w-full mt-4" 
+                            placeholder="Enter your password"
+                        >
+                    `
+                    });
+                }, {
+                    confirmText: 'Delete',
+                    cancelText: 'Keep Account'
+                });
+            },
+            async updateEmail() {
+                if (!this.emailData.newEmail) {
+                    alert('Please enter a new email address');
+                    return;
+                }
+
+                try {
+                    const response = await fetch('/update-email', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(this.emailData)
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        alert('Email updated successfully');
+                        window.location.reload();
+                    } else {
+                        alert(data.error);
+                    }
+                } catch (error) {
+                    alert('An error occurred. Please try again.');
+                }
+            },
+
+            async updatePassword() {
+                if (this.passwordData.newPassword !== this.passwordData.confirmPassword) {
+                    alert('New passwords do not match');
+                    return;
+                }
+
+                try {
+                    const response = await fetch('/update-password', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(this.passwordData)
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        alert('Password updated successfully');
+                        this.passwordData = {
+                            currentPassword: '',
+                            newPassword: '',
+                            confirmPassword: ''
+                        };
+                    } else {
+                        alert(data.error);
+                    }
+                } catch (error) {
+                    alert('An error occurred. Please try again.');
+                }
+            },
+
+            async confirmDelete() {
+                if (!confirm('Are you sure you want to delete your account? This action cannot be undone.')) {
+                    return;
+                }
+
+                const password = prompt('Please enter your password to confirm deletion:');
+                if (!password) return;
+
+                try {
+                    const response = await fetch('/delete-account', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ password })
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        alert('Account deleted successfully');
+                        window.location.href = '/';
+                    } else {
+                        alert(data.error);
+                    }
+                } catch (error) {
+                    alert('An error occurred. Please try again.');
+                }
+            }
+        }
+    }
+
+</script>
+
 {% endblock %}

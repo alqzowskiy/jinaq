@@ -14,13 +14,16 @@
                         <div class="text-center md:text-left">
                             <div class="flex items-center justify-center md:justify-start gap-4">
                                 {% if user_data.verified %}
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-500 mr-2"
-                                    viewBox="0 0 20 20" fill="currentColor"
-                                    title="{{ 'Официально подтвержденный аккаунт' if user_data.verification_type == 'official' else 'Верифицированный аккаунт' }}">
-                                    <path fill-rule="evenodd"
-                                        d="M6.267 3.455a3.066 3.066 0 001.562-.863 3.066 3.066 0 014.342 0 3.066 3.066 0 001.562.863 3.066 3.066 0 012.837 2.837c.146.577.354 1.122.611 1.620a3.066 3.066 0 010 2.717 3.066 3.066 0 00-.611 1.619 3.066 3.066 0 01-2.837 2.837 3.066 3.066 0 00-1.562.863 3.066 3.066 0 01-4.342 0 3.066 3.066 0 00-1.562-.863 3.066 3.066 0 01-2.837-2.837 3.066 3.066 0 00-.611-1.62 3.066 3.066 0 010-2.716 3.066 3.066 0 00.611-1.619 3.066 3.066 0 012.837-2.837z"
-                                        clip-rule="evenodd" />
-                                </svg>
+                                <div class="tooltip"
+                                    data-tip="{{ 'Официально подтвержденный аккаунт' if user_data.verification_type == 'official' else 'Верифицированный аккаунт' }}">
+                                    <svg xmlns="http://www.w3.org/2000/svg"
+                                        class="h-6 w-6 text-blue-500 transition-all duration-300 transform hover:scale-110 hover:rotate-6"
+                                        viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd"
+                                            d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                                            clip-rule="evenodd" />
+                                    </svg>
+                                </div>
                                 {% endif %}
                                 <h1 class="text-2xl font-bold">
                                     {{ user_data.full_name if user_data else 'User' }}
