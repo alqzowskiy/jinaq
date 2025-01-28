@@ -10,7 +10,7 @@ from flask import jsonify, request, abort
 import json
 import os
 from dotenv import load_dotenv
-
+import gunicorn
 app = Flask(__name__)
 app.secret_key = 'mega-secret-key-yeah'  
 app.config['LOGO_SVG_PATH'] = 'jinaq_logo.svg'
