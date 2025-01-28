@@ -65,9 +65,17 @@ def index():
         user_id = session['user_id']
         user_doc = db.collection('users').document(user_id).get()
         user_data = user_doc.to_dict() if user_doc.exists else None
-        return render_template('index.html', user_data=user_data)
-    return render_template('index.html', user_data=None)
-
+        
+        avatar_url = generate_avatar_url(user_data) if user_data else None
+        
+        return render_template('index.html', 
+                               user_data=user_data, 
+                               avatar_url=avatar_url,
+                               current_user_avatar=avatar_url)  # Добавьте эту строку
+    return render_template('index.html', 
+                           user_data=None, 
+                           avatar_url=None,
+                           current_user_avatar=None)  # И сюда
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -293,8 +301,12 @@ def profile():
     
     user_doc = db.collection('users').document(user_id).get()
     user_data = user_doc.to_dict() or {}
+    
+    # Сначала определите avatar_url
     avatar_url = generate_avatar_url(user_data)
-
+    
+    # Затем используйте его для current_user_avatar
+    current_user_avatar = avatar_url
     # Добавляем значение по умолчанию, если academic_info отсутствует
     if 'academic_info' not in user_data:
         user_data['academic_info'] = {
@@ -335,8 +347,6 @@ def profile():
                     return jsonify({'success': True})
 
             # Обработка загрузки сертификата
-# Inside the certificate upload handling section of your profile route
-# Inside your profile route where certificate upload is handled
             if 'certificate' in request.files:
                 file = request.files['certificate']
                 title = request.form.get('title', file.filename)
@@ -380,12 +390,22 @@ def profile():
             if 'avatar' in request.files:
                 avatar_file = request.files['avatar']
                 if avatar_file and avatar_file.filename:
+                    try:
+                        # Удаление старого аватара из Firebase Storage
+                        if user_data.get('avatar_url'):
+                            old_avatar_path = user_data['avatar_url'].split('/')[-1]
+                            old_blob = bucket.blob(f'avatars/{user_id}/{old_avatar_path}')
+                            old_blob.delete()
+                    except Exception as e:
+                        print(f"Error deleting old avatar: {e}")
+
                     # Генерируем уникальное имя файла
                     file_extension = avatar_file.filename.rsplit('.', 1)[1].lower()
-                    filename = f"avatars/{user_id}/{str(uuid.uuid4())}.{file_extension}"
+                    filename = f"{str(uuid.uuid4())}.{file_extension}"
+                    full_path = f"avatars/{user_id}/{filename}"
                     
                     # Загружаем в Firebase Storage
-                    blob = bucket.blob(filename)
+                    blob = bucket.blob(full_path)
                     blob.upload_from_string(
                         avatar_file.read(),
                         content_type=avatar_file.content_type
@@ -406,7 +426,7 @@ def profile():
                             'success': True,
                             'avatar_url': blob.public_url
                         })
-                pass
+
             if 'certificates' in request.files:
                 files = request.files.getlist('certificates')
                 uploaded_files = []
@@ -477,6 +497,7 @@ def profile():
     return render_template('profile.html',
                          user_data=user_data,
                          avatar_url=avatar_url,
+                         current_user_avatar=current_user_avatar,
                          certificates=certificates)
 @app.route('/<username>')
 def public_profile(username):
@@ -489,21 +510,31 @@ def public_profile(username):
             flash('User not found')
             return redirect(url_for('index'))
 
-        user_data = user_doc.to_dict()
-        avatar_url = generate_avatar_url(user_data)
-        user_data = user_doc.to_dict()
+        viewed_user_data = user_doc.to_dict()
+        viewed_user_avatar = generate_avatar_url(viewed_user_data)
+        
+        # Проверяем, авторизован ли пользователь
+        current_user_avatar = None
+        if 'user_id' in session:
+            current_user_id = session['user_id']
+            current_user_doc = db.collection('users').document(current_user_id).get()
+            current_user_data = current_user_doc.to_dict()
+            current_user_avatar = generate_avatar_url(current_user_data)
+        
         # Получаем список сертификатов и считаем их количество
         certificates = list(db.collection('users').document(user_doc.id).collection('certificates').stream())
         certificates_count = len(certificates)
 
         return render_template('public_profile.html',
-                             user_data=user_data,
-                             avatar_url=avatar_url,
+                             user_data=viewed_user_data,
+                             avatar_url=viewed_user_avatar,
+                             current_user_avatar=current_user_avatar,
                              certificates=certificates,
                              certificates_count=certificates_count)
     except Exception as e:
         flash(f'Error: {str(e)}')
         return redirect(url_for('index'))
+
 from firebase_admin import auth
 
 @app.route('/update_links', methods=['POST'])

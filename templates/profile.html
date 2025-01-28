@@ -291,7 +291,59 @@
 </div>
 
 <script>
+    document.querySelector('input[name="avatar"]').addEventListener('change', function (event) {
+        const file = event.target.files[0];
+        if (file) {
+            const formData = new FormData();
+            formData.append('avatar', file);
+
+            fetch('{{ url_for("profile") }}', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Обновляем src изображения
+                        document.getElementById('avatarPreview').src = data.avatar_url;
+
+                        // Обновляем аватар в навигации
+                        const navAvatars = document.querySelectorAll('.avatar img');
+                        navAvatars.forEach(avatar => {
+                            avatar.src = data.avatar_url;
+                        });
+
+                        showNotification('Avatar updated successfully');
+                    } else {
+                        showNotification('Failed to update avatar', 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showNotification('Error updating avatar', 'error');
+                });
+        }
+    });
     document.addEventListener('DOMContentLoaded', function () {
+        function previewImage(input) {
+            const preview = document.getElementById('avatarPreview');
+            const file = input.files[0];
+            const reader = new FileReader();
+
+            reader.onloadend = function () {
+                preview.src = reader.result;
+            }
+
+            if (file) {
+                reader.readAsDataURL(file);
+            } else {
+                preview.src = "{{ avatar_url }}";
+            }
+        }
+
         // Links Form
         const linksForm = document.getElementById('linksForm');
         const linksContainer = document.getElementById('linksContainer');
@@ -599,6 +651,20 @@
             }
         }
     }
+    function previewImage(input) {
+        const preview = document.getElementById('avatarPreview');
+        const file = input.files[0];
+        const reader = new FileReader();
 
+        reader.onloadend = function () {
+            preview.src = reader.result;
+        }
+
+        if (file) {
+            reader.readAsDataURL(file);
+        } else {
+            preview.src = "{{ avatar_url }}";  // Возвращаем оригинальный аватар
+        }
+    }
 </script>
 {% endblock %}

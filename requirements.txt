@@ -1,5 +1,8 @@
-flask
+Flask
 firebase-admin
+Werkzeug
 python-dotenv
-Pillow
-werkzeug
+uuid
+datetime
+json
+functools
