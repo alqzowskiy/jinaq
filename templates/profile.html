@@ -1,0 +1,604 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mx-auto px-4 py-12">
+    <div class="max-w-5xl mx-auto">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div class="md:col-span-1">
+                <div class="bg-white rounded-2xl shadow-sm p-6 mb-6">
+                    <div class="relative group w-32 h-32 mx-auto mb-4">
+                        <img id="avatarPreview" src="{{ avatar_url }}" class="w-full h-full object-cover rounded-2xl"
+                            alt="Profile picture">
+                        <label
+                            class="absolute inset-0 rounded-2xl bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-opacity">
+                            <span class="text-white text-sm">Change Photo</span>
+                            <input type="file" name="avatar" accept="image/*" class="hidden"
+                                onchange="previewImage(this)">
+                        </label>
+                    </div>
+
+                    <div class="text-center md:text-left">
+                        <div class="flex items-center justify-center md:justify-start gap-4">
+                            <h1 class="text-3xl font-bold gradient-text">
+                                {{ user_data.full_name if user_data and user_data.full_name else 'Your Name' }}
+                            </h1>
+                            <button onclick="copyProfileLink()" class="btn btn-ghost btn-sm" title="Copy Profile Link">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500 hover:text-black"
+                                    fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                </svg>
+                            </button>
+                        </div>
+                        <p class="text-gray-600 mt-2 flex items-center justify-center md:justify-start gap-2">
+                            @{{ user_data.username if user_data else '' }}
+                        </p>
+
+                    </div>
+
+                    <div class="flex justify-center gap-2 mt-4">
+                        <span class="px-3 py-1 bg-gray-100 rounded-full text-sm">
+                            {{ certificates|length }} Certificates
+                        </span>
+                        <span class="px-3 py-1 bg-gray-100 rounded-full text-sm">
+                            Member since {{ user_data.created_at.strftime('%B %Y') if user_data and user_data.created_at
+                            else 'Recently' }}
+                        </span>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl shadow-sm p-6 mb-6">
+                    <h2 class="text-xl font-semibold mb-4">Profile Information</h2>
+                    <form method="POST" enctype="multipart/form-data" id="profileForm">
+                        <div class="space-y-4">
+                            <div class="form-control">
+                                <label class="label">Full Name</label>
+                                <input type="text" name="full_name" class="input input-bordered bg-gray-50"
+                                    value="{{ user_data.full_name if user_data else '' }}">
+                            </div>
+
+                            <div class="form-control">
+                                <label class="label">Bio</label>
+                                <textarea name="bio"
+                                    class="textarea textarea-bordered bg-gray-50 min-h-[100px]">{{ user_data.bio if user_data else '' }}</textarea>
+                            </div>
+
+                            <div class="form-control">
+                                <label class="label">Education</label>
+                                <textarea name="education"
+                                    class="textarea textarea-bordered bg-gray-50">{{ user_data.education if user_data else '' }}</textarea>
+                            </div>
+
+                            <button type="submit" class="btn bg-black hover:bg-gray-800 text-white w-full">
+                                Save Changes
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="bg-white rounded-2xl shadow-sm p-6">
+                    <h2 class="text-xl font-semibold mb-4">Your Links</h2>
+                    <form id="linksForm">
+                        <div id="linksContainer" class="space-y-4">
+                            {% if user_data.links %}
+                            {% for link in user_data.links %}
+                            <div class="link-entry group flex items-center gap-2">
+                                <input type="text" name="link_titles[]" placeholder="Link Title"
+                                    class="input input-bordered flex-1" value="{{ link.title }}">
+                                <input type="text" name="link_urls[]" placeholder="URL"
+                                    class="input input-bordered flex-1" value="{{ link.url }}">
+                                <button type="button" onclick="removeLink(this)" class="btn btn-ghost text-red-500">
+                                    Remove
+                                </button>
+                            </div>
+                            {% endfor %}
+                            {% endif %}
+                        </div>
+                        <div class="flex gap-2 mt-4">
+                            <button type="button" onclick="addLink()" class="btn btn-ghost">
+                                Add Link
+                            </button>
+                            <button type="submit" class="btn bg-black hover:bg-gray-800 text-white">
+                                Save Changes
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="md:col-span-2 space-y-6">
+                <div class="bg-white rounded-2xl shadow-sm p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-semibold">Certificates</h2>
+                        <button onclick="showUploadModal()" class="btn bg-black hover:bg-gray-800 text-white">
+                            Add Certificate
+                        </button>
+                    </div>
+                    {% if certificates %}
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {% for cert_doc in certificates %}
+                        {% set cert = cert_doc.to_dict() %}
+                        <div class="card bg-gray-50 hover:bg-gray-100 transition-colors">
+                            {% if cert.file_url and (cert.file_url.endswith('.jpg') or cert.file_url.endswith('.jpeg')
+                            or cert.file_url.endswith('.png')) %}
+                            <figure class="relative h-48">
+                                <img src="{{ cert.file_url }}" alt="{{ cert.title }}"
+                                    class="w-full h-full object-cover">
+                            </figure>
+                            {% else %}
+                            <div class="h-48 flex items-center justify-center bg-gray-100">
+                                <svg class="h-16 w-16 text-gray-400" fill="none" viewBox="0 0 24 24"
+                                    stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                            </div>
+                            {% endif %}
+                            <div class="card-body">
+                                <h3 class="card-title">{{ cert.title }}</h3>
+                                {% if cert.uploaded_at %}
+                                <p class="text-sm text-gray-500">
+                                    {{ cert.uploaded_at.strftime('%B %d, %Y') }}
+                                </p>
+                                {% endif %}
+                                <div class="card-actions justify-between mt-4">
+                                    <a href="{{ cert.file_url }}" target="_blank"
+                                        class="btn btn-sm bg-black hover:bg-gray-800 text-white">
+                                        View
+                                    </a>
+                                    <button onclick="deleteCertificate('{{ cert_doc.id }}')"
+                                        class="btn btn-sm btn-ghost text-red-500">
+                                        Delete
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-12 bg-gray-50 rounded-xl">
+                        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <h3 class="mt-2 text-sm font-medium text-gray-900">No certificates</h3>
+                        <p class="mt-1 text-sm text-gray-500">Get started by adding your first certificate</p>
+                        <div class="mt-6">
+                            <button onclick="showUploadModal()" class="btn bg-black hover:bg-gray-800 text-white">
+                                Add Certificate
+                            </button>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="bg-white rounded-2xl shadow-sm p-6">
+                    <h2 class="text-2xl font-bold mb-4">Academic Portfolio</h2>
+                    <form id="academicPortfolioForm">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="form-control">
+                                <label class="label">GPA</label>
+                                <input type="text" name="gpa" placeholder="Enter your GPA" class="input input-bordered"
+                                    value="{{ user_data.academic_info.gpa }}">
+                            </div>
+
+                            <div class="form-control">
+                                <label class="label">SAT Score</label>
+                                <input type="text" name="sat_score" placeholder="Enter SAT Score"
+                                    class="input input-bordered" value="{{ user_data.academic_info.sat_score }}">
+                            </div>
+
+                            <div class="form-control">
+                                <label class="label">TOEFL Score</label>
+                                <input type="text" name="toefl_score" placeholder="TOEFL Score"
+                                    class="input input-bordered" value="{{ user_data.academic_info.toefl_score }}">
+                            </div>
+
+                            <div class="form-control">
+                                <label class="label">IELTS Score</label>
+                                <input type="text" name="ielts_score" placeholder="IELTS Score"
+                                    class="input input-bordered" value="{{ user_data.academic_info.ielts_score }}">
+                            </div>
+                        </div>
+
+                        <div class="mt-6">
+                            <h3 class="text-xl font-semibold mb-4">Languages</h3>
+                            <div id="languagesContainer">
+                                {% for language in user_data.academic_info.languages %}
+                                <div class="flex gap-4 mb-2">
+                                    <input type="text" name="language_name" placeholder="Language"
+                                        class="input input-bordered flex-1" value="{{ language.name }}">
+                                    <select name="language_level" class="select select-bordered">
+                                        <option value="A1" {% if language.level=='A1' %}selected{% endif %}>A1</option>
+                                        <option value="A2" {% if language.level=='A2' %}selected{% endif %}>A2</option>
+                                        <option value="B1" {% if language.level=='B1' %}selected{% endif %}>B1</option>
+                                        <option value="B2" {% if language.level=='B2' %}selected{% endif %}>B2</option>
+                                        <option value="C1" {% if language.level=='C1' %}selected{% endif %}>C1</option>
+                                        <option value="C2" {% if language.level=='C2' %}selected{% endif %}>C2</option>
+                                    </select>
+                                    <button type="button" class="btn btn-ghost text-red-500">Remove</button>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            <button type="button" id="addLanguageBtn" class="btn bg-black hover:bg-gray-800 text-white">
+                                Add Language
+                            </button>
+                        </div>
+
+                        <div class="mt-6">
+                            <h3 class="text-xl font-semibold mb-4">Achievements</h3>
+                            <div id="achievementsContainer">
+                                {% for achievement in user_data.academic_info.achievements %}
+                                <div class="mb-4 p-4 bg-gray-50 rounded-lg">
+                                    <input type="text" name="achievement_title" placeholder="Achievement Title"
+                                        class="input input-bordered w-full mb-2" value="{{ achievement.title }}">
+                                    <textarea name="achievement_description" placeholder="Description"
+                                        class="textarea textarea-bordered w-full mb-2">{{ achievement.description }}</textarea>
+                                    <input type="date" name="achievement_date" class="input input-bordered"
+                                        value="{{ achievement.date }}">
+                                    <button type="button" class="btn btn-ghost text-red-500 mt-2">Remove</button>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            <button type="button" id="addAchievementBtn"
+                                class="btn bg-black hover:bg-gray-800 text-white">
+                                Add Achievement
+                            </button>
+                        </div>
+                        <!-- Модальное окно для загрузки -->
+
+                        <div class="form-control mt-6">
+                            <button type="submit" class="btn bg-black hover:bg-gray-800 text-white w-full">
+                                Save Academic Portfolio
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+
+            </div>
+        </div>
+    </div>
+    <div id="uploadModal" class="modal">
+        <div class="modal-box">
+            <h3 class="font-bold text-lg mb-4">Upload Certificate</h3>
+            <form id="certificateForm" class="space-y-4">
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text">Certificate Title</span>
+                    </label>
+                    <input type="text" id="certTitle" name="title" class="input input-bordered" required>
+                </div>
+
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text">Certificate File</span>
+                    </label>
+                    <input type="file" name="certificate" accept=".pdf,.jpg,.jpeg,.png"
+                        class="file-input file-input-bordered w-full" onchange="previewCertificate(this)" required>
+                </div>
+
+                <div id="previewContainer" class="hidden mt-4">
+                    <img id="imagePreview" class="max-h-48 mx-auto" alt="Preview">
+                </div>
+
+                <div class="modal-action">
+                    <button type="submit" class="btn btn-primary">Upload</button>
+                    <button type="button" onclick="closeUploadModal()" class="btn">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Links Form
+        const linksForm = document.getElementById('linksForm');
+        const linksContainer = document.getElementById('linksContainer');
+
+        // Add Link
+        function addLink() {
+            const linkEntry = document.createElement('div');
+            linkEntry.className = 'link-entry group flex items-center gap-2';
+            linkEntry.innerHTML = `
+            <input type="text" name="link_titles[]" placeholder="Link Title" 
+                class="input input-bordered flex-1">
+            <input type="text" name="link_urls[]" placeholder="URL" 
+                class="input input-bordered flex-1">
+            <button type="button" class="btn btn-ghost text-red-500">
+                Remove
+            </button>
+        `;
+            linkEntry.querySelector('button').addEventListener('click', () => linkEntry.remove());
+            linksContainer.appendChild(linkEntry);
+        }
+
+        // Bind Add Link Button
+        document.querySelector('[onclick="addLink()"]').addEventListener('click', addLink);
+
+        // Links Form Submit
+        if (linksForm) {
+            linksForm.addEventListener('submit', async function (e) {
+                e.preventDefault();
+                const titles = Array.from(this.querySelectorAll('input[name="link_titles[]"]')).map(input => input.value.trim());
+                const urls = Array.from(this.querySelectorAll('input[name="link_urls[]"]')).map(input => input.value.trim());
+
+                const links = titles.map((title, index) => ({
+                    title: title,
+                    url: urls[index]
+                })).filter(link => link.title && link.url);
+
+                try {
+                    const response = await fetch('{{ url_for("profile") }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        body: JSON.stringify({
+                            action: 'update_links',
+                            links: links
+                        })
+                    });
+
+                    const data = await response.json();
+                    if (data.success) {
+                        showNotification('Links updated successfully');
+                        location.reload();
+                    } else {
+                        throw new Error(data.error || 'Failed to update links');
+                    }
+                } catch (error) {
+                    showNotification('Failed to update links', 'error');
+                    console.error('Error:', error);
+                }
+            });
+        }
+
+        // Academic Portfolio Form
+        const academicForm = document.getElementById('academicPortfolioForm');
+        const languagesContainer = document.getElementById('languagesContainer');
+        const achievementsContainer = document.getElementById('achievementsContainer');
+
+        // Add Language
+        document.getElementById('addLanguageBtn').addEventListener('click', function () {
+            const newLanguageRow = document.createElement('div');
+            newLanguageRow.className = 'flex gap-4 mb-2';
+            newLanguageRow.innerHTML = `
+            <input type="text" name="language_name" placeholder="Language" 
+                class="input input-bordered flex-1">
+            <select name="language_level" class="select select-bordered">
+                <option value="A1">A1</option>
+                <option value="A2">A2</option>
+                <option value="B1">B1</option>
+                <option value="B2">B2</option>
+                <option value="C1">C1</option>
+                <option value="C2">C2</option>
+            </select>
+            <button type="button" class="btn btn-ghost text-red-500">Remove</button>
+        `;
+            newLanguageRow.querySelector('button').addEventListener('click', () => newLanguageRow.remove());
+            languagesContainer.appendChild(newLanguageRow);
+        });
+
+        // Add Achievement
+        document.getElementById('addAchievementBtn').addEventListener('click', function () {
+            const newAchievementRow = document.createElement('div');
+            newAchievementRow.className = 'mb-4 p-4 bg-gray-50 rounded-lg';
+            newAchievementRow.innerHTML = `
+            <input type="text" name="achievement_title" placeholder="Achievement Title" 
+                class="input input-bordered w-full mb-2">
+            <textarea name="achievement_description" placeholder="Description" 
+                class="textarea textarea-bordered w-full mb-2"></textarea>
+            <input type="date" name="achievement_date" 
+                class="input input-bordered">
+            <button type="button" class="btn btn-ghost text-red-500 mt-2">Remove</button>
+        `;
+            newAchievementRow.querySelector('button').addEventListener('click', () => newAchievementRow.remove());
+            achievementsContainer.appendChild(newAchievementRow);
+        });
+
+        // Academic Portfolio Submit
+        if (academicForm) {
+            academicForm.addEventListener('submit', async function (e) {
+                e.preventDefault();
+                const formData = {
+                    gpa: this.querySelector('input[name="gpa"]').value,
+                    sat_score: this.querySelector('input[name="sat_score"]').value,
+                    toefl_score: this.querySelector('input[name="toefl_score"]').value,
+                    ielts_score: this.querySelector('input[name="ielts_score"]').value,
+                    languages: [],
+                    achievements: []
+                };
+
+                this.querySelectorAll('#languagesContainer > div').forEach(row => {
+                    const name = row.querySelector('input[name="language_name"]').value;
+                    const level = row.querySelector('select[name="language_level"]').value;
+                    if (name) formData.languages.push({ name, level });
+                });
+
+                this.querySelectorAll('#achievementsContainer > div').forEach(row => {
+                    const title = row.querySelector('input[name="achievement_title"]').value;
+                    const description = row.querySelector('textarea[name="achievement_description"]').value;
+                    const date = row.querySelector('input[name="achievement_date"]').value;
+
+                    if (title) formData.achievements.push({ title, description, date });
+                });
+
+                try {
+                    const response = await fetch('/update_academic_portfolio', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(formData)
+                    });
+
+                    const result = await response.json();
+                    if (result.success) {
+                        showNotification('Academic portfolio updated successfully');
+                        location.reload();
+                    } else {
+                        showNotification('Error updating portfolio', 'error');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    showNotification('Something went wrong', 'error');
+                }
+            });
+        }
+
+        // Profile Form
+        const profileForm = document.getElementById('profileForm');
+        if (profileForm) {
+            profileForm.addEventListener('submit', async function (e) {
+                e.preventDefault();
+                const formData = new FormData(this);
+
+                try {
+                    const response = await fetch('{{ url_for("profile") }}', {
+                        method: 'POST',
+                        body: formData,
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    });
+
+                    const data = await response.json();
+                    if (data.success) {
+                        showNotification('Profile updated successfully');
+                        location.reload();
+                    } else {
+                        showNotification('Update failed', 'error');
+                    }
+                } catch (error) {
+                    showNotification('Failed to update profile', 'error');
+                }
+            });
+        }
+
+        // Notification Function
+        function showNotification(message, type = 'success') {
+            const notification = document.createElement('div');
+            notification.className = `fixed top-4 right-4 z-50 px-4 py-2 rounded-lg ${type === 'success' ? 'bg-black text-white' : 'bg-red-500 text-white'
+                }`;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+
+            setTimeout(() => {
+                notification.style.opacity = '0';
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+        }
+    });
+    function copyProfileLink() {
+        const profileLink = `{{ request.host_url }}{{ user_data.username }}`;
+
+        navigator.clipboard.writeText(profileLink).then(() => {
+            showNotification('Profile link copied to clipboard!');
+        }).catch(err => {
+            showNotification('Failed to copy link', 'error');
+        });
+    }
+    function showUploadModal() {
+        const modal = document.getElementById('uploadModal');
+        modal.classList.add('modal-open');
+    }
+
+    function closeUploadModal() {
+        const modal = document.getElementById('uploadModal');
+        modal.classList.remove('modal-open');
+        document.getElementById('certificateForm').reset();
+        document.getElementById('previewContainer').classList.add('hidden');
+    }
+
+    function previewCertificate(input) {
+        const previewContainer = document.getElementById('previewContainer');
+        const imagePreview = document.getElementById('imagePreview');
+
+        if (input.files && input.files[0]) {
+            const file = input.files[0];
+            if (file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    imagePreview.src = e.target.result;
+                    previewContainer.classList.remove('hidden');
+                }
+                reader.readAsDataURL(file);
+            } else {
+                previewContainer.classList.add('hidden');
+            }
+        }
+    }
+
+    // Fix the certificate form error by checking if it exists first
+    const certificateForm = document.getElementById('certificateForm');
+    if (certificateForm) {
+        certificateForm.addEventListener('submit', async function (e) {
+            e.preventDefault();
+            const formData = new FormData();
+            const title = document.getElementById('certTitle').value;
+            const file = this.querySelector('input[type="file"]').files[0];
+
+            if (!file) {
+                showNotification('Please select a file', 'error');
+                return;
+            }
+
+            formData.append('title', title);
+            formData.append('certificate', file);
+
+            try {
+                const response = await fetch(window.location.href, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    showNotification('Certificate uploaded successfully');
+                    closeUploadModal();
+                    location.reload();
+                } else {
+                    throw new Error(data.error || 'Upload failed');
+                }
+            } catch (error) {
+                console.error('Upload error:', error);
+                showNotification('Failed to upload certificate', 'error');
+            }
+        });
+    }
+    function showNotification(message, type = 'success') {
+        const notification = document.createElement('div');
+        notification.className = `fixed top-4 right-4 z-50 px-4 py-2 rounded-lg ${type === 'success' ? 'bg-black text-white' : 'bg-red-500 text-white'} transition-opacity duration-300`;
+        notification.textContent = message;
+
+        document.body.appendChild(notification);
+
+        setTimeout(() => {
+            notification.style.opacity = '0';
+            setTimeout(() => notification.remove(), 300);
+        }, 3000);
+    }
+
+    // Add the missing deleteCertificate function
+    async function deleteCertificate(certId) {
+        if (confirm('Are you sure you want to delete this certificate?')) {
+            try {
+                const response = await fetch(`/delete-certificate/${certId}`, {
+                    method: 'DELETE',
+                });
+                if (response.ok) {
+                    showNotification('Certificate deleted successfully');
+                    window.location.reload();
+                } else {
+                    throw new Error('Failed to delete certificate');
+                }
+            } catch (error) {
+                showNotification('Error deleting certificate', 'error');
+                console.error('Error:', error);
+            }
+        }
+    }
+
+</script>
+{% endblock %}

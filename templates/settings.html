@@ -1,0 +1,55 @@
+<!-- templates/settings.html -->
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <div class="card bg-base-100 shadow-xl">
+        <div class="card-body">
+            <h2 class="card-title text-2xl mb-4">Account Settings</h2>
+
+            <form method="POST" class="space-y-6">
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text">Email</span>
+                    </label>
+                    <input type="email" value="{{ user_data.email }}" class="input input-bordered" disabled>
+                </div>
+
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text">Username</span>
+                    </label>
+                    <input type="text" value="{{ user_data.username }}" class="input input-bordered" disabled>
+                </div>
+
+                <div class="divider">Change Password</div>
+
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text">Current Password</span>
+                    </label>
+                    <input type="password" name="current_password" class="input input-bordered">
+                </div>
+
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text">New Password</span>
+                    </label>
+                    <input type="password" name="new_password" class="input input-bordered">
+                </div>
+
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text">Confirm New Password</span>
+                    </label>
+                    <input type="password" name="confirm_password" class="input input-bordered">
+                </div>
+
+                <div class="form-control mt-6">
+                    <button class="btn btn-primary">Update Settings</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

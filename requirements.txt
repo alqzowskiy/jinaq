@@ -1,0 +1,5 @@
+flask
+firebase-admin
+python-dotenv
+Pillow
+werkzeug

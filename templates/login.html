@@ -1,0 +1,107 @@
+<!-- templates/login.html -->
+{% extends "base.html" %}
+{% block content %}
+<div
+    class="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-gray-50 to-gray-100">
+    <div class="max-w-md w-full">
+        <div class="bg-white border border-gray-100 rounded-3xl shadow-2xl overflow-hidden">
+            <div class="p-10 space-y-8">
+                <div class="text-center">
+                    <h2 class="text-4xl font-bold gradient-text mb-4">Welcome back</h2>
+                    <p class="text-gray-600">
+                        Don't have an account?
+                        <a href="{{ url_for('register') }}"
+                            class="font-medium text-black hover:text-gray-700 transition-colors">
+                            Sign up
+                        </a>
+                    </p>
+                </div>
+
+                <form class="space-y-6" method="POST" x-data="loginForm()">
+                    <div class="space-y-4">
+                        <div>
+                            <label for="email" class="label">
+                                <span class="label-text font-medium">Email address</span>
+                            </label>
+                            <div class="relative">
+                                <input id="email" name="email" type="email" required x-model="email"
+                                    class="input input-bordered bg-gray-50 w-full pl-10" placeholder="you@example.com">
+                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400"
+                                        viewBox="0 0 20 20" fill="currentColor">
+                                        <path
+                                            d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
+                                        <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label for="password" class="label">
+                                <span class="label-text font-medium">Password</span>
+                            </label>
+                            <div class="relative">
+                                <input id="password" name="password" :type="showPassword ? 'text' : 'password'" required
+                                    x-model="password" class="input input-bordered bg-gray-50 w-full pl-10 pr-10"
+                                    placeholder="********">
+                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400"
+                                        viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd"
+                                            d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z"
+                                            clip-rule="evenodd" />
+                                    </svg>
+                                </div>
+                                <button type="button" @click="showPassword = !showPassword"
+                                    class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-black transition-colors">
+                                    <svg x-show="!showPassword" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5"
+                                        viewBox="0 0 20 20" fill="currentColor">
+                                        <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                                        <path fill-rule="evenodd"
+                                            d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z"
+                                            clip-rule="evenodd" />
+                                    </svg>
+                                    <svg x-show="showPassword" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5"
+                                        viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd"
+                                            d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.78zm4.261 4.261l1.514 1.514a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z"
+                                            clip-rule="evenodd" />
+                                        <path
+                                            d="M12.454 16.697L9.88 14.123a4 4 0 01-5.023-5.023L2.343 6.758a10.014 10.014 0 00-1.885 4.242c1.274 4.057 5.064 7 9.542 7 .847 0 1.669-.105 2.454-.303z" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <button type="submit"
+                            class="btn bg-black hover:bg-gray-800 text-white w-full transition-all duration-300 transform hover:scale-105">
+                            Sign in
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="mt-6 text-center">
+            <a href="#" class="text-sm text-gray-600 hover:text-black transition-colors">
+                Forgot your password?
+            </a>
+        </div>
+    </div>
+</div>
+
+{% block scripts %}
+<script>
+    function loginForm() {
+        return {
+            email: '',
+            password: '',
+            showPassword: false
+        }
+    }
+</script>
+{% endblock %}
+{% endblock %}

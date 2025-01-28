@@ -1,0 +1,411 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="min-h-screen gradient-bg py-12">
+    <div class="container mx-auto px-4">
+        <div class="max-w-5xl mx-auto">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div class="md:col-span-1">
+                    <div class="bg-white rounded-2xl shadow-sm p-6 mb-6">
+                        <div class="relative w-32 h-32 mx-auto mb-4">
+                            <img src="{{ avatar_url }}" class="w-full h-full object-cover rounded-2xl"
+                                alt="{{ user_data.full_name if user_data else 'Profile' }}">
+                        </div>
+
+                        <div class="text-center md:text-left">
+                            <div class="flex items-center justify-center md:justify-start gap-4">
+                                <h1 class="text-2xl font-bold">
+                                    {{ user_data.full_name if user_data else 'User' }}
+                                </h1>
+                                <button onclick="copyProfileLink()" class="btn btn-ghost btn-sm"
+                                    title="Copy Profile Link">
+                                    <svg xmlns="http://www.w3.org/2000/svg"
+                                        class="h-5 w-5 text-gray-500 hover:text-black" fill="none" viewBox="0 0 24 24"
+                                        stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                    </svg>
+                                </button>
+                            </div>
+                            <p class="text-gray-600 mt-1">@{{ user_data.username if user_data else '' }}</p>
+
+                        </div>
+
+                        <div class="flex justify-center gap-2 mt-4">
+                            {% if certificates_count > 0 %}
+                            <div class="px-3 py-1 bg-gray-100 rounded-full text-sm">
+                                <span class="font-semibold">{{ certificates_count }}</span>
+                                <span class="text-gray-600 ml-1">Certificates</span>
+                            </div>
+                            {% endif %}
+
+                            {% if user_data.created_at %}
+                            <div class="px-3 py-1 bg-gray-100 rounded-full text-sm">
+                                <span class="text-gray-600">Member since </span>
+                                <span class="font-semibold">
+                                    {{ user_data.created_at.strftime('%B %Y') }}
+                                </span>
+                            </div>
+                            {% endif %}
+                        </div>
+                        <!-- Links Section -->
+                        {% if user_data.links %}
+                        <div class="bg-white rounded-2xl  p-6 mb-6">
+                            <h3 class="text-xl font-semibold mb-4">Links</h3>
+                            <div class="space-y-3">
+                                {% for link in user_data.links %}
+                                <a href="{{ link.url }}" target="_blank"
+                                    class="flex items-center p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
+                                    {% if 'youtube.com' in link.url or 'youtu.be' in link.url %}
+                                    <svg class="h-5 w-5 text-red-600 mr-3" fill="currentColor" viewBox="0 0 24 24">
+                                        <path
+                                            d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z" />
+                                    </svg>
+                                    {% elif 'github.com' in link.url %}
+                                    <svg class="h-5 w-5 text-gray-900 mr-3" fill="currentColor" viewBox="0 0 24 24">
+                                        <path
+                                            d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
+                                    </svg>
+                                    {% elif 'linkedin.com' in link.url %}
+                                    <svg class="h-5 w-5 text-blue-600 mr-3" fill="currentColor" viewBox="0 0 24 24">
+                                        <path
+                                            d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z" />
+                                    </svg>
+                                    {% else %}
+                                    <svg class="h-5 w-5 text-gray-400 mr-3" fill="none" viewBox="0 0 24 24"
+                                        stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                                    </svg>
+                                    {% endif %}
+                                    <span class="text-gray-900 font-medium">{{ link.title }}</span>
+                                </a>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+
+
+                    <!-- Bio Section -->
+                    {% if user_data.bio %}
+                    <div class="bg-white rounded-2xl shadow-sm p-6 mb-6">
+                        <h3 class="text-xl font-semibold mb-4">About Me</h3>
+                        <p class="text-gray-700 leading-relaxed">{{ user_data.bio }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="md:col-span-2 space-y-6">
+                    <!-- Academic Profile -->
+                    {% if user_data.academic_info %}
+                    <div class="bg-white rounded-2xl shadow-sm p-6">
+                        <h2 class="text-2xl font-bold mb-6">Academic Profile</h2>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <h3 class="text-lg font-semibold mb-4">Academic Metrics</h3>
+                                <div class="space-y-2">
+                                    <div>GPA: {{ user_data.academic_info.gpa or 'Not provided' }}</div>
+                                    <div>SAT Score: {{ user_data.academic_info.sat_score or 'Not provided' }}</div>
+                                    <div>TOEFL: {{ user_data.academic_info.toefl_score or 'Not provided' }}</div>
+                                    <div>IELTS: {{ user_data.academic_info.ielts_score or 'Not provided' }}</div>
+                                </div>
+                            </div>
+
+                            <div>
+                                <h3 class="text-lg font-semibold mb-4">Languages</h3>
+                                <div class="space-y-2">
+                                    {% for lang in user_data.academic_info.languages %}
+                                    <div>
+                                        {{ lang.name }} - {{ lang.level }}
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+
+                        {% if user_data.academic_info.achievements %}
+                        <div class="mt-6">
+                            <h3 class="text-lg font-semibold mb-4">Achievements</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {% for achievement in user_data.academic_info.achievements %}
+                                <div class="bg-gray-50 p-4 rounded-lg">
+                                    <h4 class="font-semibold">{{ achievement.title }}</h4>
+                                    <p>{{ achievement.description }}</p>
+                                    <small class="text-gray-500">{{ achievement.date }}</small>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+
+                    <!-- Certificates -->
+                    {% if certificates %}
+                    <div class="bg-white rounded-2xl shadow-sm p-6">
+                        <h2 class="text-2xl font-bold mb-6">Certificates & Achievements</h2>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {% for cert_doc in certificates %}
+                            {% set cert = cert_doc.to_dict() %}
+                            <div class="card bg-gray-50 hover:bg-gray-100 transition-colors">
+                                {% if cert.file_url and (cert.file_url.endswith('.jpg') or
+                                cert.file_url.endswith('.jpeg') or cert.file_url.endswith('.png')) %}
+                                <figure class="relative h-48">
+                                    <img src="{{ cert.file_url }}" alt="{{ cert.title }}"
+                                        class="w-full h-full object-cover">
+                                </figure>
+                                {% else %}
+                                <div class="h-48 flex items-center justify-center bg-gray-100">
+                                    <svg class="h-16 w-16 text-gray-400" fill="none" viewBox="0 0 24 24"
+                                        stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                    </svg>
+                                </div>
+                                {% endif %}
+                                <div class="card-body">
+                                    <h3 class="card-title">{{ cert.title }}</h3>
+                                    {% if cert.uploaded_at %}
+                                    <p class="text-sm text-gray-500">
+                                        {{ cert.uploaded_at.strftime('%B %d, %Y') }}
+                                    </p>
+                                    {% endif %}
+                                    <div class="card-actions justify-between mt-4">
+                                        <a href="{{ cert.file_url }}" target="_blank"
+                                            class="btn btn-sm bg-black hover:bg-gray-800 text-white">
+                                            View
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                </div>
+            </div>
+
+            <!-- Comments Section -->
+            <div class="max-w-5xl mx-auto mt-8">
+                <div class="bg-white rounded-2xl shadow-sm p-6">
+                    <h2 class="text-2xl font-bold mb-6 flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-3 text-gray-600" fill="none"
+                            viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                        </svg>
+                        Comments
+                        <span id="commentCount" class="ml-2 text-sm text-gray-500">(0)</span>
+                    </h2>
+
+                    {% if session.get('user_id') and session['user_id'] != user_data.uid %}
+                    <div class="mb-6 bg-gray-50 rounded-xl p-4">
+                        <form id="commentForm" class="space-y-4">
+                            <textarea id="commentText"
+                                class="textarea textarea-bordered w-full min-h-[100px] resize-y bg-white"
+                                placeholder="Share your thoughts about this profile..." maxlength="500"
+                                required></textarea>
+                            <div class="flex justify-between items-center">
+                                <span id="charCount" class="text-sm text-gray-500">0 / 500</span>
+                                <button type="submit"
+                                    class="btn bg-black hover:bg-gray-800 text-white flex items-center">
+                                    Send Comment
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                    {% endif %}
+                    <div id="commentsList" class="space-y-4">
+                        <!-- Comments will be dynamically loaded here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<script>
+    // Обновленная функция addLink
+    function addLink() {
+        const container = document.getElementById('linksContainer');
+        const linkEntry = document.createElement('div');
+        linkEntry.className = 'link-entry group';
+        linkEntry.innerHTML = `
+        <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
+            <div class="flex-grow flex gap-3">
+                <input type="text" name="link_titles[]" placeholder="Link Title" 
+                    class="input input-bordered bg-white w-1/3">
+                <input type="text" name="link_urls[]" placeholder="https://example.com" 
+                    class="input input-bordered bg-white flex-grow">
+            </div>
+            <button type="button" onclick="removeLink(this)" 
+                class="btn btn-ghost btn-sm text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                </svg>
+            </button>
+        </div>
+    `;
+        container.appendChild(linkEntry);
+    }
+    const defaultAvatar = '{{ avatar_url }}';
+    document.addEventListener('DOMContentLoaded', function () {
+        const username = '{{ user_data.username }}';
+        const commentsList = document.getElementById('commentsList');
+        const commentForm = document.getElementById('commentForm');
+        const commentText = document.getElementById('commentText');
+        const charCount = document.getElementById('charCount');
+        const commentCount = document.getElementById('commentCount');
+
+        // Character count
+        commentText?.addEventListener('input', function () {
+            const currentLength = this.value.length;
+            charCount.textContent = `${currentLength} / 500`;
+            charCount.classList.toggle('text-red-500', currentLength > 450);
+        });
+
+        // Format date
+        function formatDate(dateString) {
+            const date = new Date(dateString._seconds * 1000);
+            const now = new Date();
+            const diffMinutes = Math.floor((now - date) / (1000 * 60));
+
+            if (diffMinutes < 1) return 'Just now';
+            if (diffMinutes < 60) return `${diffMinutes} min ago`;
+            if (diffMinutes < 1440) return `${Math.floor(diffMinutes / 60)} hours ago`;
+            return date.toLocaleDateString();
+        }
+
+        // Load comments
+        function loadComments() {
+            fetch(`/${username}/comments`)
+                .then(response => response.json())
+                .then(comments => {
+                    commentCount.textContent = `(${comments.length})`;
+                    commentsList.innerHTML = comments.map(comment => `
+                <div class="comment flex bg-gray-50 p-4 rounded-xl space-x-4 group" data-comment-id="${comment.id}">
+                    <div class="flex-shrink-0">
+                        <div class="w-10 h-10 rounded-full overflow-hidden">
+                            <img 
+                                src="${comment.author_avatar}" 
+                                alt="${comment.author_username}" 
+                                class="w-full h-full object-cover"
+                                onerror="this.src='${defaultAvatar}'"
+                            >
+                        </div>
+                    </div>
+                    <div class="flex-grow">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <span class="font-semibold text-sm">@${comment.author_username}</span>
+                                <span class="text-xs text-gray-500 ml-2">${formatDate(comment.created_at)}</span>
+                            </div>
+                            ${(comment.author_id === '{{ session.get("user_id", "") }}' || '{{ user_data.uid }}' === '{{ session.get("user_id", "") }}')
+                            ? `<button onclick="deleteComment('${comment.id}')" class="text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                </button>`
+                            : ''}
+                        </div>
+                        <p class="text-gray-700 mt-2">${comment.text}</p>
+                    </div>
+                </div>
+            `).join('') || `
+                <div class="text-center text-gray-500 py-8">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto mb-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                    </svg>
+                    No comments yet. Be the first to comment!
+                </div>
+            `;
+                });
+        }
+
+        // Submit comment
+        if (commentForm) {
+            commentForm.addEventListener('submit', function (e) {
+                e.preventDefault();
+                const commentTextValue = commentText.value.trim();
+
+                if (commentTextValue.length > 500) {
+                    showNotification('Comment is too long', 'error');
+                    return;
+                }
+
+                fetch(`/${username}/comments`, {
+                    method: 'POST',
+                    body: new URLSearchParams({ 'comment': commentTextValue }),
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    }
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            commentText.value = '';
+                            charCount.textContent = '0 / 500';
+                            showNotification('Comment added successfully');
+                            loadComments();
+                        }
+                    })
+                    .catch(error => {
+                        showNotification('Failed to send comment', 'error');
+                    });
+            });
+        }
+
+        // Delete comment
+        window.deleteComment = function (commentId) {
+            if (confirm('Are you sure you want to delete this comment?')) {
+                fetch(`/${username}/comments/${commentId}`, { method: 'DELETE' })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            showNotification('Comment deleted successfully');
+                            loadComments();
+                        }
+                    })
+                    .catch(error => {
+                        showNotification('Failed to delete comment', 'error');
+                    });
+            }
+        }
+
+        // Show notification function
+        function showNotification(message, type = 'success') {
+            const notification = document.createElement('div');
+            notification.className = `fixed top-4 right-4 z-50 px-6 py-3 rounded-xl shadow-lg transform transition-all duration-300 
+                ${type === 'success' ? 'bg-black text-white' : 'bg-red-500 text-white'}`;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+
+            setTimeout(() => {
+                notification.style.opacity = '0';
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+        }
+
+        // Initial load
+        loadComments();
+    });
+    function copyProfileLink() {
+        const url = window.location.href;
+        navigator.clipboard.writeText(url).then(() => {
+            // Show notification
+            const notification = document.createElement('div');
+            notification.className = 'fixed bottom-4 right-4 bg-black text-white px-6 py-3 rounded-xl shadow-lg transform transition-all duration-300';
+            notification.textContent = 'Profile link copied to clipboard!';
+            document.body.appendChild(notification);
+
+            // Remove notification after 3 seconds
+            setTimeout(() => {
+                notification.style.opacity = '0';
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+        });
+    }
+</script>
+{% endblock %}
