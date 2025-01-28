@@ -1,8 +1,5 @@
-Flask
+flask
 firebase-admin
-Werkzeug
 python-dotenv
+werkzeug
 uuid
-json
-functools
-gunicorn
