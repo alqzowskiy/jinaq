@@ -86,6 +86,29 @@
             </div>
         </div>
     </div>
+    <div x-show="showConfirmModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center"
+        @keydown.escape.window="closeModal">
+        <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4" @click.away="closeModal">
+            <p class="text-lg mb-6" x-text="modalMessage"></p>
+
+            <!-- Password input for delete account -->
+            <template x-if="showPasswordInput">
+                <div class="mb-4">
+                    <input type="password" id="deleteAccountPassword" class="input input-bordered w-full"
+                        placeholder="Enter your password">
+                </div>
+            </template>
+
+            <div class="flex justify-end space-x-4">
+                <button @click="closeModal" class="btn btn-ghost">
+                    Cancel
+                </button>
+                <button @click="confirmModal(true)" class="btn bg-black hover:bg-gray-800 text-white">
+                    Confirm
+                </button>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
@@ -94,8 +117,7 @@
 
     function settingsPage() {
         return {
-
-            newUsername: '{{ user_data.get('display_username', '') }}',
+            newUsername: '',
             emailData: {
                 currentPassword: '',
                 newEmail: ''
@@ -105,253 +127,166 @@
                 newPassword: '',
                 confirmPassword: ''
             },
+            showConfirmModal: false,
+            modalMessage: '',
+            modalCallback: null,
+            showPasswordInput: false,
 
-            async updateUsername() {
-                try {
-                    const response = await fetch('/update-username', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({ username: this.newUsername })
-                    });
-
-                    const data = await response.json();
-
-                    if (data.success) {
-                        alert('Username updated successfully');
-                        window.location.reload();
-                    } else {
-                        alert(data.error);
-                    }
-                } catch (error) {
-                    alert('An error occurred. Please try again.');
-                }
+            // Модальное окно
+            openModal(message, callback = null, showPassword = false) {
+                this.modalMessage = message;
+                this.modalCallback = callback;
+                this.showPasswordInput = showPassword;
+                this.showConfirmModal = true;
             },
-            async updateUsername() {
-                showModal('Are you sure you want to change your username?', async (confirmed) => {
-                    if (!confirmed) return;
 
+            closeModal() {
+                this.showConfirmModal = false;
+                this.modalMessage = '';
+                this.modalCallback = null;
+                this.showPasswordInput = false;
+            },
+
+            confirmModal(confirmed) {
+                if (this.modalCallback && confirmed) {
+                    this.modalCallback();
+                }
+                this.closeModal();
+            },
+
+            // Обновление username
+            async updateUsername() {
+                if (!this.newUsername) {
+                    this.openModal('Please enter a new username');
+                    return;
+                }
+
+                this.openModal('Are you sure you want to change your username?', async () => {
                     try {
                         const response = await fetch('/update-username', {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
                             body: JSON.stringify({ username: this.newUsername })
                         });
 
                         const data = await response.json();
 
                         if (data.success) {
-                            showModal('Username updated successfully', () => {
+                            this.openModal('Username updated successfully', () => {
                                 window.location.reload();
-                            }, { showCancel: false });
+                            });
                         } else {
-                            showModal(data.error, null, { showCancel: false });
+                            this.openModal(data.error || 'Failed to update username');
                         }
                     } catch (error) {
-                        showModal('An error occurred. Please try again.', null, { showCancel: false });
+                        this.openModal('An error occurred. Please try again.');
                     }
                 });
             },
 
+            // Обновление email
             async updateEmail() {
-                showModal('Are you sure you want to change your email?', async (confirmed) => {
-                    if (!confirmed) return;
+                if (!this.emailData.newEmail) {
+                    this.openModal('Please enter a new email address');
+                    return;
+                }
 
+                this.openModal('Are you sure you want to change your email?', async () => {
                     try {
                         const response = await fetch('/update-email', {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
                             body: JSON.stringify(this.emailData)
                         });
 
                         const data = await response.json();
 
                         if (data.success) {
-                            showModal('Email updated successfully', () => {
+                            this.openModal('Email updated successfully', () => {
                                 window.location.reload();
-                            }, { showCancel: false });
+                            });
                         } else {
-                            showModal(data.error, null, { showCancel: false });
+                            this.openModal(data.error || 'Failed to update email');
                         }
                     } catch (error) {
-                        showModal('An error occurred. Please try again.', null, { showCancel: false });
+                        this.openModal('An error occurred. Please try again.');
                     }
                 });
             },
 
+            // Обновление пароля
             async updatePassword() {
                 if (this.passwordData.newPassword !== this.passwordData.confirmPassword) {
-                    showModal('New passwords do not match', null, { showCancel: false });
+                    this.openModal('New passwords do not match');
                     return;
                 }
 
-                showModal('Are you sure you want to change your password?', async (confirmed) => {
-                    if (!confirmed) return;
-
+                this.openModal('Are you sure you want to change your password?', async () => {
                     try {
                         const response = await fetch('/update-password', {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
                             body: JSON.stringify(this.passwordData)
                         });
 
                         const data = await response.json();
 
                         if (data.success) {
-                            showModal('Password updated successfully', () => {
+                            this.openModal('Password updated successfully', () => {
                                 this.passwordData = {
                                     currentPassword: '',
                                     newPassword: '',
                                     confirmPassword: ''
                                 };
-                            }, { showCancel: false });
+                            });
                         } else {
-                            showModal(data.error, null, { showCancel: false });
+                            this.openModal(data.error || 'Failed to update password');
                         }
                     } catch (error) {
-                        showModal('An error occurred. Please try again.', null, { showCancel: false });
+                        this.openModal('An error occurred. Please try again.');
                     }
                 });
             },
 
+            // Удаление аккаунта
             async confirmDelete() {
-                showModal('Are you sure you want to delete your account? This action cannot be undone.', async (confirmed) => {
-                    if (!confirmed) return;
-
-                    showModal('Please enter your password to confirm deletion:', async (confirmed) => {
-                        if (!confirmed) return;
-
+                this.openModal('Are you sure you want to delete your account? This action cannot be undone.', async () => {
+                    this.openModal('Please enter your password to confirm deletion:', async () => {
                         const password = document.querySelector('#deleteAccountPassword').value;
                         if (!password) return;
 
                         try {
                             const response = await fetch('/delete-account', {
                                 method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                },
                                 body: JSON.stringify({ password })
                             });
 
                             const data = await response.json();
 
                             if (data.success) {
-                                showModal('Account deleted successfully', () => {
+                                this.openModal('Account deleted successfully', () => {
                                     window.location.href = '/';
-                                }, { showCancel: false });
+                                });
                             } else {
-                                showModal(data.error, null, { showCancel: false });
+                                this.openModal(data.error || 'Failed to delete account');
                             }
                         } catch (error) {
-                            showModal('An error occurred. Please try again.', null, { showCancel: false });
+                            this.openModal('An error occurred. Please try again.');
                         }
-                    }, {
-                        confirmText: 'Confirm',
-                        template: `
-                        <input 
-                            type="password" 
-                            id="deleteAccountPassword"
-                            class="input input-bordered w-full mt-4" 
-                            placeholder="Enter your password"
-                        >
-                    `
-                    });
-                }, {
-                    confirmText: 'Delete',
-                    cancelText: 'Keep Account'
+                    }, true);
                 });
-            },
-            async updateEmail() {
-                if (!this.emailData.newEmail) {
-                    alert('Please enter a new email address');
-                    return;
-                }
-
-                try {
-                    const response = await fetch('/update-email', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify(this.emailData)
-                    });
-
-                    const data = await response.json();
-
-                    if (data.success) {
-                        alert('Email updated successfully');
-                        window.location.reload();
-                    } else {
-                        alert(data.error);
-                    }
-                } catch (error) {
-                    alert('An error occurred. Please try again.');
-                }
-            },
-
-            async updatePassword() {
-                if (this.passwordData.newPassword !== this.passwordData.confirmPassword) {
-                    alert('New passwords do not match');
-                    return;
-                }
-
-                try {
-                    const response = await fetch('/update-password', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify(this.passwordData)
-                    });
-
-                    const data = await response.json();
-
-                    if (data.success) {
-                        alert('Password updated successfully');
-                        this.passwordData = {
-                            currentPassword: '',
-                            newPassword: '',
-                            confirmPassword: ''
-                        };
-                    } else {
-                        alert(data.error);
-                    }
-                } catch (error) {
-                    alert('An error occurred. Please try again.');
-                }
-            },
-
-            async confirmDelete() {
-                if (!confirm('Are you sure you want to delete your account? This action cannot be undone.')) {
-                    return;
-                }
-
-                const password = prompt('Please enter your password to confirm deletion:');
-                if (!password) return;
-
-                try {
-                    const response = await fetch('/delete-account', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({ password })
-                    });
-
-                    const data = await response.json();
-
-                    if (data.success) {
-                        alert('Account deleted successfully');
-                        window.location.href = '/';
-                    } else {
-                        alert(data.error);
-                    }
-                } catch (error) {
-                    alert('An error occurred. Please try again.');
-                }
             }
         }
     }
-
 </script>
 
 {% endblock %}

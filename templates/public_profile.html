@@ -238,31 +238,9 @@
 
 
 <script>
-    // Обновленная функция addLink
-    function addLink() {
-        const container = document.getElementById('linksContainer');
-        const linkEntry = document.createElement('div');
-        linkEntry.className = 'link-entry group';
-        linkEntry.innerHTML = `
-        <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
-            <div class="flex-grow flex gap-3">
-                <input type="text" name="link_titles[]" placeholder="Link Title" 
-                    class="input input-bordered bg-white w-1/3">
-                <input type="text" name="link_urls[]" placeholder="https://example.com" 
-                    class="input input-bordered bg-white flex-grow">
-            </div>
-            <button type="button" onclick="removeLink(this)" 
-                class="btn btn-ghost btn-sm text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
-                </svg>
-            </button>
-        </div>
-    `;
-        container.appendChild(linkEntry);
-    }
-    const defaultAvatar = '{{ avatar_url }}';
     document.addEventListener('DOMContentLoaded', function () {
+
+        const defaultAvatar = '{{ avatar_url }}';
         const username = '{{ user_data.username }}';
         const commentsList = document.getElementById('commentsList');
         const commentForm = document.getElementById('commentForm');
@@ -277,16 +255,123 @@
             charCount.classList.toggle('text-red-500', currentLength > 450);
         });
 
-        // Format date
         function formatDate(dateString) {
-            const date = new Date(dateString._seconds * 1000);
-            const now = new Date();
-            const diffMinutes = Math.floor((now - date) / (1000 * 60));
+            // Проверяем, является ли dateString объектом с _seconds
+            if (dateString && dateString._seconds) {
+                const date = new Date(dateString._seconds * 1000);
+                const now = new Date();
+                const diffMinutes = Math.floor((now - date) / (1000 * 60));
 
-            if (diffMinutes < 1) return 'Just now';
-            if (diffMinutes < 60) return `${diffMinutes} min ago`;
-            if (diffMinutes < 1440) return `${Math.floor(diffMinutes / 60)} hours ago`;
-            return date.toLocaleDateString();
+                if (diffMinutes < 1) return 'Just now';
+                if (diffMinutes < 60) return `${diffMinutes} min ago`;
+                if (diffMinutes < 1440) return `${Math.floor(diffMinutes / 60)} hours ago`;
+
+                // Форматируем дату
+                return date.toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric'
+                });
+            }
+
+            // Если dateString это timestamp в секундах
+            if (typeof dateString === 'number') {
+                const date = new Date(dateString * 1000);
+                return date.toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric'
+                });
+            }
+
+            // Если dateString это объект Date или строка с датой
+            if (dateString) {
+                const date = new Date(dateString);
+                if (!isNaN(date.getTime())) {
+                    return date.toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric'
+                    });
+                }
+            }
+
+            // Если ничего не подошло, возвращаем дефолтное значение
+            return 'Date not available';
+        }
+
+        // Форматирование комментария
+        function formatComment(comment, isReply = false) {
+            const currentUserId = '{{ session.get("user_id", "") }}';
+            const profileUserId = '{{ user_data.uid }}';
+
+            // Используем toLowerCase() при формировании URL профиля
+            const authorUsername = comment.author_username.toLowerCase();
+
+            return `
+        <div class="comment ${isReply ? 'ml-12' : ''} flex bg-gray-50 p-4 rounded-xl space-x-4 group mb-4" data-comment-id="${comment.id}">
+            <div class="flex-shrink-0">
+                <a href="/${authorUsername}" class="block w-10 h-10 rounded-full overflow-hidden hover:ring-2 hover:ring-black transition-all">
+                    <img 
+                        src="${comment.author_avatar || generateDefaultAvatar(comment.author_username)}" 
+                        alt="${comment.author_username}" 
+                        class="w-full h-full object-cover"
+                        onerror="this.onerror=null; this.src=generateDefaultAvatar('${comment.author_username}')"
+                    >
+                </a>
+            </div>
+            <div class="flex-grow">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <a href="/${authorUsername}" class="font-semibold text-sm hover:underline">@${comment.author_username}</a>
+                        <span class="text-xs text-gray-500 ml-2">${formatDate(comment.created_at)}</span>
+                    </div>
+                        <div class="flex items-center space-x-2">
+                            ${!isReply ? `
+                                <button onclick="toggleReply('${comment.id}')" class="text-gray-500 hover:text-black transition-colors">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                                    </svg>
+                                </button>
+                            ` : ''}
+                            <button onclick="toggleLike('${comment.id}')" 
+                                    class="flex items-center space-x-1 ${comment.is_liked ? 'text-red-500' : 'text-gray-500'} hover:text-red-500 transition-colors">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="${comment.is_liked ? 'currentColor' : 'none'}" 
+                                     viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                          d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                                </svg>
+                                <span class="text-sm likes-count">${comment.likes_count || 0}</span>
+                            </button>
+                            ${(comment.author_id === currentUserId || profileUserId === currentUserId) ? `
+                                <button onclick="deleteComment('${comment.id}')" class="text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                </button>
+                            ` : ''}
+                        </div>
+                    </div>
+                    <p class="text-gray-700 mt-2">${comment.text}</p>
+                    
+                    ${!isReply ? `
+                        <div class="reply-form hidden mt-4" id="reply-form-${comment.id}">
+                            <textarea class="textarea textarea-bordered w-full min-h-[80px] resize-y bg-white"
+                                    placeholder="Write a reply..."></textarea>
+                            <div class="flex justify-end mt-2">
+                                <button onclick="submitReply('${comment.id}')"
+                                        class="btn btn-sm bg-black hover:bg-gray-800 text-white">
+                                    Reply
+                                </button>
+                            </div>
+                        </div>
+                        <div class="replies-container mt-4">
+                            ${comment.replies ? comment.replies.map(reply => formatComment(reply, true)).join('') : ''}
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+        `;
         }
 
         // Load comments
@@ -295,49 +380,20 @@
                 .then(response => response.json())
                 .then(comments => {
                     commentCount.textContent = `(${comments.length})`;
-                    commentsList.innerHTML = comments.map(comment => `
-                <div class="comment flex bg-gray-50 p-4 rounded-xl space-x-4 group" data-comment-id="${comment.id}">
-                    <div class="flex-shrink-0">
-                        <div class="w-10 h-10 rounded-full overflow-hidden">
-                            <img 
-                                src="${comment.author_avatar}" 
-                                alt="${comment.author_username}" 
-                                class="w-full h-full object-cover"
-                                onerror="this.src='${defaultAvatar}'"
-                            >
-                        </div>
+                    commentsList.innerHTML = comments.map(comment => formatComment(comment)).join('') || `
+                    <div class="text-center text-gray-500 py-8">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto mb-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                        </svg>
+                        No comments yet. Be the first to comment!
                     </div>
-                    <div class="flex-grow">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <span class="font-semibold text-sm">@${comment.author_username}</span>
-                                <span class="text-xs text-gray-500 ml-2">${formatDate(comment.created_at)}</span>
-                            </div>
-                            ${(comment.author_id === '{{ session.get("user_id", "") }}' || '{{ user_data.uid }}' === '{{ session.get("user_id", "") }}')
-                            ? `<button onclick="deleteComment('${comment.id}')" class="text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                    </svg>
-                                </button>`
-                            : ''}
-                        </div>
-                        <p class="text-gray-700 mt-2">${comment.text}</p>
-                    </div>
-                </div>
-            `).join('') || `
-                <div class="text-center text-gray-500 py-8">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto mb-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                    </svg>
-                    No comments yet. Be the first to comment!
-                </div>
-            `;
+                `;
                 });
         }
 
-        // Submit comment
+        // Submit comment form
         if (commentForm) {
-            commentForm.addEventListener('submit', function (e) {
+            commentForm.addEventListener('submit', async function (e) {
                 e.preventDefault();
                 const commentTextValue = commentText.value.trim();
 
@@ -346,50 +402,108 @@
                     return;
                 }
 
-                fetch(`/${username}/comments`, {
-                    method: 'POST',
-                    body: new URLSearchParams({ 'comment': commentTextValue }),
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded'
-                    }
-                })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.status === 'success') {
-                            commentText.value = '';
-                            charCount.textContent = '0 / 500';
-                            showNotification('Comment added successfully');
-                            loadComments();
-                        }
-                    })
-                    .catch(error => {
-                        showNotification('Failed to send comment', 'error');
+                try {
+                    const response = await fetch(`/${username}/comments`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded'
+                        },
+                        body: new URLSearchParams({ 'comment': commentTextValue })
                     });
+
+                    const data = await response.json();
+                    if (data.status === 'success') {
+                        commentText.value = '';
+                        charCount.textContent = '0 / 500';
+                        showNotification('Comment added successfully');
+                        loadComments();
+                    }
+                } catch (error) {
+                    showNotification('Failed to send comment', 'error');
+                }
             });
         }
 
-        // Delete comment
-        window.deleteComment = function (commentId) {
-            if (confirm('Are you sure you want to delete this comment?')) {
-                fetch(`/${username}/comments/${commentId}`, { method: 'DELETE' })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.status === 'success') {
-                            showNotification('Comment deleted successfully');
-                            loadComments();
-                        }
-                    })
-                    .catch(error => {
-                        showNotification('Failed to delete comment', 'error');
-                    });
-            }
-        }
+        // Global functions
+        window.toggleReply = function (commentId) {
+            const replyForm = document.querySelector(`#reply-form-${commentId}`);
+            replyForm.classList.toggle('hidden');
+        };
 
-        // Show notification function
+        window.submitReply = async function (commentId) {
+            const replyForm = document.querySelector(`#reply-form-${commentId}`);
+            const replyText = replyForm.querySelector('textarea').value.trim();
+
+            if (!replyText) return;
+
+            try {
+                const response = await fetch(`/${username}/comments/${commentId}/reply`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: new URLSearchParams({ 'reply': replyText })
+                });
+
+                const data = await response.json();
+                if (data.status === 'success') {
+                    showNotification('Reply added successfully');
+                    loadComments();
+                }
+            } catch (error) {
+                showNotification('Failed to add reply', 'error');
+            }
+        };
+
+        window.toggleLike = async function (commentId) {
+            try {
+                const response = await fetch(`/${username}/comments/${commentId}/like`, {
+                    method: 'POST'
+                });
+
+                const data = await response.json();
+                if (data.status === 'success') {
+                    const commentElement = document.querySelector(`[data-comment-id="${commentId}"]`);
+                    const likesCount = commentElement.querySelector('.likes-count');
+                    const likeIcon = likesCount.previousElementSibling;
+
+                    likesCount.textContent = data.likes_count;
+
+                    if (data.is_liked) {
+                        likeIcon.classList.add('text-red-500');
+                        likeIcon.setAttribute('fill', 'currentColor');
+                    } else {
+                        likeIcon.classList.remove('text-red-500');
+                        likeIcon.setAttribute('fill', 'none');
+                    }
+                }
+            } catch (error) {
+                showNotification('Failed to update like', 'error');
+            }
+        };
+
+        window.deleteComment = async function (commentId) {
+            if (!confirm('Are you sure you want to delete this comment?')) return;
+
+            try {
+                const response = await fetch(`/${username}/comments/${commentId}`, {
+                    method: 'DELETE'
+                });
+
+                const data = await response.json();
+                if (data.status === 'success') {
+                    showNotification('Comment deleted successfully');
+                    loadComments();
+                }
+            } catch (error) {
+                showNotification('Failed to delete comment', 'error');
+            }
+        };
+
         function showNotification(message, type = 'success') {
             const notification = document.createElement('div');
             notification.className = `fixed top-4 right-4 z-50 px-6 py-3 rounded-xl shadow-lg transform transition-all duration-300 
-                ${type === 'success' ? 'bg-black text-white' : 'bg-red-500 text-white'}`;
+            ${type === 'success' ? 'bg-black text-white' : 'bg-red-500 text-white'}`;
             notification.textContent = message;
             document.body.appendChild(notification);
 
@@ -402,21 +516,29 @@
         // Initial load
         loadComments();
     });
+
+    // Profile link copying function
     function copyProfileLink() {
         const url = window.location.href;
         navigator.clipboard.writeText(url).then(() => {
-            // Show notification
             const notification = document.createElement('div');
             notification.className = 'fixed bottom-4 right-4 bg-black text-white px-6 py-3 rounded-xl shadow-lg transform transition-all duration-300';
             notification.textContent = 'Profile link copied to clipboard!';
             document.body.appendChild(notification);
 
-            // Remove notification after 3 seconds
             setTimeout(() => {
                 notification.style.opacity = '0';
                 setTimeout(() => notification.remove(), 300);
             }, 3000);
         });
+    }
+    function generateDefaultAvatar(username) {
+        const initials = username.split(' ')
+            .map(word => word[0])
+            .join('')
+            .toUpperCase()
+            .slice(0, 2);
+        return `https://ui-avatars.com/api/?name=${initials}&background=random&color=fff&size=128`;
     }
 </script>
 {% endblock %}

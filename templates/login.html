@@ -19,20 +19,21 @@
 
                 <form class="space-y-6" method="POST">
                     <div class="space-y-4">
-                        <!-- Email Input -->
+                        <!-- Username/Email Input -->
                         <div>
-                            <label for="email" class="label">
-                                <span class="label-text font-medium">Email address</span>
+                            <label for="identifier" class="label">
+                                <span class="label-text font-medium">Username or Email</span>
                             </label>
                             <div class="relative">
-                                <input id="email" name="email" type="email" required x-model="email"
-                                    class="input input-bordered bg-gray-50 w-full pl-10" placeholder="you@example.com">
+                                <input id="identifier" name="identifier" type="text" required x-model="identifier"
+                                    class="input input-bordered bg-gray-50 w-full pl-10"
+                                    placeholder="username or email">
                                 <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400"
                                         viewBox="0 0 20 20" fill="currentColor">
-                                        <path
-                                            d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
-                                        <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
+                                        <path fill-rule="evenodd"
+                                            d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"
+                                            clip-rule="evenodd" />
                                     </svg>
                                 </div>
                             </div>
@@ -118,7 +119,17 @@
                     </button>
                     <button type="submit" class="btn bg-black text-white hover:bg-gray-800" :disabled="isResetting">
                         <span x-show="!isResetting">Send Instructions</span>
-                        <span x-show="isResetting">Sending...</span>
+                        <span x-show="isResetting">
+                            <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg"
+                                fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
+                                    stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor"
+                                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                                </path>
+                            </svg>
+                            Sending...
+                        </span>
                     </button>
                 </div>
             </form>
@@ -133,7 +144,7 @@
             <p class="text-lg mb-6" x-text="message"></p>
             <div class="flex justify-end">
                 <button @click="showMessage = false"
-                    class="px-4 py-2 rounded bg-black hover:bg-black text-white transition-colors">
+                    class="px-4 py-2 rounded bg-black hover:bg-gray-800 text-white transition-colors">
                     OK
                 </button>
             </div>
@@ -145,7 +156,7 @@
 <script>
     function loginForm() {
         return {
-            email: '',
+            identifier: '',
             password: '',
             showPassword: false,
             showResetModal: false,
@@ -153,17 +164,6 @@
             isResetting: false,
             showMessage: false,
             message: '',
-
-            showMessageModal(text) {
-                this.message = text;
-                this.showMessage = true;
-            },
-
-            closeResetModal() {
-                this.showResetModal = false;
-                this.resetEmail = '';
-                this.isResetting = false;
-            },
 
             async submitResetPassword() {
                 if (!this.resetEmail) {
@@ -184,17 +184,29 @@
 
                     const data = await response.json();
 
-                    if (data.success) {
+                    if (response.ok) {
                         this.closeResetModal();
-                        this.showMessageModal(data.message);
+                        this.showMessageModal('Password reset instructions have been sent to your email. Please check your inbox and spam folder.');
                     } else {
-                        this.showMessageModal(data.error || 'An error occurred');
+                        throw new Error(data.error || 'Failed to send reset instructions');
                     }
                 } catch (error) {
-                    this.showMessageModal('An error occurred. Please try again.');
+                    console.error('Reset password error:', error);
+                    this.showMessageModal(error.message || 'An error occurred. Please try again.');
                 } finally {
                     this.isResetting = false;
                 }
+            },
+
+            showMessageModal(text) {
+                this.message = text;
+                this.showMessage = true;
+            },
+
+            closeResetModal() {
+                this.showResetModal = false;
+                this.resetEmail = '';
+                this.isResetting = false;
             }
         }
     }

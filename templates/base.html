@@ -2,6 +2,7 @@
 <html lang="en" data-theme="light">
 
 <head>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
     <title>Jinaq - Professional Portfolio Platform</title>
@@ -16,6 +17,25 @@
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
 
     <style>
+        .search-dropdown {
+            position: absolute;
+            z-index: 1000;
+            background: white;
+            border-radius: 0.5rem;
+            max-height: 300px;
+            overflow-y: auto;
+            width: 100%;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+
+        .search-item {
+            transition: all 0.2s ease;
+        }
+
+        .search-item:hover {
+            background-color: rgba(0, 0, 0, 0.02);
+        }
+
         .search-dropdown {
             position: absolute;
             z-index: 1000;
@@ -117,6 +137,7 @@
         <div class="p-6 space-y-4">
             <div class="border-b pb-4 mb-4 flex justify-between items-center">
                 <span class="text-xl font-bold"><img src="/static/jinaq_logo.svg" alt="Logo" class="h-8 w-auto"></span>
+
                 <button @click="toggleMobileMenu()" class="text-gray-600 hover:text-black">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -127,6 +148,7 @@
             </div>
 
             {% if 'user_id' in session %}
+
             <div class="flex items-center space-x-4 mb-4">
                 <div class="w-12 h-12 rounded-full overflow-hidden ring-2 ring-gray-200">
                     <img src="{{ current_user_avatar if current_user_avatar else avatar_url }}"
@@ -139,13 +161,102 @@
                     <div class="text-sm text-gray-500">Welcome back</div>
                 </div>
             </div>
+
             <div class="relative w-full mb-4">
                 <input type="text" id="mobileUserSearch" placeholder="Find users..."
                     class="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-black">
                 <div id="mobileSearchResults" class="search-dropdown hidden"></div>
             </div>
             {% endif %}
+            <div x-data="notificationsSystem()" class="relative">
+                <div @click="toggleMobileNotifications"
+                    class="flex items-center justify-between px-4 py-3 hover:bg-gray-100 cursor-pointer">
+                    <div class="flex items-center space-x-3">
 
+                        <span>Notifications</span>
+                    </div>
+                    <div class="relative">
+                        <span x-show="unreadCount > 0" class="bg-red-500 text-white rounded-full px-2 py-0.5 text-xs"
+                            x-text="unreadCount"></span>
+                    </div>
+                </div>
+
+                <div x-show="showMobileNotifications" x-transition class="fixed inset-0 bg-white z-50 overflow-y-auto">
+                    <div class="p-4 border-b flex justify-between items-center">
+                        <h3 class="text-lg font-semibold">Notifications</h3>
+                        <button @click="toggleMobileNotifications" class="text-gray-600">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    <div class="p-4">
+                        <template x-if="notifications.length === 0">
+                            <div class="text-center text-gray-500">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto mb-2 text-gray-300"
+                                    fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M15 17h5l-1.405-1.405A2.032 2.032 0 0 1 18 15.158V11a6.002 6.002 0 0 0-4-5.659V5a2 2 0 1 0-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 1 1-6 0v-1m6 0H9" />
+                                </svg>
+                                No notifications
+                            </div>
+                        </template>
+
+                        <template x-for="notification in notifications" :key="notification.id">
+                            <div class="p-4 hover:bg-gray-50 border-b flex items-start cursor-pointer group"
+                                @click="handleNotificationClick(notification)">
+                                <div class="mr-3 text-2xl">
+                                    <template x-if="notification.type === 'like_comment'">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500"
+                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path stroke-linecap="round" stroke-linejoin="round"
+                                                d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                                        </svg>
+                                    </template>
+                                    <template x-if="notification.type === 'reply_comment'">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-500"
+                                            fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                            <path stroke-linecap="round" stroke-linejoin="round"
+                                                d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                                        </svg>
+                                    </template>
+                                    <template x-if="notification.type === 'system'">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-500"
+                                            fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                            <path stroke-linecap="round" stroke-linejoin="round"
+                                                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                    </template>
+                                    <template x-else>
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-500"
+                                            fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                            <path stroke-linecap="round" stroke-linejoin="round"
+                                                d="M15 17h5l-1.405-1.405A2.032 2.032 0 0 1 18 15.158V11a6.002 6.002 0 0 0-4-5.659V5a2 2 0 1 0-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 1 1-6 0v-1m6 0H9" />
+                                        </svg>
+                                    </template>
+                                </div>
+                                <div class="flex-grow">
+                                    <p class="text-sm"
+                                        x-text="notification.content.message || notification.content.comment_text"></p>
+                                    <small class="text-gray-500" x-text="formatDate(notification.created_at)"></small>
+                                </div>
+                                <button @click.stop="deleteNotification(notification.id)"
+                                    class="text-red-500 hover:text-red-700 ml-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20"
+                                        fill="currentColor">
+                                        <path fill-rule="evenodd"
+                                            d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
+                                            clip-rule="evenodd" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
             {% if 'user_id' in session %}
             <a href="{{ url_for('profile') }}" class="block px-4 py-3 rounded-lg hover:bg-gray-100">
                 My Portfolio
@@ -184,10 +295,103 @@
                     {% else %}
                     <span class="text-2xl font-bold text-black">JINAQ</span>
                     {% endif %}
+
                 </a>
 
                 <div class="flex items-center space-x-4">
                     {% if 'user_id' in session %}
+                    <div x-data="notificationsSystem()" class="relative">
+                        <button @click="toggleNotifications" class="btn btn-ghost btn-circle relative">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M15 17h5l-1.405-1.405A2.032 2.032 0 0 1 18 15.158V11a6.002 6.002 0 0 0-4-5.659V5a2 2 0 1 0-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 1 1-6 0v-1m6 0H9" />
+                            </svg>
+                            <span x-show="unreadCount > 0"
+                                class="absolute -top-1 -right-1 bg-red-500 text-white rounded-full px-1.5 py-0.5 text-xs"
+                                x-text="unreadCount"></span>
+                        </button>
+
+                        <div x-show="showNotifications" x-transition @click.outside="showNotifications = false"
+                            class="absolute right-0 mt-2 w-96 bg-white rounded-xl shadow-lg border border-gray-100 z-50">
+
+                            <div class="p-4 border-b flex justify-between items-center">
+                                <h3 class="text-lg font-semibold">Notifications</h3>
+                                <button @click="markAllAsRead" class="text-sm text-blue-500">Mark all read</button>
+                            </div>
+
+                            <div class="max-h-[500px] overflow-y-auto">
+                                <template x-if="notifications.length === 0">
+                                    <div class="p-4 text-center text-gray-500">
+                                        <svg xmlns="http://www.w3.org/2000/svg"
+                                            class="h-12 w-12 mx-auto mb-2 text-gray-300" fill="none" viewBox="0 0 24 24"
+                                            stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M15 17h5l-1.405-1.405A2.032 2.032 0 0 1 18 15.158V11a6.002 6.002 0 0 0-4-5.659V5a2 2 0 1 0-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 1 1-6 0v-1m6 0H9" />
+                                        </svg>
+                                        No notifications
+                                    </div>
+                                </template>
+
+                                <template x-for="notification in notifications" :key="notification.id">
+                                    <div class="p-4 hover:bg-gray-50 border-b flex items-start cursor-pointer group"
+                                        @click="handleNotificationClick(notification)">
+                                        <div class="mr-3 text-2xl">
+                                            <template x-if="notification.type === 'like_comment'">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500"
+                                                    viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                    stroke-width="2">
+                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                        d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                                                </svg>
+                                            </template>
+                                            <template x-if="notification.type === 'reply_comment'">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-500"
+                                                    fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                                                    stroke-width="2">
+                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                        d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                                                </svg>
+                                            </template>
+                                            <template x-if="notification.type === 'system'">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-500"
+                                                    fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                                                    stroke-width="2">
+                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                </svg>
+                                            </template>
+                                            <template x-else>
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-500"
+                                                    fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                                                    stroke-width="2">
+                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                        d="M15 17h5l-1.405-1.405A2.032 2.032 0 0 1 18 15.158V11a6.002 6.002 0 0 0-4-5.659V5a2 2 0 1 0-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 1 1-6 0v-1m6 0H9" />
+                                                </svg>
+                                            </template>
+                                        </div>
+                                        <div class="flex-grow">
+                                            <p class="text-sm"
+                                                x-text="notification.content.message || notification.content.comment_text">
+                                            </p>
+                                            <small class="text-gray-500"
+                                                x-text="formatDate(notification.created_at)"></small>
+                                        </div>
+                                        <button @click.stop="deleteNotification(notification.id)"
+                                            class="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700 ml-2">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20"
+                                                fill="currentColor">
+                                                <path fill-rule="evenodd"
+                                                    d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
+                                                    clip-rule="evenodd" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+
                     <a href="{{ url_for('profile') }}" class="px-3 py-2 rounded-lg hover:bg-gray-100 nav-hover">
                         My Portfolio
                     </a>
@@ -261,7 +465,9 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M4 6h16M4 12h16M4 18h16" />
                     </svg>
+
                 </button>
+
             </div>
         </div>
     </nav>
@@ -321,10 +527,20 @@
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
 
     <!-- Отдельный скрипт для поиска -->
+    {% block scripts %}
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            // Функция создания результатов поиска
-            function createSearchResults(searchInput, searchResults, users) {
+        // Функция для поиска пользователей
+        function initUserSearch() {
+            const searchInputs = {
+                desktop: document.getElementById('desktopUserSearch'),
+                mobile: document.getElementById('mobileUserSearch')
+            };
+            const searchResults = {
+                desktop: document.getElementById('desktopSearchResults'),
+                mobile: document.getElementById('mobileSearchResults')
+            };
+
+            function createSearchResults(searchResults, users) {
                 searchResults.innerHTML = '';
 
                 if (users.length === 0) {
@@ -335,159 +551,257 @@
 
                 users.forEach(user => {
                     const userItem = document.createElement('div');
-                    userItem.classList.add('search-item', 'flex', 'items-center', 'p-2', 'hover:bg-gray-100', 'cursor-pointer');
+                    userItem.classList.add(
+                        'search-item',
+                        'flex',
+                        'items-center',
+                        'p-3',
+                        'hover:bg-gray-50',
+                        'transition-colors',
+                        'cursor-pointer'
+                    );
 
-                    // Создаем элемент для верификации
                     const verificationIcon = user.verified
-                        ? `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-500 ml-2 " viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-               </svg>`
+                        ? `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-500 ml-1" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                       </svg>`
                         : '';
 
                     userItem.innerHTML = `
-            <img src="${user.avatar}" alt="Avatar" class="w-10 h-10 rounded-full mr-3 object-cover">
-            <span class="flex-grow flex items-center">
-                @${user.username}
-                ${verificationIcon}
-            </span>
-        `;
+                    <div class="flex-shrink-0">
+                        <img src="${user.avatar}" alt="Avatar" class="w-10 h-10 rounded-full object-cover">
+                    </div>
+                    <div class="ml-3 flex-grow">
+                        ${user.full_name ? `
+                            <div class="flex items-center">
+                                <span class="font-medium text-gray-900">${user.full_name}</span>
+                                ${verificationIcon}
+                            </div>
+                        ` : ''}
+                        <div class="text-sm ${!user.full_name ? 'font-medium text-gray-900' : 'text-gray-500'}">
+                            @${user.username}
+                        </div>
+                    </div>
+                `;
+
                     userItem.addEventListener('click', () => {
-                        window.location.href = `/${user.username}`;
+                        window.location.href = `/${user.username.toLowerCase()}`;
                     });
                     searchResults.appendChild(userItem);
                 });
 
                 searchResults.classList.remove('hidden');
+                searchResults.classList.add(
+                    'bg-white',
+                    'rounded-lg',
+                    'shadow-lg',
+                    'border',
+                    'border-gray-100',
+                    'overflow-hidden'
+                );
             }
 
-            // Функция для выполнения поиска
             function performSearch(query, searchInput, searchResults) {
                 if (query.length < 2) {
                     searchResults.classList.add('hidden');
                     return;
                 }
 
-                fetch(`/search_users?query=${query}`)
+                fetch(`/search_users?query=${encodeURIComponent(query)}`)
                     .then(response => response.json())
                     .then(users => {
-                        createSearchResults(searchInput, searchResults, users);
+                        createSearchResults(searchResults, users);
                     })
                     .catch(error => {
-                        console.error('Error:', error);
+                        console.error('Search error:', error);
                         searchResults.innerHTML = '<div class="p-4 text-red-500">Search error</div>';
                         searchResults.classList.remove('hidden');
                     });
             }
 
-            // Поиск в десктопной навигации
-            const desktopSearchInput = document.getElementById('desktopUserSearch');
-            const desktopSearchResults = document.getElementById('desktopSearchResults');
-            if (desktopSearchInput) {
-                desktopSearchInput.addEventListener('input', function () {
-                    performSearch(this.value.trim(), desktopSearchInput, desktopSearchResults);
+            // Обработчики для десктопного поиска
+            if (searchInputs.desktop && searchResults.desktop) {
+                let desktopDebounceTimer;
+                searchInputs.desktop.addEventListener('input', function () {
+                    clearTimeout(desktopDebounceTimer);
+                    desktopDebounceTimer = setTimeout(() => {
+                        performSearch(this.value.trim(), searchInputs.desktop, searchResults.desktop);
+                    }, 300);
                 });
             }
 
-            // Поиск в мобильной навигации
-            const mobileSearchInput = document.getElementById('mobileUserSearch');
-            const mobileSearchResults = document.getElementById('mobileSearchResults');
-            if (mobileSearchInput) {
-                mobileSearchInput.addEventListener('input', function () {
-                    performSearch(this.value.trim(), mobileSearchInput, mobileSearchResults);
+            // Обработчики для мобильного поиска
+            if (searchInputs.mobile && searchResults.mobile) {
+                let mobileDebounceTimer;
+                searchInputs.mobile.addEventListener('input', function () {
+                    clearTimeout(mobileDebounceTimer);
+                    mobileDebounceTimer = setTimeout(() => {
+                        performSearch(this.value.trim(), searchInputs.mobile, searchResults.mobile);
+                    }, 300);
                 });
             }
 
             // Закрытие результатов при клике вне поля
             document.addEventListener('click', function (event) {
-                [desktopSearchInput, mobileSearchInput].forEach((searchInput, index) => {
-                    const searchResults = [desktopSearchResults, mobileSearchResults][index];
-
-                    if (searchInput && searchResults) {
-                        if (!searchInput.contains(event.target) && !searchResults.contains(event.target)) {
-                            searchResults.classList.add('hidden');
-                        }
+                Object.keys(searchResults).forEach(key => {
+                    const input = searchInputs[key];
+                    const results = searchResults[key];
+                    if (results && !input?.contains(event.target) && !results.contains(event.target)) {
+                        results.classList.add('hidden');
                     }
                 });
             });
-        });
-        function createSearchResults(searchInput, searchResults, users) {
-            searchResults.innerHTML = '';
-
-            if (users.length === 0) {
-                searchResults.innerHTML = '<div class="p-4 text-gray-500">No users found</div>';
-                searchResults.classList.remove('hidden');
-                return;
-            }
-
-            users.forEach(user => {
-                const userItem = document.createElement('div');
-                userItem.classList.add('search-item', 'flex', 'items-center', 'p-2', 'hover:bg-gray-100', 'cursor-pointer');
-
-                // Создаем элемент для верификации
-                const verificationIcon = user.verified
-                    ? `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-500 ml-2" fill="currentColor" viewBox="0 0 20 20">
-                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
-               </svg>`
-                    : '';
-
-                userItem.innerHTML = `
-            <img src="${user.avatar}" alt="Avatar" class="w-10 h-10 rounded-full mr-3 object-cover">
-            <span class="flex-grow flex items-center">
-                @${user.username}
-                ${verificationIcon}
-            </span>
-        `;
-                userItem.addEventListener('click', () => {
-                    window.location.href = `/${user.username}`;
-                });
-                searchResults.appendChild(userItem);
-            });
-
-            searchResults.classList.remove('hidden');
         }
+
+        // Функция для модальной системы
         function modalSystem() {
             return {
                 isOpen: false,
                 message: '',
-                confirmText: 'OK',
-                cancelText: 'Cancel',
                 showCancel: true,
-                callback: null,
-                template: '',  // Добавляем поддержку template
+                cancelText: 'Cancel',
+                confirmText: 'Confirm',
+                template: '',
+                confirmCallback: null,
 
-                openModal(message, callback, options = {}) {
-                    this.message = message;
-                    this.callback = callback;
-                    this.confirmText = options.confirmText || 'OK';
-                    this.cancelText = options.cancelText || 'Cancel';
-                    this.showCancel = options.showCancel !== false;
-                    this.template = options.template || '';  // Поддержка дополнительного HTML
+                openModal(options = {}) {
                     this.isOpen = true;
+                    this.message = options.message || '';
+                    this.showCancel = options.showCancel !== false;
+                    this.cancelText = options.cancelText || 'Cancel';
+                    this.confirmText = options.confirmText || 'Confirm';
+                    this.template = options.template || '';
+                    this.confirmCallback = options.confirm || null;
                 },
 
                 closeModal() {
                     this.isOpen = false;
-                    this.callback?.(false);
-                    this.template = '';  // Очищаем template при закрытии
+                    this.resetModalState();
                 },
 
                 confirm() {
-                    this.isOpen = false;
-                    this.callback?.(true);
-                    this.template = '';  // Очищаем template после подтверждения
+                    if (typeof this.confirmCallback === 'function') {
+                        this.confirmCallback();
+                    }
+                    this.closeModal();
+                },
+
+                resetModalState() {
+                    this.message = '';
+                    this.showCancel = true;
+                    this.cancelText = 'Cancel';
+                    this.confirmText = 'Confirm';
+                    this.template = '';
+                    this.confirmCallback = null;
                 }
-            }
+            };
         }
 
-        // Глобальная функция для показа модального окна
-        window.showModal = function (message, callback, options = {}) {
-            const modal = document.querySelector('[x-data="modalSystem()"]').__x.$data;
-            modal.openModal(message, callback, options);
-        };
+        // Функция для системы уведомлений
+        function notificationsSystem() {
+            return {
+                notifications: [],
+                unreadCount: 0,
+                showNotifications: false,
+                showMobileNotifications: false,
 
+                init() {
+                    this.fetchNotifications();
+                    this.startPeriodicFetch();
+                },
+
+                startPeriodicFetch() {
+                    setInterval(() => this.fetchNotifications(), 5 * 60 * 1000);
+                },
+
+                fetchNotifications() {
+                    fetch('/notifications')
+                        .then(response => response.json())
+                        .then(data => {
+                            this.notifications = data;
+                            this.unreadCount = data.filter(n => !n.is_read).length;
+                        })
+                        .catch(error => {
+                            console.error('Failed to fetch notifications:', error);
+                        });
+                },
+
+                toggleNotifications() {
+                    this.showNotifications = !this.showNotifications;
+                    if (this.showNotifications) {
+                        this.fetchNotifications();
+                    }
+                },
+
+                toggleMobileNotifications() {
+                    this.showMobileNotifications = !this.showMobileNotifications;
+                    if (this.showMobileNotifications) {
+                        this.fetchNotifications();
+                    }
+                },
+
+                formatDate(timestamp) {
+                    if (!timestamp) return 'Just now';
+
+                    const date = timestamp._seconds
+                        ? new Date(timestamp._seconds * 1000)
+                        : new Date(timestamp);
+
+                    const now = new Date();
+                    const diffMinutes = Math.floor((now - date) / (1000 * 60));
+
+                    if (diffMinutes < 1) return 'Just now';
+                    if (diffMinutes < 60) return `${diffMinutes} min ago`;
+                    if (diffMinutes < 1440) return `${Math.floor(diffMinutes / 60)} hours ago`;
+
+                    return date.toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric'
+                    });
+                },
+
+                handleNotificationClick(notification) {
+                    if (notification.sender_id) {
+                        window.location.href = `/${notification.sender_username}`;
+                    }
+
+                    this.markNotificationRead(notification.id);
+                    this.showNotifications = false;
+                    this.showMobileNotifications = false;
+                },
+
+                markNotificationRead(notificationId) {
+                    fetch(`/notifications/mark_read/${notificationId}`, { method: 'POST' })
+                        .then(() => {
+                            this.fetchNotifications();
+                        });
+                },
+
+                markAllAsRead() {
+                    this.notifications.forEach(notification => {
+                        if (!notification.is_read) {
+                            this.markNotificationRead(notification.id);
+                        }
+                    });
+                },
+
+                deleteNotification(notificationId) {
+                    fetch(`/notifications/${notificationId}`, { method: 'DELETE' })
+                        .then(() => {
+                            this.notifications = this.notifications.filter(n => n.id !== notificationId);
+                            this.unreadCount = this.notifications.filter(n => !n.is_read).length;
+                        });
+                }
+            };
+        }
+
+        // Инициализация при загрузке документа
+        document.addEventListener('DOMContentLoaded', function () {
+            initUserSearch();
+        });
     </script>
-
-    {% block scripts %}{% endblock %}
+    {% endblock %}
     <div x-data="modalSystem()" x-show="isOpen" x-cloak
         class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center"
         @keydown.escape.window="closeModal()">

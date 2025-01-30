@@ -1,61 +1,205 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="container mx-auto px-4 py-8">
-    <div class="bg-white shadow-md rounded-lg">
-        <div class="px-6 py-4 border-b flex justify-between items-center">
-            <h1 class="text-2xl font-bold">Admin Dashboard - User Verification</h1>
-            <a href="{{ url_for('admin_logout') }}" class="btn bg-red-500 text-white">Logout</a>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- Список пользователей -->
+        <div class="md:col-span-2 bg-white shadow-md rounded-lg">
+            <div class="px-6 py-4 border-b flex justify-between items-center">
+                <h1 class="text-2xl font-bold">Admin Dashboard - User Management</h1>
+                <a href="{{ url_for('admin_logout') }}" class="btn bg-red-500 text-white">Logout</a>
+            </div>
+
+            <table class="w-full">
+                <thead class="bg-gray-100">
+                    <tr>
+                        <th class="px-6 py-3 text-left">Username</th>
+                        <th class="px-6 py-3 text-left">Email</th>
+                        <th class="px-6 py-3 text-left">Verified</th>
+                        <th class="px-6 py-3 text-left">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                    <tr class="border-b">
+                        <td class="px-6 py-4">
+                            <div class="flex items-center">
+                                <input type="checkbox" class="user-checkbox mr-3" value="{{ user.id }}"
+                                    data-username="{{ user.display_username }}">
+                                {{ user.display_username }}
+                            </div>
+                        </td>
+                        <td class="px-6 py-4">{{ user.email }}</td>
+                        <td class="px-6 py-4">
+                            <span class="{{ 'text-green-600' if user.get('verified') else 'text-gray-500' }}">
+                                {{ 'Verified' if user.get('verified') else 'Not Verified' }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4">
+                            <div class="dropdown">
+                                <label tabindex="0" class="btn m-1">Verify</label>
+                                <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-base-100 rounded-box w-52">
+                                    <li>
+                                        <a onclick="verifyUser('{{ user.id }}', 'official')">
+                                            🏛️ Official Account
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a onclick="verifyUser('{{ user.id }}', 'creator')">
+                                            🎨 Content Creator
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a onclick="verifyUser('{{ user.id }}', 'business')">
+                                            💼 Business Account
+                                        </a>
+                                    </li>
+                                </ul>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
 
-        <table class="w-full">
-            <thead class="bg-gray-100">
-                <tr>
-                    <th class="px-6 py-3 text-left">Username</th>
-                    <th class="px-6 py-3 text-left">Email</th>
-                    <th class="px-6 py-3 text-left">Verified</th>
-                    <th class="px-6 py-3 text-left">Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for user in users %}
-                <tr class="border-b">
-                    <td class="px-6 py-4">{{ user.display_username }}</td>
-                    <td class="px-6 py-4">{{ user.email }}</td>
-                    <td class="px-6 py-4">
-                        <span class="{{ 'text-green-600' if user.get('verified') else 'text-gray-500' }}">
-                            {{ 'Verified' if user.get('verified') else 'Not Verified' }}
-                        </span>
-                    </td>
-                    <td class="px-6 py-4">
-                        <div class="dropdown">
-                            <label tabindex="0" class="btn m-1">Verify</label>
-                            <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-base-100 rounded-box w-52">
-                                <li>
-                                    <a onclick="verifyUser('{{ user.id }}', 'official')">
-                                        🏛️ Official Account
-                                    </a>
-                                </li>
-                                <li>
-                                    <a onclick="verifyUser('{{ user.id }}', 'creator')">
-                                        🎨 Content Creator
-                                    </a>
-                                </li>
-                                <li>
-                                    <a onclick="verifyUser('{{ user.id }}', 'business')">
-                                        💼 Business Account
-                                    </a>
-                                </li>
-                            </ul>
-                        </div>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+        <!-- Панель коммуникаций -->
+        <div class="bg-white shadow-md rounded-lg p-6">
+            <h2 class="text-xl font-bold mb-4">Send Notifications</h2>
+
+            <form id="notificationForm">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700">Recipient Type</label>
+                    <select id="recipientType" class="select select-bordered w-full">
+                        <option value="all">All Users</option>
+                        <option value="verified">Verified Users</option>
+                        <option value="unverified">Unverified Users</option>
+                        <option value="selected">Selected Users</option>
+                    </select>
+                </div>
+
+                <div class="mb-4" id="selectedUsersContainer" style="display:none;">
+                    <label class="block text-sm font-medium text-gray-700">Selected Users</label>
+                    <div id="selectedUsersList" class="mt-2 p-2 bg-gray-100 rounded"></div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700">Message Type</label>
+                    <select id="messageType" class="select select-bordered w-full">
+                        <option value="system">System Message</option>
+                        <option value="admin_message">Admin Message</option>
+                        <option value="important">Important Notification</option>
+                    </select>
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700">Message</label>
+                    <textarea id="messageText" class="textarea textarea-bordered w-full"
+                        placeholder="Enter your message" maxlength="500"></textarea>
+                    <div class="text-sm text-gray-500 mt-1">
+                        <span id="charCount">0</span>/500 characters
+                    </div>
+                </div>
+
+                <button type="button" onclick="sendNotification()" class="btn btn-primary w-full">
+                    Send Notification
+                </button>
+            </form>
+        </div>
     </div>
 </div>
 
 <script>
+    // Список выбранных пользователей
+    let selectedUsers = [];
+
+    document.querySelectorAll('.user-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', function () {
+            const userId = this.value;
+            const username = this.dataset.username;
+
+            if (this.checked) {
+                selectedUsers.push({ id: userId, username: username });
+            } else {
+                selectedUsers = selectedUsers.filter(user => user.id !== userId);
+            }
+
+            updateSelectedUsersList();
+        });
+    });
+
+    document.getElementById('recipientType').addEventListener('change', function () {
+        const selectedUsersContainer = document.getElementById('selectedUsersContainer');
+        selectedUsersContainer.style.display = this.value === 'selected' ? 'block' : 'none';
+    });
+
+    document.getElementById('messageText').addEventListener('input', function () {
+        document.getElementById('charCount').textContent = this.value.length;
+    });
+
+    function updateSelectedUsersList() {
+        const selectedUsersList = document.getElementById('selectedUsersList');
+        selectedUsersList.innerHTML = selectedUsers.map(user =>
+            `<span class="inline-block bg-gray-200 px-2 py-1 rounded mr-2 mb-2">
+                ${user.username}
+                <button onclick="removeUser('${user.id}')" class="ml-2 text-red-500">&times;</button>
+            </span>`
+        ).join('');
+    }
+
+    function removeUser(userId) {
+        selectedUsers = selectedUsers.filter(user => user.id !== userId);
+        updateSelectedUsersList();
+
+        // Снимаем чекбокс
+        const checkbox = document.querySelector(`.user-checkbox[value="${userId}"]`);
+        if (checkbox) checkbox.checked = false;
+    }
+
+    function sendNotification() {
+        const recipientType = document.getElementById('recipientType').value;
+        const messageType = document.getElementById('messageType').value;
+        const messageText = document.getElementById('messageText').value.trim();
+
+        if (!messageText) {
+            alert('Please enter a message');
+            return;
+        }
+
+        const payload = {
+            recipient_type: recipientType,
+            message_type: messageType,
+            message_text: messageText,
+            selected_users: recipientType === 'selected'
+                ? selectedUsers.map(user => user.id)
+                : []
+        };
+
+        fetch('/admin/send_system_notification', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(`Notification sent to ${data.notifications_sent} users`);
+                    // Очищаем форму
+                    document.getElementById('messageText').value = '';
+                    document.getElementById('charCount').textContent = '0';
+                    selectedUsers = [];
+                    updateSelectedUsersList();
+                } else {
+                    alert('Failed to send notification');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred');
+            });
+    }
+
     function verifyUser(userId, type = 'official') {
         fetch('/admin/verify_user', {
             method: 'POST',
