@@ -2,22 +2,43 @@
 {% block content %}
 <div class="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
     <div class="max-w-md w-full space-y-8">
-        <form method="POST" class="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4">
-            <div class="mb-4">
-                <label class="block text-gray-700 text-sm font-bold mb-2" for="password">
-                    Admin Password
-                </label>
-                <input type="password" name="password"
-                    class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                    required>
+        <div class="bg-white shadow-md rounded-lg p-8">
+            <div class="text-center mb-6">
+                <img src="/static/jinaq_logo.svg" alt="Jinaq Logo" class="mx-auto h-12 w-auto mb-4">
+                <h2 class="text-2xl font-bold text-gray-900">Admin Login</h2>
             </div>
-            <div class="flex items-center justify-between">
-                <button type="submit"
-                    class="bg-black hover:bg-gray-800 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
-                    Login
-                </button>
+            <form method="POST" class="space-y-6">
+                <!-- CSRF Token -->
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <div>
+                    <label for="password" class="block text-sm font-medium text-gray-700">
+                        Admin Password
+                    </label>
+                    <div class="mt-1">
+                        <input id="password" name="password" type="password" autocomplete="current-password" required
+                            class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-black focus:border-black sm:text-sm">
+                    </div>
+                </div>
+
+                <div>
+                    <button type="submit"
+                        class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-black hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black">
+                        Login
+                    </button>
+                </div>
+            </form>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            {% for category, message in messages %}
+            <div class="mt-4 text-center {{ 'text-red-500' if category == 'error' else 'text-green-500' }}">
+                {{ message }}
             </div>
-        </form>
+            {% endfor %}
+            {% endif %}
+            {% endwith %}
+        </div>
     </div>
 </div>
 {% endblock %}

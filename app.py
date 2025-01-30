@@ -92,6 +92,11 @@ def get_current_user_avatar():
         print(f"Error getting current user avatar: {e}")
         return None
 
+
+@app.route('/login/google')
+def google_login():
+    # Этот маршрут будет перенаправлять на клиентскую аутентификацию
+    return redirect(url_for('login'))
 def get_current_username():
     """Helper function to get current user's username"""
     if 'username' in session:
