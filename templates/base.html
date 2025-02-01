@@ -2,7 +2,7 @@
 <html lang="en" data-theme="light">
 
 <head>
-    <meta name="csrf-token" content="{{ csrf_token() }}">
+
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
     <title>Jinaq - Professional Portfolio Platform</title>
@@ -17,6 +17,22 @@
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
 
     <style>
+        .see-replies-btn {
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .see-replies-btn:hover {
+            color: black;
+            transform: translateX(2px);
+        }
+
+        .replies-container {
+            margin-top: 0.75rem;
+        }
+
         .search-dropdown {
             position: absolute;
             z-index: 1000;
@@ -107,6 +123,7 @@
             opacity: 0.9;
         }
     </style>
+
 </head>
 
 <body x-data="{ 
@@ -205,53 +222,114 @@
                             </div>
                         </template>
 
+                        <!-- Замените существующий template для уведомлений на: -->
+                        <!-- Общий шаблон уведомлений для обоих видов (мобильного и десктопного) -->
+                        <!-- Общий шаблон уведомлений для обоих видов (мобильного и десктопного) -->
                         <template x-for="notification in notifications" :key="notification.id">
-                            <div class="p-4 hover:bg-gray-50 border-b flex items-start cursor-pointer group"
+                            <div class="p-4 hover:bg-gray-50 border-b cursor-pointer group"
                                 @click="handleNotificationClick(notification)">
-                                <div class="mr-3 text-2xl">
-                                    <template x-if="notification.type === 'like_comment'">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500"
-                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <path stroke-linecap="round" stroke-linejoin="round"
-                                                d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                                <div class="flex items-center gap-3 w-full">
+                                    <!-- Аватар -->
+                                    <!-- Обновленный шаблон для аватара в уведомлениях -->
+                                    <!-- Обновленный шаблон для аватара в уведомлениях -->
+                                    <div class="flex-shrink-0">
+                                        <!-- Для системных, account_change и других системных уведомлений показываем логотип -->
+                                        <template
+                                            x-if="['system', 'admin_message', 'important', 'account_change', 'verification'].includes(notification.type)">
+                                            <div
+                                                class="w-8 h-8 rounded-full bg-white flex items-center justify-center overflow-hidden border border-gray-100">
+                                                <img src="/static/jinaq_icon.svg" class="w-6 h-6 object-contain"
+                                                    alt="Jinaq" style="aspect-ratio: 877/243;">
+                                            </div>
+                                        </template>
+                                        <!-- Для обычных уведомлений показываем аватар пользователя -->
+                                        <template
+                                            x-if="!['system', 'admin_message', 'important', 'account_change', 'verification'].includes(notification.type) && notification.sender_info">
+                                            <img :src="notification.sender_info.avatar_url || generateDefaultAvatar(notification.sender_info.username)"
+                                                class="w-8 h-8 rounded-full object-cover"
+                                                :alt="notification.sender_info.username">
+                                        </template>
+                                    </div>
+
+                                    <!-- Контент -->
+                                    <div class="flex-grow">
+                                        <div class="flex flex-col">
+                                            <!-- Информация о действии -->
+                                            <div class="flex items-center gap-1">
+                                                <!-- Для системных уведомлений -->
+                                                <template
+                                                    x-if="['system', 'admin_message', 'important'].includes(notification.type)">
+                                                    <span class="font-semibold text-sm">
+                                                        <span
+                                                            x-text="notification.sender_info?.username || 'Jinaq'"></span>
+                                                        <svg xmlns="http://www.w3.org/2000/svg"
+                                                            class="h-4 w-4 text-blue-500 inline-block ml-1"
+                                                            viewBox="0 0 20 20" fill="currentColor">
+                                                            <path fill-rule="evenodd"
+                                                                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                                                                clip-rule="evenodd" />
+                                                        </svg>
+                                                    </span>
+                                                </template>
+                                                <!-- Для обычных уведомлений -->
+                                                <template
+                                                    x-if="!['system', 'admin_message', 'important'].includes(notification.type)">
+                                                    <span class="font-semibold text-sm"
+                                                        x-text="'@' + notification.sender_info?.username"></span>
+                                                </template>
+
+                                                <!-- Тип уведомления -->
+
+                                                <!-- Тип уведомления -->
+                                                <!-- Добавьте этот блок внутри секции с типами уведомлений -->
+                                                <template
+                                                    x-if="['system', 'admin_message', 'important', 'account_change', 'verification'].includes(notification.type)">
+                                                    <span class="text-sm text-gray-600"
+                                                        x-text="notification.content.message"></span>
+
+                                                </template>
+                                                <template x-if="notification.type === 'like_comment'">
+                                                    <span class="text-sm text-gray-600">liked your comment</span>
+                                                </template>
+                                                <template x-if="notification.type === 'reply_comment'">
+                                                    <span class="text-sm text-gray-600">replied to your comment</span>
+                                                </template>
+
+                                                <!-- Добавьте отображение текста прокомментированного контента для лайков -->
+                                                <template
+                                                    x-if="notification.type === 'like_comment' && notification.content.comment_text">
+                                                    <div class="mt-2 p-3 bg-gray-50 rounded-lg text-sm text-gray-500"
+                                                        x-text="notification.content.comment_text"></div>
+                                                </template>
+
+                                                <span class="text-xs text-gray-400 ml-auto"
+                                                    x-text="formatDate(notification.created_at)"></span>
+                                            </div>
+
+                                            <!-- Показываем оригинальный комментарий -->
+                                            <template x-if="notification.content.original_comment?.text">
+                                                <div class="mt-1 text-sm text-gray-500"
+                                                    x-text="notification.content.original_comment.text"></div>
+                                            </template>
+
+                                            <!-- Показываем текст ответа -->
+                                            <template x-if="notification.content.reply_text">
+                                                <div class="mt-1 text-sm" x-text="notification.content.reply_text">
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </div>
+
+                                    <!-- Кнопка удаления -->
+                                    <button @click.stop="deleteNotification(notification.id)"
+                                        class="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition-colors ml-2">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none"
+                                            viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M6 18L18 6M6 6l12 12" />
                                         </svg>
-                                    </template>
-                                    <template x-if="notification.type === 'reply_comment'">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-500"
-                                            fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                            <path stroke-linecap="round" stroke-linejoin="round"
-                                                d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                                        </svg>
-                                    </template>
-                                    <template x-if="notification.type === 'system'">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-500"
-                                            fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                            <path stroke-linecap="round" stroke-linejoin="round"
-                                                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                        </svg>
-                                    </template>
-                                    <template x-else>
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-500"
-                                            fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                            <path stroke-linecap="round" stroke-linejoin="round"
-                                                d="M15 17h5l-1.405-1.405A2.032 2.032 0 0 1 18 15.158V11a6.002 6.002 0 0 0-4-5.659V5a2 2 0 1 0-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 1 1-6 0v-1m6 0H9" />
-                                        </svg>
-                                    </template>
+                                    </button>
                                 </div>
-                                <div class="flex-grow">
-                                    <p class="text-sm"
-                                        x-text="notification.content.message || notification.content.comment_text"></p>
-                                    <small class="text-gray-500" x-text="formatDate(notification.created_at)"></small>
-                                </div>
-                                <button @click.stop="deleteNotification(notification.id)"
-                                    class="text-red-500 hover:text-red-700 ml-2">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20"
-                                        fill="currentColor">
-                                        <path fill-rule="evenodd"
-                                            d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
-                                            clip-rule="evenodd" />
-                                    </svg>
-                                </button>
                             </div>
                         </template>
                     </div>
@@ -333,59 +411,115 @@
                                     </div>
                                 </template>
 
+                                <!-- Общий шаблон уведомлений для обоих видов (мобильного и десктопного) -->
+                                <!-- Общий шаблон уведомлений для обоих видов (мобильного и десктопного) -->
                                 <template x-for="notification in notifications" :key="notification.id">
-                                    <div class="p-4 hover:bg-gray-50 border-b flex items-start cursor-pointer group"
+                                    <div class="p-4 hover:bg-gray-50 border-b cursor-pointer group"
                                         @click="handleNotificationClick(notification)">
-                                        <div class="mr-3 text-2xl">
-                                            <template x-if="notification.type === 'like_comment'">
-                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500"
-                                                    viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                                    stroke-width="2">
+                                        <div class="flex items-center gap-3 w-full">
+                                            <!-- Аватар -->
+                                            <!-- Обновленный шаблон для аватара в уведомлениях -->
+                                            <!-- Обновленный шаблон для аватара в уведомлениях -->
+                                            <div class="flex-shrink-0">
+                                                <!-- Для системных, account_change и других системных уведомлений показываем логотип -->
+                                                <template
+                                                    x-if="['system', 'admin_message', 'important', 'account_change', 'verification'].includes(notification.type)">
+                                                    <div
+                                                        class="w-8 h-8 rounded-full bg-white flex items-center justify-center overflow-hidden border border-gray-100">
+                                                        <img src="/static/jinaq_icon.svg" class="w-6 h-6 object-contain"
+                                                            alt="Jinaq" style="aspect-ratio: 877/243;">
+                                                    </div>
+                                                </template>
+                                                <!-- Для обычных уведомлений показываем аватар пользователя -->
+                                                <template
+                                                    x-if="!['system', 'admin_message', 'important', 'account_change', 'verification'].includes(notification.type) && notification.sender_info">
+                                                    <img :src="notification.sender_info.avatar_url || generateDefaultAvatar(notification.sender_info.username)"
+                                                        class="w-8 h-8 rounded-full object-cover"
+                                                        :alt="notification.sender_info.username">
+                                                </template>
+                                            </div>
+
+                                            <!-- Контент -->
+                                            <div class="flex-grow">
+                                                <div class="flex flex-col">
+                                                    <!-- Информация о действии -->
+                                                    <div class="flex items-center gap-1">
+                                                        <!-- Для системных уведомлений -->
+                                                        <template
+                                                            x-if="['system', 'admin_message', 'important'].includes(notification.type)">
+                                                            <span class="font-semibold text-sm">
+                                                                <span
+                                                                    x-text="notification.sender_info?.username || 'Jinaq'"></span>
+                                                                <svg xmlns="http://www.w3.org/2000/svg"
+                                                                    class="h-4 w-4 text-blue-500 inline-block ml-1"
+                                                                    viewBox="0 0 20 20" fill="currentColor">
+                                                                    <path fill-rule="evenodd"
+                                                                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                                                                        clip-rule="evenodd" />
+                                                                </svg>
+                                                            </span>
+                                                        </template>
+                                                        <!-- Для обычных уведомлений -->
+                                                        <template
+                                                            x-if="!['system', 'admin_message', 'important'].includes(notification.type)">
+                                                            <span class="font-semibold text-sm"
+                                                                x-text="'@' + notification.sender_info?.username"></span>
+                                                        </template>
+
+                                                        <!-- Тип уведомления -->
+
+                                                        <!-- Тип уведомления -->
+                                                        <!-- Добавьте этот блок внутри секции с типами уведомлений -->
+                                                        <template
+                                                            x-if="['system', 'admin_message', 'important', 'account_change', 'verification'].includes(notification.type)">
+                                                            <span class="text-sm text-gray-600"
+                                                                x-text="notification.content.message"></span>
+                                                        </template>
+                                                        <template x-if="notification.type === 'like_comment'">
+                                                            <span class="text-sm text-gray-600">liked your
+                                                                comment</span>
+                                                        </template>
+                                                        <template x-if="notification.type === 'reply_comment'">
+                                                            <span class="text-sm text-gray-600">replied to your
+                                                                comment</span>
+                                                        </template>
+
+                                                        <!-- Добавьте отображение текста прокомментированного контента для лайков -->
+                                                        <template
+                                                            x-if="notification.type === 'like_comment' && notification.content.comment_text">
+                                                            <div class="mt-2 p-3 bg-gray-50 rounded-lg text-sm text-gray-500"
+                                                                x-text="notification.content.comment_text"></div>
+                                                        </template>
+
+                                                        <span class="text-xs text-gray-400 ml-auto"
+                                                            x-text="formatDate(notification.created_at)"></span>
+                                                    </div>
+
+                                                    <!-- Показываем оригинальный комментарий -->
+                                                    <template x-if="notification.content.original_comment?.text">
+                                                        <div class="mt-1 text-sm text-gray-500"
+                                                            x-text="notification.content.original_comment.text"></div>
+                                                    </template>
+
+                                                    <!-- Показываем текст ответа -->
+                                                    <template x-if="notification.content.reply_text">
+                                                        <div class="mt-1 text-sm"
+                                                            x-text="notification.content.reply_text">
+                                                        </div>
+                                                    </template>
+                                                </div>
+                                            </div>
+
+                                            <!-- Кнопка удаления -->
+                                            <button @click.stop="deleteNotification(notification.id)"
+                                                class="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition-colors ml-2">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none"
+                                                    viewBox="0 0 24 24" stroke="currentColor">
                                                     <path stroke-linecap="round" stroke-linejoin="round"
-                                                        d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                                                        stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                                                 </svg>
-                                            </template>
-                                            <template x-if="notification.type === 'reply_comment'">
-                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-500"
-                                                    fill="none" viewBox="0 0 24 24" stroke="currentColor"
-                                                    stroke-width="2">
-                                                    <path stroke-linecap="round" stroke-linejoin="round"
-                                                        d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                                                </svg>
-                                            </template>
-                                            <template x-if="notification.type === 'system'">
-                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-500"
-                                                    fill="none" viewBox="0 0 24 24" stroke="currentColor"
-                                                    stroke-width="2">
-                                                    <path stroke-linecap="round" stroke-linejoin="round"
-                                                        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                                </svg>
-                                            </template>
-                                            <template x-else>
-                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-500"
-                                                    fill="none" viewBox="0 0 24 24" stroke="currentColor"
-                                                    stroke-width="2">
-                                                    <path stroke-linecap="round" stroke-linejoin="round"
-                                                        d="M15 17h5l-1.405-1.405A2.032 2.032 0 0 1 18 15.158V11a6.002 6.002 0 0 0-4-5.659V5a2 2 0 1 0-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 1 1-6 0v-1m6 0H9" />
-                                                </svg>
-                                            </template>
+                                            </button>
                                         </div>
-                                        <div class="flex-grow">
-                                            <p class="text-sm"
-                                                x-text="notification.content.message || notification.content.comment_text">
-                                            </p>
-                                            <small class="text-gray-500"
-                                                x-text="formatDate(notification.created_at)"></small>
-                                        </div>
-                                        <button @click.stop="deleteNotification(notification.id)"
-                                            class="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700 ml-2">
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20"
-                                                fill="currentColor">
-                                                <path fill-rule="evenodd"
-                                                    d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
-                                                    clip-rule="evenodd" />
-                                            </svg>
-                                        </button>
                                     </div>
                                 </template>
                             </div>
@@ -707,23 +841,333 @@
 
                 init() {
                     this.fetchNotifications();
-                    this.startPeriodicFetch();
+                    setInterval(() => this.fetchNotifications(), 60000);
                 },
 
-                startPeriodicFetch() {
-                    setInterval(() => this.fetchNotifications(), 5 * 60 * 1000);
-                },
-
-                fetchNotifications() {
-                    fetch('/notifications')
-                        .then(response => response.json())
-                        .then(data => {
-                            this.notifications = data;
+                async fetchNotifications() {
+                    try {
+                        const response = await fetch('/notifications');
+                        if (response.ok) {
+                            const data = await response.json();
+                            // Группируем уведомления по типам и времени
+                            this.notifications = this.groupNotifications(data);
                             this.unreadCount = data.filter(n => !n.is_read).length;
-                        })
-                        .catch(error => {
-                            console.error('Failed to fetch notifications:', error);
-                        });
+                        }
+                    } catch (error) {
+                        console.error('Failed to fetch notifications:', error);
+                    }
+                },
+
+                groupNotifications(notifications) {
+                    // Группируем похожие уведомления вместе
+                    const groups = {};
+                    notifications.forEach(notification => {
+                        const key = `${notification.type}_${notification.sender_id}_${notification.related_id}`;
+                        if (!groups[key]) {
+                            groups[key] = [];
+                        }
+                        groups[key].push(notification);
+                    });
+
+                    // Форматируем группы
+                    return Object.values(groups).map(group => {
+                        if (group.length === 1) {
+                            return group[0];
+                        }
+
+                        // Объединяем похожие уведомления
+                        const latest = group[0];
+                        latest.grouped = true;
+                        latest.count = group.length;
+                        return latest;
+                    });
+                },
+
+                formatNotificationContent(notification) {
+                    // Общая функция для получения аватара
+                    const getAvatar = (sender) => {
+                        if (sender && sender.avatar_url) return sender.avatar_url;
+                        return this.generateDefaultAvatar(sender?.username || 'Jinaq');
+                    };
+
+                    // Общая функция для отображения верификационного бейджа
+                    const getVerificationBadge = (sender) => {
+                        if (!sender || !sender.verified) return '';
+                        return `
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-blue-500 inline-block ml-1" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+            </svg>
+        `;
+                    };
+
+                    // Системные уведомления
+                    if (['system', 'admin_message', 'important'].includes(notification.type)) {
+                        return `
+            <div class="flex items-start space-x-3">
+                <div class="flex-shrink-0">
+                    <img src="/static/jinaq_logo.svg" 
+                         class="w-10 h-10 rounded-full object-cover"
+                         alt="System">
+                </div>
+                <div class="flex-grow">
+                    <div class="flex items-center gap-1">
+                        <span class="font-medium">Jinaq</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                        </svg>
+                    </div>
+                    <div class="text-sm text-gray-600">
+                        ${notification.content.type_label || 'System Notification'}
+                    </div>
+                    <div class="mt-2 text-sm">
+                        <p>${notification.content.message}</p>
+                        ${notification.content.sender ? `
+                            <div class="text-xs text-gray-500 mt-1">
+                                Sent by: ${notification.content.sender}
+                            </div>
+                        ` : ''}
+                    </div>
+                    <div class="mt-2 text-xs text-gray-400">
+                        ${this.formatDate(notification.created_at)}
+                    </div>
+                </div>
+            </div>
+        `;
+                    }
+
+                    // Уведомления о комментариях
+                    if (notification.type === 'reply_comment') {
+                        return `
+            <div class="flex items-start space-x-3">
+                <div class="flex-shrink-0">
+                    <img src="${getAvatar(notification.sender_info)}" 
+                         class="w-10 h-10 rounded-full object-cover"
+                         alt="${notification.sender_info?.username || 'User'}">
+                </div>
+                <div class="flex-grow">
+                    <div class="flex items-center gap-1">
+                        <span class="font-medium">@${notification.sender_info?.username}</span>
+                        ${getVerificationBadge(notification.sender_info)}
+                        <span class="text-xs text-gray-400 ml-auto">
+                            ${this.formatDate(notification.created_at)}
+                        </span>
+                    </div>
+                    <div class="text-sm text-gray-600">replied to your comment</div>
+                    
+                    ${notification.content.original_comment ? `
+                        <div class="mt-2 p-3 bg-gray-50 rounded-lg text-sm">
+                            <p class="text-gray-500">${notification.content.original_comment.text}</p>
+                        </div>
+                    ` : ''}
+                    
+                    ${notification.content.reply_text ? `
+                        <div class="mt-2 text-sm">
+                            <p>${notification.content.reply_text}</p>
+                        </div>
+                    ` : ''}
+                    
+                    ${notification.grouped ? `
+                        <div class="mt-1 text-xs text-gray-500">
+                            +${notification.count - 1} more replies
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+                    }
+
+                    // Уведомления о лайках
+                    if (notification.type === 'like_comment') {
+                        return `
+            <div class="flex items-start space-x-3">
+                <div class="flex-shrink-0">
+                    <img src="${getAvatar(notification.sender_info)}" 
+                         class="w-10 h-10 rounded-full object-cover"
+                         alt="${notification.sender_info?.username || 'User'}">
+                </div>
+                <div class="flex-grow">
+                    <div class="flex items-center gap-1">
+                        <span class="font-medium">@${notification.sender_info?.username}</span>
+                        ${getVerificationBadge(notification.sender_info)}
+                        <span class="text-xs text-gray-400 ml-auto">
+                            ${this.formatDate(notification.created_at)}
+                        </span>
+                    </div>
+                    <div class="text-sm text-gray-600">liked your comment</div>
+                    
+                    ${notification.content.comment_text ? `
+                        <div class="mt-2 p-3 bg-gray-50 rounded-lg text-sm">
+                            <p class="text-gray-500">${notification.content.comment_text}</p>
+                        </div>
+                    ` : ''}
+                    
+                    ${notification.grouped ? `
+                        <div class="mt-1 text-xs text-gray-500">
+                            +${notification.count - 1} more likes
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+                    }
+
+                    // Уведомления о профильных комментариях
+                    if (notification.type === 'profile_comment') {
+                        return `
+            <div class="flex items-start space-x-3">
+                <div class="flex-shrink-0">
+                    <img src="${getAvatar(notification.sender_info)}" 
+                         class="w-10 h-10 rounded-full object-cover"
+                         alt="${notification.sender_info?.username || 'User'}">
+                </div>
+                <div class="flex-grow">
+                    <div class="flex items-center gap-1">
+                        <span class="font-medium">@${notification.sender_info?.username}</span>
+                        ${getVerificationBadge(notification.sender_info)}
+                        <span class="text-xs text-gray-400 ml-auto">
+                            ${this.formatDate(notification.created_at)}
+                        </span>
+                    </div>
+                    <div class="text-sm text-gray-600">commented on your profile</div>
+                    
+                    ${notification.content.comment_text ? `
+                        <div class="mt-2 p-3 bg-gray-50 rounded-lg text-sm">
+                            <p class="text-gray-500">${notification.content.comment_text}</p>
+                        </div>
+                    ` : ''}
+                    
+                    ${notification.grouped ? `
+                        <div class="mt-1 text-xs text-gray-500">
+                            +${notification.count - 1} more comments
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+                    }
+
+                    // Уведомления об изменении аккаунта
+                    if (notification.type === 'account_change') {
+                        const actionMessages = {
+                            'email_updated': 'Your email has been updated',
+                            'password_changed': 'Your password has been changed',
+                            'verification_revoked': 'Your account verification has been revoked'
+                        };
+
+                        return `
+            <div class="flex items-start space-x-3">
+                <div class="flex-shrink-0">
+                    <img src="/static/jinaq_logo.svg" 
+                         class="w-10 h-10 rounded-full object-cover"
+                         alt="Account">
+                </div>
+                <div class="flex-grow">
+                    <div class="flex items-center gap-1">
+                        <span class="font-medium">Jinaq</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                        </svg>
+                        <span class="text-xs text-gray-400 ml-auto">
+                            ${this.formatDate(notification.created_at)}
+                        </span>
+                    </div>
+                    <div class="text-sm text-gray-600">
+                        ${actionMessages[notification.content.action] || 'Account settings changed'}
+                    </div>
+                </div>
+            </div>
+        `;
+                    }
+
+                    // Уведомления о верификации
+                    if (notification.type === 'verification') {
+                        const verificationTypes = {
+                            'official': '🏛️ Official Account',
+                            'creator': '🎨 Content Creator',
+                            'business': '💼 Business Account'
+                        };
+
+                        return `
+            <div class="flex items-start space-x-3">
+                <div class="flex-shrink-0">
+                    <img src="/static/jinaq_logo.svg" 
+                         class="w-10 h-10 rounded-full object-cover"
+                         alt="Verification">
+                </div>
+                <div class="flex-grow">
+                    <div class="flex items-center gap-1">
+                        <span class="font-medium">Jinaq</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                        </svg>
+                        <span class="text-xs text-gray-400 ml-auto">
+                            ${this.formatDate(notification.created_at)}
+                        </span>
+                    </div>
+                    <div class="text-sm text-gray-600">
+                        ${notification.content.message || `You have been verified as ${verificationTypes[notification.content.verification_type]}`}
+                    </div>
+                </div>
+            </div>
+        `;
+                    }
+
+                    // Фолбэк для неизвестных типов уведомлений
+                    return `
+        <div class="flex items-start space-x-3">
+            <div class="flex-shrink-0">
+                <img src="/static/jinaq_logo.svg" 
+                     class="w-10 h-10 rounded-full object-cover"
+                     alt="Notification">
+            </div>
+            <div class="flex-grow">
+                <div class="text-sm">Notification</div>
+            </div>
+        </div>
+    `;
+                },
+                getVerifiedBadge(type) {
+                    return `
+                <svg xmlns="http://www.w3.org/2000/svg" 
+                     class="h-4 w-4 text-blue-500" 
+                     viewBox="0 0 20 20" 
+                     fill="currentColor">
+                    <path fill-rule="evenodd" 
+                          d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" 
+                          clip-rule="evenodd"/>
+                </svg>
+            `;
+                },
+
+
+                formatDate(timestamp) {
+                    if (!timestamp) return '';
+
+                    const date = timestamp._seconds
+                        ? new Date(timestamp._seconds * 1000)
+                        : new Date(timestamp);
+                    const now = new Date();
+                    const diffMinutes = Math.floor((now - date) / (1000 * 60));
+
+                    if (diffMinutes < 1) return 'just now';
+                    if (diffMinutes < 60) return `${diffMinutes}m`;
+                    if (diffMinutes < 1440) return `${Math.floor(diffMinutes / 60)}h`;
+                    if (diffMinutes < 10080) return `${Math.floor(diffMinutes / 1440)}d`;
+
+                    return date.toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric'
+                    });
+                },
+
+                generateDefaultAvatar(username) {
+                    if (!username) return '';
+                    const initials = username.split(' ')
+                        .map(word => word[0])
+                        .join('')
+                        .toUpperCase()
+                        .slice(0, 2);
+                    return `https://ui-avatars.com/api/?name=${initials}&background=random&color=fff&size=128`;
                 },
 
                 toggleNotifications() {
@@ -740,62 +1184,99 @@
                     }
                 },
 
-                formatDate(timestamp) {
-                    if (!timestamp) return 'Just now';
-
-                    const date = timestamp._seconds
-                        ? new Date(timestamp._seconds * 1000)
-                        : new Date(timestamp);
-
-                    const now = new Date();
-                    const diffMinutes = Math.floor((now - date) / (1000 * 60));
-
-                    if (diffMinutes < 1) return 'Just now';
-                    if (diffMinutes < 60) return `${diffMinutes} min ago`;
-                    if (diffMinutes < 1440) return `${Math.floor(diffMinutes / 60)} hours ago`;
-
-                    return date.toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric'
-                    });
-                },
-
-                handleNotificationClick(notification) {
-                    if (notification.sender_id) {
-                        window.location.href = `/${notification.sender_username}`;
+                async handleNotificationClick(notification) {
+                    // Помечаем уведомление как прочитанное
+                    if (!notification.is_read) {
+                        await fetch(`/notifications/mark_read/${notification.id}`, {
+                            method: 'POST'
+                        });
                     }
 
-                    this.markNotificationRead(notification.id);
+                    // Для системных и административных уведомлений просто закрываем окно
+                    if (notification.type === 'system' || notification.type === 'admin_message' || notification.type === 'important') {
+                        this.showNotifications = false;
+                        this.showMobileNotifications = false;
+                        this.fetchNotifications();
+                        return;
+                    }
+
+                    // Существующая логика для других типов уведомлений
+                    if (notification.type === 'reply_comment') {
+                        const originalComment = notification.content.original_comment;
+                        if (originalComment) {
+                            const username = notification.sender_info?.username;
+                            if (username) {
+                                window.location.href = `/${username}#comment-${notification.related_id}`;
+                                return;
+                            }
+                        }
+                    } else if (notification.type === 'like_comment') {
+                        const username = notification.sender_info?.username;
+                        if (username) {
+                            window.location.href = `/${username}`;
+                            return;
+                        }
+                    }
+
+                    // Закрываем окно уведомлений
                     this.showNotifications = false;
                     this.showMobileNotifications = false;
+
+                    // Обновляем счетчик непрочитанных
+                    this.fetchNotifications();
                 },
 
-                markNotificationRead(notificationId) {
-                    fetch(`/notifications/mark_read/${notificationId}`, { method: 'POST' })
-                        .then(() => {
-                            this.fetchNotifications();
+                async deleteNotification(notificationId) {
+                    try {
+                        const response = await fetch(`/notifications/${notificationId}`, {
+                            method: 'DELETE'
                         });
-                },
 
-                markAllAsRead() {
-                    this.notifications.forEach(notification => {
-                        if (!notification.is_read) {
-                            this.markNotificationRead(notification.id);
-                        }
-                    });
-                },
-
-                deleteNotification(notificationId) {
-                    fetch(`/notifications/${notificationId}`, { method: 'DELETE' })
-                        .then(() => {
+                        if (response.ok) {
+                            // Удаляем уведомление из списка
                             this.notifications = this.notifications.filter(n => n.id !== notificationId);
+                            // Обновляем счетчик непрочитанных
                             this.unreadCount = this.notifications.filter(n => !n.is_read).length;
-                        });
+                        }
+                    } catch (error) {
+                        console.error('Failed to delete notification:', error);
+                    }
+                },
+
+                async markAllAsRead() {
+                    try {
+                        const promises = this.notifications
+                            .filter(n => !n.is_read)
+                            .map(n => fetch(`/notifications/mark_read/${n.id}`, { method: 'POST' }));
+
+                        await Promise.all(promises);
+                        this.fetchNotifications();
+                    } catch (error) {
+                        console.error('Failed to mark notifications as read:', error);
+                    }
+                },
+
+                getNotificationIcon(type) {
+                    switch (type) {
+                        case 'reply_comment':
+                            return `<svg class="h-6 w-6 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                            d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/>
+                    </svg>`;
+                        case 'like_comment':
+                            return `<svg class="h-6 w-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                            d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
+                    </svg>`;
+                        default:
+                            return `<svg class="h-6 w-6 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                            d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 15.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                    </svg>`;
+                    }
                 }
             };
         }
-
         // Инициализация при загрузке документа
         document.addEventListener('DOMContentLoaded', function () {
             initUserSearch();

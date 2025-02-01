@@ -4,4 +4,4 @@ python-dotenv
 werkzeug
 uuid
 gunicorn
-flask_wtf
+

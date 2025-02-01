@@ -15,7 +15,7 @@
                             <div class="flex items-center justify-center md:justify-start gap-4">
                                 {% if user_data.verified %}
                                 <div class="tooltip"
-                                    data-tip="{{ 'Официально подтвержденный аккаунт' if user_data.verification_type == 'official' else 'Верифицированный аккаунт' }}">
+                                    data-tip="{{ 'Officially verified account' if user_data.verification_type == 'official' else 'Verified account' }}">
                                     <svg xmlns="http://www.w3.org/2000/svg"
                                         class="h-6 w-6 text-blue-500 transition-all duration-300 transform hover:scale-110 hover:rotate-6"
                                         viewBox="0 0 20 20" fill="currentColor">
@@ -300,79 +300,166 @@
             return 'Date not available';
         }
 
-        // Форматирование комментария
-        function formatComment(comment, isReply = false) {
+        function formatComment(comment, isReply = false, nestingLevel = 0) {
             const currentUserId = '{{ session.get("user_id", "") }}';
             const profileUserId = '{{ user_data.uid }}';
+            const authorUsername = comment.author_username;
+            const replyToText = comment.reply_to_username ? `Replying to @${comment.reply_to_username}` : '';
 
-            // Используем toLowerCase() при формировании URL профиля
-            const authorUsername = comment.author_username.toLowerCase();
+            const marginLeft = Math.min(nestingLevel * 2, 8);
 
-            return `
-        <div class="comment ${isReply ? 'ml-12' : ''} flex bg-gray-50 p-4 rounded-xl space-x-4 group mb-4" data-comment-id="${comment.id}">
-            <div class="flex-shrink-0">
-                <a href="/${authorUsername}" class="block w-10 h-10 rounded-full overflow-hidden hover:ring-2 hover:ring-black transition-all">
-                    <img 
-                        src="${comment.author_avatar || generateDefaultAvatar(comment.author_username)}" 
-                        alt="${comment.author_username}" 
-                        class="w-full h-full object-cover"
-                        onerror="this.onerror=null; this.src=generateDefaultAvatar('${comment.author_username}')"
-                    >
-                </a>
+            const commentHTML = `
+    <div class="comment flex bg-gray-50 p-4 rounded-xl space-x-4 group mb-4 ${isReply ? `ml-${marginLeft}` : ''}" 
+         data-comment-id="${comment.id}" 
+         data-parent-id="${comment.parent_id || ''}"
+         data-reply-to="${comment.reply_to || ''}">
+        <div class="flex-shrink-0">
+            <a href="/${authorUsername.toLowerCase()}" class="block w-8 h-8 rounded-full overflow-hidden hover:ring-2 hover:ring-black transition-all"> 
+                <img src="${comment.author_avatar}" alt="${comment.author_username}" class="w-full h-full object-cover">
+            </a>
+        </div>
+        <div class="flex-grow">
+            <div class="flex items-center gap-2 mb-1">
+                <a href="/${authorUsername}" class="font-semibold text-sm hover:underline">@${comment.author_username}</a>
+                <span class="text-xs text-gray-500">${formatDate(comment.created_at)}</span>
             </div>
-            <div class="flex-grow">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <a href="/${authorUsername}" class="font-semibold text-sm hover:underline">@${comment.author_username}</a>
-                        <span class="text-xs text-gray-500 ml-2">${formatDate(comment.created_at)}</span>
-                    </div>
-                        <div class="flex items-center space-x-2">
-                            ${!isReply ? `
-                                <button onclick="toggleReply('${comment.id}')" class="text-gray-500 hover:text-black transition-colors">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
-                                    </svg>
-                                </button>
-                            ` : ''}
-                            <button onclick="toggleLike('${comment.id}')" 
-                                    class="flex items-center space-x-1 ${comment.is_liked ? 'text-red-500' : 'text-gray-500'} hover:text-red-500 transition-colors">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="${comment.is_liked ? 'currentColor' : 'none'}" 
-                                     viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                                          d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                                </svg>
-                                <span class="text-sm likes-count">${comment.likes_count || 0}</span>
-                            </button>
-                            ${(comment.author_id === currentUserId || profileUserId === currentUserId) ? `
-                                <button onclick="deleteComment('${comment.id}')" class="text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                    </svg>
-                                </button>
-                            ` : ''}
-                        </div>
-                    </div>
-                    <p class="text-gray-700 mt-2">${comment.text}</p>
-                    
-                    ${!isReply ? `
-                        <div class="reply-form hidden mt-4" id="reply-form-${comment.id}">
-                            <textarea class="textarea textarea-bordered w-full min-h-[80px] resize-y bg-white"
-                                    placeholder="Write a reply..."></textarea>
-                            <div class="flex justify-end mt-2">
-                                <button onclick="submitReply('${comment.id}')"
-                                        class="btn btn-sm bg-black hover:bg-gray-800 text-white">
-                                    Reply
-                                </button>
-                            </div>
-                        </div>
-                        <div class="replies-container mt-4">
-                            ${comment.replies ? comment.replies.map(reply => formatComment(reply, true)).join('') : ''}
-                        </div>
-                    ` : ''}
+            ${replyToText ? `<div class="text-xs text-gray-500 mb-1">${replyToText}</div>` : ''}
+            <p class="text-gray-700 text-sm mb-2">${comment.text}</p>
+            
+            <div class="flex items-center gap-4 text-xs text-gray-500">
+                <button onclick="toggleLike('${comment.id}')" 
+                        class="flex items-center gap-1 ${comment.is_liked ? 'text-red-500' : ''} hover:text-red-500 transition-colors">
+                    <svg class="h-4 w-4" fill="${comment.is_liked ? 'currentColor' : 'none'}" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                              d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                    </svg>
+                    <span class="likes-count">${comment.likes_count || 0}</span>
+                </button>
+                
+                <button onclick="toggleReply('${comment.id}')" class="hover:text-gray-700 transition-colors">
+                    Reply
+                </button>
+                
+                ${(comment.author_id === currentUserId || profileUserId === currentUserId) ? `
+                    <button onclick="deleteComment('${comment.id}')" class="hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all">
+                        Delete
+                    </button>
+                ` : ''}
+            </div>
+
+            <div class="reply-form hidden mt-3" id="reply-form-${comment.id}">
+                <textarea class="textarea textarea-bordered w-full text-sm min-h-[60px] resize-none bg-white"
+                        placeholder="Write a reply..."></textarea>
+                <div class="flex justify-end mt-2">
+                    <button onclick="submitReply('${comment.id}', '${comment.id}')"
+                            class="btn btn-xs bg-black hover:bg-gray-800 text-white">
+                        Reply
+                    </button>
                 </div>
             </div>
-        `;
+
+            ${comment.replies && comment.replies.length > 0 ? `
+            <div class="replies-container hidden mt-3" id="replies-${comment.id}">
+                ${comment.replies.map(reply => formatComment(reply, true, nestingLevel + 1)).join('')}
+            </div>
+            <button onclick="toggleRepliesView('${comment.id}')" 
+                    class="text-xs text-gray-500 hover:text-black mt-2 flex items-center gap-1 see-replies-btn">
+                <span class="replies-count">${comment.replies.length}</span>
+                ${comment.replies.length === 1 ? 'reply' : 'replies'}
+            </button>
+            ` : ''}
+        </div>
+    </div>`;
+
+            return commentHTML;
         }
+
+        window.submitReply = async function (commentId, originalCommentId) {
+            const replyForm = document.querySelector(`#reply-form-${commentId}`);
+            const replyText = replyForm.querySelector('textarea').value.trim();
+            const replyButton = replyForm.querySelector('button');
+
+            if (!replyText) return;
+
+            try {
+                replyButton.disabled = true;
+                replyButton.textContent = 'Sending...';
+
+                const formData = new FormData();
+                formData.append('reply', replyText);
+                formData.append('original_comment_id', originalCommentId);
+
+                const response = await fetch(`/${username}/comments/${commentId}/reply`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    replyForm.querySelector('textarea').value = '';
+                    replyForm.classList.add('hidden');
+
+                    const parentComment = document.querySelector(`[data-comment-id="${commentId}"]`);
+                    let repliesContainer = parentComment.querySelector('.replies-container');
+                    let repliesButton = parentComment.querySelector('.see-replies-btn');
+
+                    if (!repliesContainer) {
+                        repliesContainer = document.createElement('div');
+                        repliesContainer.classList.add('replies-container', 'hidden', 'mt-3');
+                        repliesContainer.id = `replies-${commentId}`;
+                        parentComment.querySelector('.flex-grow').appendChild(repliesContainer);
+                    }
+
+                    if (!repliesButton) {
+                        repliesButton = document.createElement('button');
+                        repliesButton.classList.add('text-xs', 'text-gray-500', 'hover:text-black', 'mt-2', 'flex', 'items-center', 'gap-1', 'see-replies-btn');
+                        repliesButton.setAttribute('onclick', `toggleRepliesView('${commentId}')`);
+                        parentComment.querySelector('.flex-grow').appendChild(repliesButton);
+                    }
+
+                    const replyHTML = formatComment(data.reply, true, 1);
+                    repliesContainer.insertAdjacentHTML('beforeend', replyHTML);
+
+                    repliesButton.innerHTML = `
+                <span class="replies-count">${repliesContainer.children.length}</span>
+                ${repliesContainer.children.length === 1 ? 'reply' : 'replies'}
+            `;
+
+                    showNotification('Reply added successfully');
+                } else {
+                    throw new Error(data.error || 'Failed to add reply');
+                }
+            } catch (error) {
+                showNotification(error.message, 'error');
+            } finally {
+                replyButton.disabled = false;
+                replyButton.textContent = 'Reply';
+            }
+        };
+
+        window.toggleRepliesView = function (commentId) {
+            const repliesContainer = document.querySelector(`#replies-${commentId}`);
+            const repliesButton = document.querySelector(`[data-comment-id="${commentId}"] .see-replies-btn`);
+
+            repliesContainer.classList.toggle('hidden');
+
+            if (repliesContainer.classList.contains('hidden')) {
+                repliesButton.innerHTML = `
+            <span class="replies-count">${repliesContainer.children.length}</span>
+            ${repliesContainer.children.length === 1 ? 'reply' : 'replies'}
+        `;
+            } else {
+                repliesButton.textContent = 'Hide replies';
+            }
+        };
+
+
+
+
+
+
+
 
         // Load comments
         function loadComments() {
@@ -430,30 +517,6 @@
             replyForm.classList.toggle('hidden');
         };
 
-        window.submitReply = async function (commentId) {
-            const replyForm = document.querySelector(`#reply-form-${commentId}`);
-            const replyText = replyForm.querySelector('textarea').value.trim();
-
-            if (!replyText) return;
-
-            try {
-                const response = await fetch(`/${username}/comments/${commentId}/reply`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                    },
-                    body: new URLSearchParams({ 'reply': replyText })
-                });
-
-                const data = await response.json();
-                if (data.status === 'success') {
-                    showNotification('Reply added successfully');
-                    loadComments();
-                }
-            } catch (error) {
-                showNotification('Failed to add reply', 'error');
-            }
-        };
 
         window.toggleLike = async function (commentId) {
             try {

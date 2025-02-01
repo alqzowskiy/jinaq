@@ -9,11 +9,10 @@ import datetime
 from flask import jsonify, request, abort
 import json
 import os
+from flask import jsonify, url_for
+from firebase_admin import firestore
 from dotenv import load_dotenv
 import gunicorn
-from flask_wtf.csrf import CSRFProtect
-
-
 app = Flask(__name__)
 app.secret_key = 'mega-secret-key-yeah'  
 app.config['LOGO_SVG_PATH'] = 'jinaq_logo.svg'
@@ -23,7 +22,6 @@ if not firebase_creds_str:
     raise ValueError("FIREBASE_PRIVATE_KEY не найден в .env файле")
 # Преобразуем строку в словарь
 firebase_credentials = json.loads(firebase_creds_str)
-csrf = CSRFProtect(app)
 NOTIFICATION_TYPES = {
     'like_comment': {
         'icon': '❤️',
@@ -48,6 +46,40 @@ NOTIFICATION_TYPES = {
     'system': {
         'icon': '🌐',
         'label': 'System Notification'
+    }
+}
+# Расширенная конфигурация типов уведомлений
+ENHANCED_NOTIFICATION_TYPES = {
+    **NOTIFICATION_TYPES,  # Сначала базовые типы
+    'system': {  # Затем переопределяем системные
+        'icon': '🌐',
+        'label': 'System Notification',
+        'priority': 'high',
+        'sender': {
+            'username': 'Jinaq',
+            'verified': True,
+            'verification_type': 'system'
+        }
+    },
+    'admin_message': {
+        'icon': '🏛️', 
+        'label': 'Administrative Message', 
+        'priority': 'critical',
+        'sender': {
+            'username': 'Jinaq Admin',
+            'verified': True,
+            'verification_type': 'official'
+        }
+    },
+    'important': {
+        'icon': '❗', 
+        'label': 'Important Notification', 
+        'priority': 'high',
+        'sender': {
+            'username': 'Jinaq Alert',
+            'verified': True,
+            'verification_type': 'system'
+        }
     }
 }
 # Инициализация Firebase Admin SDK
@@ -92,11 +124,6 @@ def get_current_user_avatar():
         print(f"Error getting current user avatar: {e}")
         return None
 
-
-@app.route('/login/google')
-def google_login():
-    # Этот маршрут будет перенаправлять на клиентскую аутентификацию
-    return redirect(url_for('login'))
 def get_current_username():
     """Helper function to get current user's username"""
     if 'username' in session:
@@ -109,41 +136,39 @@ def login_required(f):
             return redirect(url_for('login'))
         return f(*args, **kwargs)
     return decorated_function
-
-
-
 @app.route('/update_academic_portfolio', methods=['POST'])
 @login_required
 def update_academic_portfolio():
     user_id = session['user_id']
     
+    # Detailed logging
+    print("Full Request Data:", request.get_data(as_text=True))
+    print("Request Headers:", dict(request.headers))
+    print("Content Type:", request.content_type)
+    
+    # Force JSON parsing with error handling
     try:
-        # Получаем и валидируем JSON данные
-        if not request.is_json:
-            return jsonify({
-                'success': False, 
-                'error': 'Content-Type must be application/json'
-            }), 400
-
-        data = request.get_json()
+        data = request.get_json(force=True)
         
-        # Проверяем структуру данных
+        # Validate data structure
         if not isinstance(data, dict):
+            print("Invalid data type:", type(data))
             return jsonify({
                 'success': False, 
                 'error': 'Invalid data format'
             }), 400
 
-        # Валидация требуемых полей
+        # Comprehensive data validation
         required_keys = ['gpa', 'sat_score', 'toefl_score', 'ielts_score', 'languages', 'achievements']
         for key in required_keys:
             if key not in data:
+                print(f"Missing key: {key}")
                 return jsonify({
                     'success': False, 
                     'error': f'Missing required key: {key}'
                 }), 400
 
-        # Создаем структуру данных для обновления
+        # Sanitize and validate each field
         academic_info = {
             'gpa': str(data.get('gpa', '')).strip(),
             'sat_score': str(data.get('sat_score', '')).strip(),
@@ -153,23 +178,20 @@ def update_academic_portfolio():
             'achievements': data.get('achievements', [])
         }
 
-        # Обновляем в базе данных
+        # Update Firestore
         db.collection('users').document(user_id).update({
-            'academic_info': academic_info,
-            'updated_at': datetime.datetime.now(tz=datetime.timezone.utc)
+            'academic_info': academic_info
         })
 
-        return jsonify({
-            'success': True, 
-            'message': 'Academic portfolio updated successfully'
-        })
+        return jsonify({'success': True, 'message': 'Academic portfolio updated'})
 
     except Exception as e:
         print(f"Academic Portfolio Update Error: {e}")
         return jsonify({
             'success': False, 
             'error': str(e)
-        }), 500
+        }), 400
+
 
 @app.route('/settings')
 @login_required
@@ -195,15 +217,7 @@ def update_email():
     user_id = session['user_id']
     current_password = request.json.get('currentPassword')
     new_email = request.json.get('newEmail')
-    create_notification(
-        user_id, 
-        'account_change', 
-        {
-            'action': 'email_updated',
-            'new_email': new_email
-        }
-    )
-
+    
     try:
         # Get user's current email from Firestore
         user_doc = db.collection('users').document(user_id).get()
@@ -222,8 +236,19 @@ def update_email():
             'updated_at': datetime.datetime.now(tz=datetime.timezone.utc)
         })
 
+        create_notification(
+            user_id, 
+            'account_change', 
+            {
+                'action': 'email_updated',
+                'new_email': new_email,
+                'message': f'Your email has been updated to {new_email}'
+            }
+        )
 
         return jsonify({'success': True, 'message': 'Email updated successfully'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 @app.route('/')
@@ -250,22 +275,6 @@ def index():
                            current_user_avatar=current_user_avatar,
                            current_username=current_username)
 
-
-# Обновляем функцию generate_avatar_url
-def generate_avatar_url(user_data):
-    """Генерирует URL аватарки для пользователя"""
-    if not user_data:
-        return "https://ui-avatars.com/api/?name=U&background=random&color=fff&size=128"
-    
-    # Если есть своя аватарка, возвращаем её
-    if user_data.get('avatar_url'):
-        return user_data['avatar_url']
-    
-    # Генерируем аватарку на основе display_username
-    display_name = user_data.get('display_username', user_data.get('username', 'U'))
-    initials = ''.join(word[0].upper() for word in display_name.split()[:2])
-    
-    return f"https://ui-avatars.com/api/?name={initials}&background=random&color=fff&size=128"
 
 # Обновляем часть функции register для корректной обработки username
 @app.route('/register', methods=['GET', 'POST'])
@@ -324,7 +333,6 @@ def register():
 @login_required
 def reply_to_comment(username, comment_id):
     try:
-        # Находим пользователя по username
         users_ref = db.collection('users')
         query = users_ref.where('username', '==', username.lower()).limit(1).stream()
         user_doc = next(query, None)
@@ -334,58 +342,81 @@ def reply_to_comment(username, comment_id):
 
         target_user_id = user_doc.id
         reply_text = request.form.get('reply')
+        original_comment_id = request.form.get('original_comment_id', comment_id)
 
-        if not reply_text:
+        if not reply_text or len(reply_text.strip()) == 0:
             return jsonify({'error': 'Reply text is required'}), 400
 
         # Получаем оригинальный комментарий
-        original_comment_ref = db.collection('users').document(target_user_id).collection('comments').document(comment_id)
-        original_comment_doc = original_comment_ref.get()
+        comment_ref = db.collection('users').document(target_user_id).collection('comments').document(original_comment_id)
+        comment_doc = comment_ref.get()
+        
+        if not comment_doc.exists:
+            return jsonify({'error': 'Comment not found'}), 404
+            
+        comment_data = comment_doc.to_dict()
+        
+        # Проверяем, что автор ответа не является автором комментария
+        if session['user_id'] != comment_data['author_id']:
+            create_notification(
+                comment_data['author_id'],
+                'reply_comment',
+                {
+                    'original_comment_text': comment_data['text'],
+                    'reply_text': reply_text.strip(),
+                    'reply_chain': comment_data.get('reply_chain', [])
+                },
+                sender_id=session['user_id'],
+                related_id=original_comment_id
+            )
 
-        # Проверяем, существует ли комментарий
-        if not original_comment_doc.exists:
-            return jsonify({'error': 'Original comment not found'}), 404
+        # Определяем уровень вложенности и цепочку ответов
+        reply_chain = comment_data.get('reply_chain', [])
+        if 'parent_id' in comment_data:
+            reply_chain = comment_data.get('reply_chain', [])
+        reply_chain.append(original_comment_id)
 
-        original_comment_data = original_comment_doc.to_dict()
-
-        # Создаем данные ответа
+        # Создаём данные ответа
         reply_data = {
             'author_id': session['user_id'],
             'author_username': session['username'],
-            'text': reply_text,
+            'text': reply_text.strip(),
             'created_at': datetime.datetime.now(tz=datetime.timezone.utc),
-            'parent_id': comment_id,
+            'parent_id': comment_id,  # ID комментария, к которому делается ответ
+            'reply_chain': reply_chain,
+            'reply_to_username': comment_data['author_username'],
+            'reply_level': len(reply_chain),
             'likes': []
         }
 
         # Сохраняем ответ
         reply_ref = db.collection('users').document(target_user_id).collection('comments').add(reply_data)
-        
-        # Получаем данные автора для ответа
-        author_doc = db.collection('users').document(reply_data['author_id']).get()
-        author_data = author_doc.to_dict()
-        
-        reply_data['id'] = reply_ref[1].id
-        reply_data['author_avatar'] = author_data.get('avatar_url', url_for('static', filename='default-avatar.png'))
-        
-        # Создание уведомления для автора оригинального комментария
-        if original_comment_data['author_id'] != session['user_id']:
-            create_notification(
-                original_comment_data['author_id'], 
-                'reply_comment', 
-                {
-                    'original_comment_text': original_comment_data['text'],
-                    'reply_text': reply_text,
-                    'replier_username': session['username']
-                },
-                sender_id=session['user_id'],
-                related_id=comment_id
-            )
 
-        return jsonify({'status': 'success', 'reply': reply_data}), 201
+        # Получаем данные автора для ответа
+        author_doc = db.collection('users').document(session['user_id']).get()
+        author_data = author_doc.to_dict()
+
+        # Подготавливаем ответ
+        response_data = {
+            'status': 'success',
+            'reply': {
+                'id': reply_ref[1].id,
+                **reply_data,
+                'author_avatar': generate_avatar_url(author_data),
+                'author_verified': author_data.get('verified', False),
+                'author_verification_type': author_data.get('verification_type'),
+                'likes_count': 0,
+                'is_liked': False
+            }
+        }
+
+        return jsonify(response_data), 201
 
     except Exception as e:
+        print(f"Error in reply_to_comment: {str(e)}")
         return jsonify({'error': str(e)}), 500
+
+
 @app.route('/<username>/comments/<comment_id>/like', methods=['POST'])
 @login_required
 def like_comment(username, comment_id):
@@ -410,12 +441,12 @@ def like_comment(username, comment_id):
                 comment_data['author_id'], 
                 'like_comment', 
                 {
-                    'comment_text': comment_data['text'],
-                    'liker_username': session['username']
+                    'comment_text': comment_data['text']
                 },
                 sender_id=current_user_id,
                 related_id=comment_id
             )
+
         if not comment_doc.exists:
             return jsonify({'error': 'Comment not found'}), 404
 
@@ -470,6 +501,11 @@ def login():
             user_doc = db.collection('users').document(user.uid).get()
             user_data = user_doc.to_dict()
 
+            # Проверка блокировки
+            if user_data.get('blocked', False):
+                flash('This account has been blocked. Please contact support.')
+                return redirect(url_for('login'))
+
             if user_data:
                 # Устанавливаем сессию
                 session['user_id'] = user.uid
@@ -485,6 +521,7 @@ def login():
             return redirect(url_for('login'))
 
     return render_template('login.html')
+
 @app.route('/delete-certificate/<cert_id>', methods=['DELETE'])
 @login_required
 def delete_certificate(cert_id):
@@ -516,9 +553,148 @@ def delete_certificate(cert_id):
         return jsonify({'status': 'success'}), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+@app.route('/<username>/comments', methods=['GET', 'POST'])
+def comments(username):
+    if request.method == 'POST':
+        # Логика для создания комментария
+        if 'user_id' not in session:
+            return jsonify({'error': 'Authentication required'}), 401
 
-@app.route('/<username>/comments', methods=['GET'])
-def get_comments(username):
+        comment_text = request.form.get('comment')
+        if not comment_text or len(comment_text.strip()) == 0:
+            return jsonify({'error': 'Comment text is required'}), 400
+        
+        if len(comment_text) > 500:
+            return jsonify({'error': 'Comment is too long'}), 400
+
+        try:
+            # Находим пользователя, на чей профиль оставляют комментарий
+            users_ref = db.collection('users')
+            query = users_ref.where('username', '==', username.lower()).limit(1).stream()
+            user_doc = next(query, None)
+
+            if user_doc is None:
+                return jsonify({'error': 'User not found'}), 404
+
+            target_user_id = user_doc.id
+
+            # Создаем данные комментария
+            comment_data = {
+                'author_id': session['user_id'],
+                'author_username': session['username'],
+                'text': comment_text.strip(),
+                'created_at': datetime.datetime.now(tz=datetime.timezone.utc),
+                'likes': []
+            }
+
+            # Сохраняем комментарий
+            comment_ref = db.collection('users').document(target_user_id).collection('comments').add(comment_data)
+            
+            # Получаем данные автора для ответа
+            author_doc = db.collection('users').document(session['user_id']).get()
+            author_data = author_doc.to_dict()
+            
+            # Создаем уведомление, если комментарий не от владельца профиля
+            if session['user_id'] != target_user_id:
+                create_notification(
+                    target_user_id,
+                    'profile_comment',
+                    {
+                        'commenter_username': session['username'],
+                        'comment_text': comment_text.strip()
+                    },
+                    sender_id=session['user_id'],
+                    related_id=comment_ref[1].id
+                )
+
+            # Подготавливаем ответ
+            response_data = {
+                'status': 'success',
+                'comment': {
+                    'id': comment_ref[1].id,
+                    **comment_data,
+                    'author_avatar': generate_avatar_url(author_data),
+                    'likes_count': 0,
+                    'is_liked': False
+                }
+            }
+
+            return jsonify(response_data), 201
+
+        except Exception as e:
+            print(f"Error creating comment: {str(e)}")
+            return jsonify({'error': str(e)}), 500
+
+    # GET-запрос (существующая логика)
+    try:
+        # Find user by username (case-insensitive)
+        users_ref = db.collection('users')
+        query = users_ref.where('username', '==', username.lower()).limit(1).stream()
+        user_doc = next(query, None)
+
+        if user_doc is None:
+            return jsonify({'error': 'User not found'}), 404
+
+        target_user_id = user_doc.id
+
+        # Получаем все комментарии с их ответами
+        comments_ref = db.collection('users').document(target_user_id).collection('comments')
+        comments_query = comments_ref.order_by('created_at', direction=firestore.Query.DESCENDING)
+        
+        # Получаем все комментарии
+        all_comments = comments_query.stream()
+        
+        # Создаем словари для main comments и replies
+        main_comments = {}
+        replies = {}
+
+        # Первый проход: собираем все комментарии и replies
+        for comment_doc in all_comments:
+            comment = comment_doc.to_dict()
+            comment['id'] = comment_doc.id
+            
+            # Получаем аватар автора
+            author_doc = db.collection('users').document(comment['author_id']).get()
+            author_data = author_doc.to_dict()
+            
+            comment['author_avatar'] = generate_avatar_url(author_data)
+            comment['likes_count'] = len(comment.get('likes', []))
+            comment['is_liked'] = session.get('user_id') in comment.get('likes', [])
+            
+            # Если это ответ (есть parent_id)
+            if 'parent_id' in comment:
+                if comment['parent_id'] not in replies:
+                    replies[comment['parent_id']] = []
+                replies[comment['parent_id']].append(comment)
+            else:
+                # Это основной комментарий
+                main_comments[comment_doc.id] = comment
+
+        # Второй проход: добавляем replies к основным комментариям
+        for comment_id, comment in main_comments.items():
+            if comment_id in replies:
+                # Сортируем ответы по дате создания
+                sorted_replies = sorted(replies[comment_id], key=lambda x: x['created_at'])
+                
+                # Рекурсивно обрабатываем вложенные ответы
+                def process_nested_replies(reply_list):
+                    for reply in reply_list:
+                        nested_replies = [r for r in replies.get(reply['id'], []) if r.get('parent_id') == reply['id']]
+                        if nested_replies:
+                            reply['replies'] = sorted(nested_replies, key=lambda x: x['created_at'])
+                            process_nested_replies(reply['replies'])
+                    return reply_list
+                
+                comment['replies'] = process_nested_replies(sorted_replies)
+
+        return jsonify(list(main_comments.values()))
+
+    except Exception as e:
+        print(f"Error in comments route: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/<username>/comments/<comment_id>/replies', methods=['GET'])
+def get_comment_replies(username, comment_id):
     try:
         users_ref = db.collection('users')
         query = users_ref.where('username', '==', username.lower()).limit(1).stream()
@@ -528,41 +704,27 @@ def get_comments(username):
             return jsonify({'error': 'User not found'}), 404
 
         target_user_id = user_doc.id
-        comments_ref = db.collection('users').document(target_user_id).collection('comments')
+        replies = db.collection('users').document(target_user_id).collection('comments').where('parent_id', '==', comment_id).order_by('created_at').stream()
         
-        # Получаем все комментарии
-        comments = comments_ref.order_by('created_at', direction=firestore.Query.DESCENDING).stream()
-        
-        comments_dict = {}
-        replies_dict = {}
-        
-        for comment_doc in comments:
-            comment = comment_doc.to_dict()
-            comment['id'] = comment_doc.id
+        replies_list = []
+        for reply_doc in replies:
+            reply = reply_doc.to_dict()
+            reply['id'] = reply_doc.id
             
-            # Получаем данные автора комментария
-            author_doc = db.collection('users').document(comment['author_id']).get()
+            author_doc = db.collection('users').document(reply['author_id']).get()
             author_data = author_doc.to_dict()
             
-            comment['author_avatar'] = author_data.get('avatar_url', url_for('static', filename='default-avatar.png'))
-            comment['likes_count'] = len(comment.get('likes', []))
-            comment['is_liked'] = session.get('user_id') in comment.get('likes', [])
+            reply['author_avatar'] = author_data.get('avatar_url', url_for('static', filename='default-avatar.png'))
+            reply['likes_count'] = len(reply.get('likes', []))
+            reply['is_liked'] = session.get('user_id') in reply.get('likes', [])
             
-            if 'parent_id' in comment:
-                if comment['parent_id'] not in replies_dict:
-                    replies_dict[comment['parent_id']] = []
-                replies_dict[comment['parent_id']].append(comment)
-            else:
-                comments_dict[comment_doc.id] = comment
-
-        # Добавляем ответы к родительским комментариям
-        for comment_id, comment in comments_dict.items():
-            comment['replies'] = replies_dict.get(comment_id, [])
-
-        return jsonify(list(comments_dict.values()))
-
+            replies_list.append(reply)
+            
+        return jsonify(replies_list)
+        
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        print(f"Error in get_comment_replies: {str(e)}")
+        return jsonify({'error': str(e)}), 500    
 @app.route('/<username>/comments/<comment_id>', methods=['DELETE'])
 @login_required
 def delete_comment(username, comment_id):
@@ -622,7 +784,9 @@ def profile():
     
     # Сначала определите avatar_url
     avatar_url = generate_avatar_url(user_data)
-    
+    if user_data.get('blocked', False):
+        # Redirect to 404 for blocked users
+        abort(404)
     # Затем используйте его для current_user_avatar
     current_user_avatar = avatar_url
     # Добавляем значение по умолчанию, если academic_info отсутствует
@@ -820,19 +984,32 @@ def profile():
 @app.route('/<username>')
 def public_profile(username):
     try:
-        # Поиск пользователя без учета регистра
+        # Additional logging for debugging
+        print(f"Attempting to access profile for username: {username}")
+        
+        # Find user without case sensitivity
         users_ref = db.collection('users')
         query = users_ref.where('username', '==', username.lower()).limit(1).stream()
         user_doc = next(query, None)
 
+        # Log query results
         if user_doc is None:
-            flash('User not found')
-            return redirect(url_for('index'))
+            print(f"No user found with username: {username}")
+            abort(404, description=f"User '{username}' not found")
 
         viewed_user_data = user_doc.to_dict()
+        
+        # Log user data
+        print(f"User data: {viewed_user_data}")
+        
+        # Check if the viewed profile is blocked
+        if viewed_user_data.get('blocked', False):
+            print(f"Profile for {username} is blocked")
+            abort(404, description="User profile not available")
+        
         viewed_user_avatar = generate_avatar_url(viewed_user_data)
         
-        # Получаем данные текущего пользователя для корректного отображения current_user_avatar
+        # Get current user's avatar if logged in
         current_user_avatar = None
         if 'user_id' in session:
             current_user = db.collection('users').document(session['user_id']).get()
@@ -844,29 +1021,41 @@ def public_profile(username):
         certificates_count = len(certificates)
 
         return render_template('public_profile.html',
-                             user_data=viewed_user_data,
+                             user_data=viewed_user_data, 
                              avatar_url=viewed_user_avatar,
                              current_user_avatar=current_user_avatar,
                              current_username=session.get('username'),
                              certificates=certificates,
                              certificates_count=certificates_count)
     except Exception as e:
-        print(f"Error in public_profile: {str(e)}")  # Для отладки
-        flash(f'Error: {str(e)}')
-        return redirect(url_for('index'))   
-
+        # Log the full error details
+        print(f"Comprehensive error in public_profile: {e}")
+        import traceback
+        traceback.print_exc()
+        
+        # Re-raise to let Flask's error handler catch it
+        raise
 from firebase_admin import auth
 
-@app.route('/update-links', methods=['POST'])
-@login_required
+@app.route('/update_links', methods=['POST'])
 def update_links():
     try:
-        # Получаем данные из запроса
+        # Получаем токен из заголовка
+        id_token = request.headers.get('Authorization')
+        if not id_token:
+            return jsonify(success=False, error="No token provided"), 401
+            
+        # Убираем 'Bearer ' из токена если он есть
+        if id_token.startswith('Bearer '):
+            id_token = id_token.split('Bearer ')[1]
+            
+        # Верифицируем токен и получаем информацию о пользователе
+        decoded_token = auth.verify_id_token(id_token)
+        user_id = decoded_token['uid']
+        
+        # Получаем данные из JSON
         data = request.get_json()
         links = data.get('links', [])
-        
-        # Получаем ID пользователя из сессии
-        user_id = session['user_id']
         
         # Валидация данных
         if not isinstance(links, list):
@@ -879,11 +1068,12 @@ def update_links():
         
         # Обновляем документ пользователя в Firestore
         db.collection('users').document(user_id).update({
-            'links': links,
-            'updated_at': datetime.datetime.now(tz=datetime.timezone.utc)
+            'links': links
         })
         
         return jsonify(success=True)
+    except auth.InvalidIdTokenError:
+        return jsonify(success=False, error="Invalid token"), 401
     except Exception as e:
         print(f"Error updating links: {str(e)}")
         return jsonify(success=False, error=str(e)), 500
@@ -1166,40 +1356,134 @@ def migrate_fullnames():
         return "Migration completed successfully"
     except Exception as e:
         return f"Error during migration: {str(e)}", 500
-# Маршрут для верификации пользователей
-
-@app.route('/admin/verify_user', methods=['POST'])
+@app.route('/admin/add_admin', methods=['POST'])
 @login_required
-def verify_user():
-    create_notification(
-        user_id, 
-        'verification', 
-        {
-            'verification_type': verification_type
-        }
-    )
+def add_admin():
+    # Список суперадминов
+    SUPER_ADMIN_IDS = ['vVbXL4LKGidXtrKnvqa21gWRY3V2']
 
-    # Список администраторов, кто может верифицировать
-    ADMIN_IDS = ['vVbXL4LKGidXtrKnvqa21gWRY3V2']  # Замените на реальный ID администратора
-
-    if session['user_id'] not in ADMIN_IDS:
+    if session['user_id'] not in SUPER_ADMIN_IDS:
         return jsonify({'error': 'Unauthorized'}), 403
     
     data = request.json
     user_id = data.get('user_id')
-    verification_type = data.get('type', 'official')
     
     try:
+        # Обновляем документ пользователя, добавляя ему права администратора
         db.collection('users').document(user_id).update({
-            'verified': True,
-            'verification_type': verification_type,
-            'verified_by': session['user_id'],
-            'verified_at': firestore.SERVER_TIMESTAMP
+            'is_admin': True,
+            'admin_added_by': session['user_id'],
+            'admin_added_at': firestore.SERVER_TIMESTAMP
         })
+
+        # Создаем уведомление пользователю
+        create_notification(
+            user_id, 
+            'account_change', 
+            {
+                'message': 'You have been granted admin access.'
+            },
+            sender_id=session['user_id']
+        )
+
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+@app.route('/admin/verify_user', methods=['POST'])
+@login_required
+def verify_user():
+    # List of administrators who can verify
+    ADMIN_IDS = ['vVbXL4LKGidXtrKnvqa21gWRY3V2']  # Replace with actual admin user ID
 
+    # Debug logging
+    print(f"Verification attempt by user: {session.get('user_id')}")
+
+    if session['user_id'] not in ADMIN_IDS:
+        print("Unauthorized verification attempt")
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    try:
+        # Get JSON data from request
+        data = request.get_json()
+        
+        # Validate input
+        user_id = data.get('user_id')
+        verification_type = data.get('type', 'official')
+        
+        if not user_id:
+            print("No user ID provided")
+            return jsonify({'success': False, 'error': 'User ID is required'}), 400
+
+        # Validate verification type
+        valid_types = ['official', 'creator', 'business', 'remove']
+        if verification_type not in valid_types:
+            print(f"Invalid verification type: {verification_type}")
+            return jsonify({'success': False, 'error': 'Invalid verification type'}), 400
+
+        # Get user document
+        user_ref = db.collection('users').document(user_id)
+        user_doc = user_ref.get()
+        
+        if not user_doc.exists:
+            print(f"User not found: {user_id}")
+            return jsonify({'success': False, 'error': 'User not found'}), 404
+        
+        user_data = user_doc.to_dict()
+        
+        # Determine verification update
+        update_data = {
+            'verified': verification_type != 'remove',
+            'verification_type': None if verification_type == 'remove' else verification_type,
+            'verified_by': session['user_id'] if verification_type != 'remove' else None,
+            'verified_at': firestore.SERVER_TIMESTAMP if verification_type != 'remove' else None
+        }
+        
+        # Perform update
+        try:
+            user_ref.update(update_data)
+        except Exception as update_error:
+            print(f"Database update error: {update_error}")
+            return jsonify({'success': False, 'error': 'Failed to update user verification'}), 500
+
+        # Create notification based on verification action
+        if verification_type == 'remove':
+            create_notification(
+                user_id, 
+                'account_change', 
+                {
+                    'message': 'Your account verification has been revoked.',
+                    'action': 'verification_revoked'
+                },
+                sender_id=session['user_id']
+            )
+        else:
+            create_notification(
+                user_id, 
+                'verification', 
+                {
+                    'message': f'Your account has been verified as a {verification_type} account.',
+                    'verification_type': verification_type
+                },
+                sender_id=session['user_id']
+            )
+
+        # Log the verification action
+        print(f"User {user_id} verified as {verification_type}")
+        
+        return jsonify({
+            'success': True, 
+            'message': f'User verified as {verification_type}',
+            'verification_type': verification_type
+        })
+    
+    except Exception as e:
+        # Catch-all for any unexpected errors
+        print(f"Unexpected error in user verification: {e}")
+        return jsonify({
+            'success': False, 
+            'error': 'An error occurred while verifying the user.',
+            'details': str(e)
+        }), 500
 @app.route('/admin/dashboard')
 def admin_dashboard():
     if not session.get('admin_logged_in'):
@@ -1227,38 +1511,116 @@ def logout():
     session.clear()
     return redirect(url_for('index'))
 def create_notification(user_id, type, content, sender_id=None, related_id=None):
-    """
-    Create a new notification
-    
-    Args:
-        user_id (str): ID of the user receiving the notification
-        type (str): Type of notification
-        content (dict): Notification details
-        sender_id (str, optional): ID of the user who triggered the notification
-        related_id (str, optional): Related document/resource ID
-    """
     try:
-        notification_ref = db.collection('users').document(user_id).collection('notifications').document()
-        
+        # Определение отправителя
+        if sender_id:
+            try:
+                sender_doc = db.collection('users').document(sender_id).get()
+                sender_data = sender_doc.to_dict()
+                sender_info = {
+                    'username': sender_data.get('display_username', sender_data.get('username', 'Jinaq')),
+                    'avatar_url': generate_avatar_url(sender_data),
+                    'verified': sender_data.get('verified', False),
+                    'verification_type': sender_data.get('verification_type')
+                }
+            except Exception as e:
+                print(f"Error fetching sender info: {e}")
+                sender_info = None
+        else:
+            # Использование дефолтных данных из конфигурации типов
+            type_config = ENHANCED_NOTIFICATION_TYPES.get(type, {})
+            sender_info = type_config.get('sender', {
+                'username': 'Jinaq',
+                'avatar_url': generate_avatar_url({'username': 'Jinaq'}),
+                'verified': True,
+                'verification_type': 'system'
+            })
+
+        # Обогащение контента уведомления
+        notification_config = ENHANCED_NOTIFICATION_TYPES.get(type, {})
+        enriched_content = {
+            'type_label': notification_config.get('label', 'Notification'),
+            'icon': notification_config.get('icon', '🔔'),
+            'priority': notification_config.get('priority', 'normal'),
+            **content  # Сохраняем original content
+        }
+
+        # Специальная обработка для уведомлений об изменении аккаунта
+        if type == 'account_change':
+            action = content.get('action')
+            if action == 'email_updated':
+                enriched_content['message'] = f"Email updated to {content.get('new_email')}"
+            elif action == 'password_changed':
+                enriched_content['message'] = "Password has been changed"
+            elif not enriched_content.get('message'):
+                enriched_content['message'] = "Account settings have been updated"
+
+        # Формирование полных данных уведомления
         notification_data = {
             'type': type,
-            'content': content,
+            'content': enriched_content,
+            'sender_info': sender_info,
             'sender_id': sender_id,
             'related_id': related_id,
             'is_read': False,
-            'created_at': firestore.SERVER_TIMESTAMP
+            'created_at': firestore.SERVER_TIMESTAMP,
+            'recipient_id': user_id,
+            'metadata': {
+                'timestamp': datetime.datetime.now(tz=datetime.timezone.utc),
+                'source': 'server',
+                'version': '1.1'
+            }
         }
-        
+
+        # Добавление расширенной маршрутизации и фильтрации
+        if notification_config.get('priority') == 'critical':
+            notification_data['is_pinned'] = True
+
+        # Сохранение уведомления
+        notification_ref = db.collection('users').document(user_id).collection('notifications').document()
         notification_ref.set(notification_data)
+
         return notification_ref.id
+
     except Exception as e:
-        print(f"Error creating notification: {e}")
+        print(f"Comprehensive Notification Creation Error: {e}")
         return None
 
+@app.route('/notifications/<notification_id>/details', methods=['GET'])
+@login_required
+def get_notification_details(notification_id):
+    """Get full details for a notification including all related data"""
+    user_id = session['user_id']
+    
+    try:
+        notification_ref = db.collection('users').document(user_id).collection('notifications').document(notification_id)
+        notification = notification_ref.get()
+        
+        if not notification.exists:
+            return jsonify({'error': 'Notification not found'}), 404
+            
+        notification_data = notification.to_dict()
+        
+        # Дополняем данные в зависимости от типа уведомления
+        if notification_data['type'] == 'reply_comment' and notification_data.get('related_id'):
+            comment_id = notification_data['related_id']
+            comment_ref = db.collection('users').document(user_id).collection('comments').document(comment_id)
+            comment_data = comment_ref.get().to_dict()
+            
+            if comment_data:
+                notification_data['comment_details'] = {
+                    'text': comment_data['text'],
+                    'created_at': comment_data['created_at'],
+                    'author_username': comment_data['author_username']
+                }
+
+        return jsonify(notification_data)
+    except Exception as e:
+        print(f"Error getting notification details: {e}")
+        return jsonify({'error': 'Failed to get notification details'}), 500
 @app.route('/notifications', methods=['GET'])
 @login_required
 def get_notifications():
-    """Retrieve user notifications"""
     user_id = session['user_id']
     
     try:
@@ -1270,17 +1632,32 @@ def get_notifications():
             notification = notification_doc.to_dict()
             notification['id'] = notification_doc.id
             
-            # Получаем данные отправителя, если есть
-            if notification.get('sender_id'):
-                sender_doc = db.collection('users').document(notification['sender_id']).get()
-                sender_data = sender_doc.to_dict() if sender_doc.exists else {}
-                notification['sender_avatar'] = generate_avatar_url(sender_data)
-                notification['sender_username'] = sender_data.get('display_username', '')
+            # Получаем конфигурацию типа уведомления из расширенного списка
+            notification_type = notification['type']
+            notification_type_info = ENHANCED_NOTIFICATION_TYPES.get(notification_type, {})
             
-            # Добавляем иконку и метку из NOTIFICATION_TYPES
-            notification_type_info = NOTIFICATION_TYPES.get(notification['type'], {})
+            # Добавляем иконку и метку из конфигурации
             notification['icon'] = notification_type_info.get('icon', '🔔')
             notification['type_label'] = notification_type_info.get('label', 'Notification')
+            
+            # Для системных уведомлений используем информацию об отправителе из конфигурации
+            if notification_type in ['system', 'admin_message', 'important']:
+                sender_config = notification_type_info.get('sender', {})
+                notification['sender_info'] = {
+                    'username': sender_config.get('username', 'Jinaq'),
+                    'verified': sender_config.get('verified', True),
+                    'verification_type': sender_config.get('verification_type', 'system'),
+                    'avatar_url': url_for('static', filename='jinaq_logo.svg')  # Используем url_for для корректного пути
+                }
+            
+            # Для обычных уведомлений обрабатываем sender_info как раньше
+            elif notification.get('sender_info'):
+                sender_info = notification['sender_info']
+                notification['sender_info']['avatar_url'] = sender_info.get('avatar_url') or generate_avatar_url({
+                    'username': sender_info['username']
+                })
+                notification['sender_verified'] = sender_info.get('verified', False)
+                notification['sender_verification_type'] = sender_info.get('verification_type')
             
             notification_list.append(notification)
         
@@ -1288,6 +1665,7 @@ def get_notifications():
     except Exception as e:
         print(f"Error retrieving notifications: {e}")
         return jsonify({'error': 'Failed to retrieve notifications'}), 500
+
 @app.route('/notifications/<notification_id>', methods=['DELETE'])
 @login_required
 def delete_notification(notification_id):
@@ -1338,6 +1716,10 @@ def send_system_notification():
         return jsonify({'error': 'Message cannot be empty'}), 400
     
     try:
+        # Получаем данные администратора
+        admin_doc = db.collection('users').document(session['user_id']).get()
+        admin_data = admin_doc.to_dict()
+        
         # Запрос пользователей в зависимости от типа получателей
         users_ref = db.collection('users')
         
@@ -1357,8 +1739,9 @@ def send_system_notification():
                     message_type, 
                     {
                         'message': message_text,
-                        'sender': 'Admin'
-                    }
+                        'sender': admin_data.get('display_username', 'Admin')
+                    },
+                    sender_id=session['user_id']
                 )
                 notification_count += 1
             
@@ -1380,8 +1763,9 @@ def send_system_notification():
                 message_type, 
                 {
                     'message': message_text,
-                    'sender': 'Admin'
-                }
+                    'sender': admin_data.get('display_username', 'Admin')
+                },
+                sender_id=session['user_id']
             )
             notification_count += 1
         
@@ -1392,5 +1776,90 @@ def send_system_notification():
     
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+@app.route('/admin/toggle_user_block', methods=['POST'])
+@login_required
+def toggle_user_block():
+    # List of super admins who can block users
+    SUPER_ADMIN_IDS = ['vVbXL4LKGidXtrKnvqa21gWRY3V2']
+
+    if session['user_id'] not in SUPER_ADMIN_IDS:
+        return jsonify({'success': False, 'error': 'Unauthorized access'}), 403
+    
+    data = request.json
+    user_id = data.get('user_id')
+    
+    try:
+        # Get the current user document
+        user_ref = db.collection('users').document(user_id)
+        user_doc = user_ref.get()
+        
+        if not user_doc.exists:
+            return jsonify({'success': False, 'error': 'User not found'}), 404
+        
+        user_data = user_doc.to_dict()
+        
+        # Toggle block status
+        current_blocked_status = user_data.get('blocked', False)
+        new_blocked_status = not current_blocked_status
+        
+        # Update user document
+        user_ref.update({
+            'blocked': new_blocked_status,
+            'blocked_at': firestore.SERVER_TIMESTAMP if new_blocked_status else None,
+            'blocked_by': session['user_id'] if new_blocked_status else None
+        })
+        
+        # Create a notification for the user
+        create_notification(
+            user_id, 
+            'account_change', 
+            {
+                'message': f'Your account has been {"blocked" if new_blocked_status else "unblocked"} by an admin.',
+                'action': 'account_blocked' if new_blocked_status else 'account_unblocked'
+            },
+            sender_id=session['user_id']
+        )
+        
+        return jsonify({
+            'success': True, 
+            'blocked': new_blocked_status,
+            'message': f'User has been {"blocked" if new_blocked_status else "unblocked"} successfully.'
+        })
+    
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+# Add error handlers
+# Add error handlers
+@app.errorhandler(404)
+def page_not_found(e):
+    # Additional logging for debugging
+    print(f"404 Error: {e}")
+    
+    # Optional: Log the request details for more context
+    print(f"Request URL: {request.url}")
+    print(f"Request Method: {request.method}")
+    
+    return render_template('404.html'), 404
+
+@app.errorhandler(500)
+def internal_server_error(e):
+    # Additional logging for debugging
+    print(f"500 Error: {e}")
+    print(f"Request URL: {request.url}")
+    print(f"Request Method: {request.method}")
+    
+    return render_template('500.html'), 500
+
+# Explicitly enable debug mode to get more detailed error information
+app.config['DEBUG'] = True
+
+# Optional: Add a route to test error handling
+@app.route('/test_404')
+def test_404():
+    abort(404)
+
+@app.route('/test_500')
+def test_500():
+    abort(500)
 if __name__ == '__main__':
     app.run(debug=True)
