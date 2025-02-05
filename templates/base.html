@@ -2,7 +2,26 @@
 <html lang="en" data-theme="light">
 
 <head>
+    <script>
+        (function () {
+            // Retrieve the saved theme immediately
+            const savedTheme = localStorage.getItem('jinaq-theme') || 'light';
 
+            // Validate the theme value
+            const validThemes = ['light', 'dark'];
+            const theme = validThemes.includes(savedTheme) ? savedTheme : 'light';
+
+            // Set theme class and data attribute
+            document.documentElement.classList.remove('light', 'dark');
+            document.documentElement.classList.add(theme);
+            document.documentElement.setAttribute('data-theme', theme);
+
+            // Ensure body reflects the theme
+            document.body.classList.remove('light', 'dark');
+            document.body.classList.add(theme);
+        })();
+
+    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
     <title>Jinaq - Professional Portfolio Platform</title>
@@ -17,6 +36,321 @@
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
 
     <style>
+        html.dark .logo-text {
+            fill: white !important;
+        }
+
+        html.dark .bg-gradient-to-br.from-gray-50.via-gray-100.to-gray-50 {
+            background: linear-gradient(to bottom right,
+                    rgba(30, 30, 30, 0.5),
+                    rgba(45, 45, 45, 0.5),
+                    rgba(30, 30, 30, 0.5)) !important;
+            opacity: 0.4;
+        }
+
+        html.dark .absolute.-top-40.-right-40,
+        html.dark .absolute.-bottom-40.-left-40 {
+            background: linear-gradient(to bottom right,
+                    rgba(30, 30, 30, 0.2),
+                    rgba(45, 45, 45, 0.2),
+                    rgba(30, 30, 30, 0.2)) !important;
+            opacity: 0.3;
+        }
+
+        /* Dark Mode for Index Page */
+        html.dark .bg-gradient-to-br.from-gray-50.to-gray-100 {
+            background: linear-gradient(to bottom right, #1a1a1a, #121212) !important;
+        }
+
+        html.dark .bg-white {
+            background-color: #1E1E1E !important;
+            color: #e0e0e0 !important;
+        }
+
+        html.dark .text-black {
+            color: #ffffff !important;
+        }
+
+        html.dark .text-gray-600 {
+            color: #a0a0a0 !important;
+        }
+
+        html.dark .text-gray-700 {
+            color: #b0b0b0 !important;
+        }
+
+        html.dark .bg-gray-50 {
+            background-color: #2a2a2a !important;
+            color: #e0e0e0 !important;
+        }
+
+        html.dark .bg-gray-100 {
+            background-color: #1E1E1E !important;
+            color: #e0e0e0 !important;
+        }
+
+        html.dark .border-gray-200 {
+            border-color: #333333 !important;
+        }
+
+        html.dark .bg-black.text-white {
+            background-color: #121212 !important;
+            color: #e0e0e0 !important;
+        }
+
+        html.dark .bg-white.text-black {
+            background-color: #2a2a2a !important;
+            color: #e0e0e0 !important;
+        }
+
+        /* Gradient Circles */
+        html.dark .bg-gradient-to-r.from-gray-200.to-gray-300,
+        html.dark .bg-gradient-to-l.from-gray-100.to-gray-200,
+        html.dark .bg-gradient-to-t.from-gray-200.to-gray-300 {
+            background: linear-gradient(to right, #2a2a2a, #1E1E1E);
+            opacity: 0.5;
+        }
+
+        /* Particle and Background Elements */
+        html.dark .particle {
+            background-color: #444444 !important;
+            opacity: 0.2;
+        }
+
+        html.dark .gradient-lines {
+            background: repeating-linear-gradient(45deg,
+                    transparent,
+                    transparent 100px,
+                    rgba(255, 255, 255, 0.03) 100px,
+                    rgba(255, 255, 255, 0.03) 200px);
+        }
+
+        /* Button Styles */
+        html.dark .bg-black.text-white,
+        html.dark .bg-white.text-black {
+            transition: all 0.3s ease;
+        }
+
+        html.dark .bg-black.text-white:hover {
+            background-color: #2a2a2a !important;
+        }
+
+        html.dark .bg-white.text-black:hover {
+            background-color: #333333 !important;
+            color: #e0e0e0 !important;
+        }
+
+        /* Features and User Types Cards */
+        html.dark .bg-white.rounded-2xl {
+            background-color: #1E1E1E !important;
+            border-color: #333333 !important;
+        }
+
+        html.dark .bg-gray-50.rounded-2xl {
+            background-color: #2a2a2a !important;
+            border-color: #444444 !important;
+        }
+
+        /* SVG Icons */
+        html.dark svg {
+            color: #e0e0e0 !important;
+        }
+
+        /* Enhanced Hover Effects for Dark Mode */
+        html.dark .hover\:bg-gray-100:hover {
+            background-color: #333333 !important;
+        }
+
+        /* Navigation Dark Mode Styles */
+        html.dark .glass-effect {
+            background: rgba(30, 30, 30, 0.85) !important;
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+        }
+
+        html.dark nav {
+            background-color: rgba(30, 30, 30, 0.85) !important;
+            color: #e0e0e0 !important;
+        }
+
+        html.dark .nav-hover {
+            color: #e0e0e0 !important;
+        }
+
+        html.dark .nav-hover:hover {
+            color: #ffffff !important;
+        }
+
+        html.dark .btn-ghost {
+            background-color: transparent !important;
+            color: #e0e0e0 !important;
+        }
+
+        html.dark .btn-ghost:hover {
+            background-color: rgba(255, 255, 255, 0.1) !important;
+        }
+
+        html.dark .dropdown-content {
+            background-color: #1E1E1E !important;
+            border-color: #333333 !important;
+            color: #e0e0e0 !important;
+        }
+
+        html.dark .mobile-nav-menu {
+            background-color: #1E1E1E !important;
+            color: #e0e0e0 !important;
+        }
+
+        html.dark .mobile-nav-menu a,
+        html.dark .mobile-nav-menu button {
+            color: #e0e0e0 !important;
+        }
+
+        html.dark .mobile-nav-menu .border-b {
+            border-color: #333333 !important;
+        }
+
+        html.dark .search-dropdown {
+            background-color: #1E1E1E !important;
+            border-color: #333333 !important;
+            color: #e0e0e0 !important;
+        }
+
+        html.dark .search-item:hover {
+            background-color: rgba(255, 255, 255, 0.1) !important;
+        }
+
+        /* Dark Mode Base Styles */
+        html.dark {
+            color-scheme: dark;
+        }
+
+        html.dark body {
+            background-color: #121212;
+            color: #e0e0e0;
+        }
+
+        /* Background Colors */
+        html.dark .bg-white,
+        html.dark .bg-gray-50,
+        html.dark .bg-gray-100 {
+            background-color: #1E1E1E !important;
+            color: #e0e0e0 !important;
+        }
+
+        /* Text Colors */
+        html.dark .text-black {
+            color: #ffffff !important;
+        }
+
+        html.dark .text-gray-500 {
+            color: #a0a0a0 !important;
+        }
+
+        html.dark .text-gray-600 {
+            color: #b0b0b0 !important;
+        }
+
+        html.dark .text-gray-700 {
+            color: #c0c0c0 !important;
+        }
+
+        html.dark .text-gray-800 {
+            color: #d0d0d0 !important;
+        }
+
+        html.dark .text-gray-900 {
+            color: #e0e0e0 !important;
+        }
+
+        /* Border Colors */
+        html.dark .border-gray-100 {
+            border-color: #2a2a2a !important;
+        }
+
+        html.dark .border-gray-200 {
+            border-color: #333333 !important;
+        }
+
+        /* Input Styles */
+        html.dark .input,
+        html.dark .input-bordered,
+        html.dark textarea,
+        html.dark .textarea {
+            background-color: #2a2a2a !important;
+            color: #e0e0e0 !important;
+            border-color: #444444 !important;
+        }
+
+        html.dark .input::placeholder,
+        html.dark .textarea::placeholder {
+            color: #888888 !important;
+        }
+
+        /* Button Styles */
+        html.dark .btn {
+            background-color: #333333 !important;
+            color: #e0e0e0 !important;
+            border-color: #444444 !important;
+        }
+
+        html.dark .btn:hover {
+            background-color: #444444 !important;
+        }
+
+        /* Card and Container Styles */
+        html.dark .bg-white.rounded-xl {
+            background-color: #1E1E1E !important;
+            border-color: #333333 !important;
+            color: #e0e0e0 !important;
+        }
+
+        /* SVG and Icon Colors */
+        html.dark svg {
+            color: #e0e0e0 !important;
+        }
+
+        /* Dropdown and Select Styles */
+        html.dark .dropdown-content {
+            background-color: #2a2a2a !important;
+            border-color: #444444 !important;
+        }
+
+        /* Modal Styles */
+        html.dark .modal {
+            background-color: #1E1E1E !important;
+            color: #e0e0e0 !important;
+        }
+
+        /* Scrollbar Styles */
+        html.dark {
+            scrollbar-color: #444444 #2a2a2a;
+        }
+
+        html.dark *::-webkit-scrollbar {
+            width: 12px;
+        }
+
+        html.dark *::-webkit-scrollbar-track {
+            background: #2a2a2a;
+        }
+
+        html.dark *::-webkit-scrollbar-thumb {
+            background-color: #444444;
+            border-radius: 6px;
+            border: 3px solid #2a2a2a;
+        }
+
+        /* Additional Specific Styles */
+        html.dark .bg-gray-50 {
+            background-color: #1a1a1a !important;
+        }
+
+        html.dark .ring-white {
+            --tw-ring-color: #333333 !important;
+        }
+
         .see-replies-btn {
             transition: all 0.2s ease;
             display: flex;
@@ -1277,11 +1611,30 @@
                 }
             };
         }
+
         // Инициализация при загрузке документа
         document.addEventListener('DOMContentLoaded', function () {
             initUserSearch();
         });
+        document.addEventListener('DOMContentLoaded', function () {
+            const savedTheme = localStorage.getItem('jinaq-theme') || 'light';
+            const logos = document.querySelectorAll('img[src$="jinaq_logo.svg"]');
 
+            logos.forEach(logo => {
+                logo.style.filter = savedTheme === 'dark'
+                    ? 'brightness(0) invert(1)'
+                    : 'none';
+            });
+
+            // Add event listener for theme changes
+            window.addEventListener('themeChanged', function (event) {
+                logos.forEach(logo => {
+                    logo.style.filter = event.detail === 'dark'
+                        ? 'brightness(0) invert(1)'
+                        : 'none';
+                });
+            });
+        });
     </script>
     {% endblock %}
     <div x-data="modalSystem()" x-show="isOpen" x-cloak

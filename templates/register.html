@@ -148,24 +148,24 @@
             get isFormValid() {
                 return this.username.length > 0 &&
                     this.email.includes('@') &&
-                    this.passwordStrength >= 2;  // Теперь достаточно достичь уровня "Medium"
+                    this.passwordStrength >= 2;
             },
 
             calculatePasswordStrength() {
                 let strength = 0;
 
-                // Length check (более строгие критерии)
+
                 if (this.password.length >= 8) strength++;
                 if (this.password.length >= 12) strength++;
                 if (this.password.length >= 16) strength++;
 
-                // Complexity checks (более точные проверки)
+
                 const hasUppercase = /[A-Z]/.test(this.password);
                 const hasLowercase = /[a-z]/.test(this.password);
                 const hasNumbers = /[0-9]/.test(this.password);
                 const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(this.password);
 
-                // Требуем наличие разных типов символов
+
                 if (hasUppercase && hasLowercase) strength++;
                 if (hasNumbers && hasSpecialChar) strength++;
 

@@ -20,7 +20,6 @@ firebase_creds_str = os.getenv('FIREBASE_PRIVATE_KEY')
 ADMIN_IDS = os.getenv("ADMIN_IDS")
 if not firebase_creds_str:
     raise ValueError("FIREBASE_PRIVATE_KEY не найден в .env файле")
-# Преобразуем строку в словарь
 firebase_credentials = json.loads(firebase_creds_str)
 NOTIFICATION_TYPES = {
     'like_comment': {
@@ -48,10 +47,10 @@ NOTIFICATION_TYPES = {
         'label': 'System Notification'
     }
 }
-# Расширенная конфигурация типов уведомлений
+
 ENHANCED_NOTIFICATION_TYPES = {
-    **NOTIFICATION_TYPES,  # Сначала базовые типы
-    'system': {  # Затем переопределяем системные
+    **NOTIFICATION_TYPES,
+    'system': { 
         'icon': '🌐',
         'label': 'System Notification',
         'priority': 'high',
@@ -82,12 +81,12 @@ ENHANCED_NOTIFICATION_TYPES = {
         }
     }
 }
-# Инициализация Firebase Admin SDK
+
 cred = credentials.Certificate(firebase_credentials)
 firebase_admin.initialize_app(cred, {
     'storageBucket': 'jinaq-1b755.firebasestorage.app'
 })
-# В самом начале файла после импортов добавьте константу для типов верификации
+
 VERIFICATION_TYPES = {
     'official': {
         'icon': '🏛️',
@@ -146,11 +145,11 @@ def update_academic_portfolio():
     print("Request Headers:", dict(request.headers))
     print("Content Type:", request.content_type)
     
-    # Force JSON parsing with error handling
+
     try:
         data = request.get_json(force=True)
         
-        # Validate data structure
+
         if not isinstance(data, dict):
             print("Invalid data type:", type(data))
             return jsonify({
@@ -158,7 +157,7 @@ def update_academic_portfolio():
                 'error': 'Invalid data format'
             }), 400
 
-        # Comprehensive data validation
+
         required_keys = ['gpa', 'sat_score', 'toefl_score', 'ielts_score', 'languages', 'achievements']
         for key in required_keys:
             if key not in data:
@@ -168,7 +167,7 @@ def update_academic_portfolio():
                     'error': f'Missing required key: {key}'
                 }), 400
 
-        # Sanitize and validate each field
+
         academic_info = {
             'gpa': str(data.get('gpa', '')).strip(),
             'sat_score': str(data.get('sat_score', '')).strip(),
@@ -178,7 +177,6 @@ def update_academic_portfolio():
             'achievements': data.get('achievements', [])
         }
 
-        # Update Firestore
         db.collection('users').document(user_id).update({
             'academic_info': academic_info
         })
@@ -200,7 +198,7 @@ def settings():
     user_doc = db.collection('users').document(user_id).get()
     user_data = user_doc.to_dict() if user_doc.exists else {}
     
-    # Получаем аватар текущего пользователя
+
     current_user_avatar = get_current_user_avatar()
     current_username = get_current_username()
     
@@ -219,18 +217,18 @@ def update_email():
     new_email = request.json.get('newEmail')
     
     try:
-        # Get user's current email from Firestore
+
         user_doc = db.collection('users').document(user_id).get()
         user_data = user_doc.to_dict()
         current_email = user_data['email']
         
-        # Update email in Firebase Auth
+        
         user = auth.update_user(
             user_id,
             email=new_email
         )
         
-        # Update email in Firestore
+        
         db.collection('users').document(user_id).update({
             'email': new_email,
             'updated_at': datetime.datetime.now(tz=datetime.timezone.utc)
@@ -276,14 +274,14 @@ def index():
                            current_username=current_username)
 
 
-# Обновляем часть функции register для корректной обработки username
+
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
         email = request.form['email']
         password = request.form['password']
-        display_username = request.form['username']  # Оригинальный username с сохранением регистра
-        username = display_username.lower()  # Версия для поиска
+        display_username = request.form['username'] 
+        username = display_username.lower()
 
         try:
             # Проверка уникальности username
@@ -293,17 +291,15 @@ def register():
                 flash('Username already taken')
                 return redirect(url_for('register'))
 
-            # Create user in Firebase Auth
             user = auth.create_user(
                 email=email,
                 password=password,
                 display_name=display_username
             )
 
-            # Create user document in Firestore
             user_data = {
-                'username': username,  # Lowercase для поиска
-                'display_username': display_username,  # Оригинальный регистр
+                'username': username,
+                'display_username': display_username, 
                 'email': email,
                 'created_at': datetime.datetime.now(tz=datetime.timezone.utc),
                 'uid': user.uid,
@@ -347,7 +343,7 @@ def reply_to_comment(username, comment_id):
         if not reply_text or len(reply_text.strip()) == 0:
             return jsonify({'error': 'Reply text is required'}), 400
 
-        # Получаем оригинальный комментарий
+
         comment_ref = db.collection('users').document(target_user_id).collection('comments').document(original_comment_id)
         comment_doc = comment_ref.get()
         
@@ -356,7 +352,7 @@ def reply_to_comment(username, comment_id):
             
         comment_data = comment_doc.to_dict()
         
-        # Проверяем, что автор ответа не является автором комментария
+
         if session['user_id'] != comment_data['author_id']:
             create_notification(
                 comment_data['author_id'],
@@ -370,33 +366,32 @@ def reply_to_comment(username, comment_id):
                 related_id=original_comment_id
             )
 
-        # Определяем уровень вложенности и цепочку ответов
+
         reply_chain = comment_data.get('reply_chain', [])
         if 'parent_id' in comment_data:
             reply_chain = comment_data.get('reply_chain', [])
         reply_chain.append(original_comment_id)
 
-        # Создаём данные ответа
+
         reply_data = {
             'author_id': session['user_id'],
             'author_username': session['username'],
             'text': reply_text.strip(),
             'created_at': datetime.datetime.now(tz=datetime.timezone.utc),
-            'parent_id': comment_id,  # ID комментария, к которому делается ответ
+            'parent_id': comment_id, 
             'reply_chain': reply_chain,
             'reply_to_username': comment_data['author_username'],
             'reply_level': len(reply_chain),
             'likes': []
         }
 
-        # Сохраняем ответ
         reply_ref = db.collection('users').document(target_user_id).collection('comments').add(reply_data)
 
-        # Получаем данные автора для ответа
+
         author_doc = db.collection('users').document(session['user_id']).get()
         author_data = author_doc.to_dict()
 
-        # Подготавливаем ответ
+
         response_data = {
             'status': 'success',
             'reply': {
@@ -431,7 +426,6 @@ def like_comment(username, comment_id):
         target_user_id = user_doc.id
         current_user_id = session['user_id']
 
-        # Получаем комментарий
         comment_ref = db.collection('users').document(target_user_id).collection('comments').document(comment_id)
         comment_doc = comment_ref.get()
         comment_data = comment_doc.to_dict()
@@ -453,15 +447,14 @@ def like_comment(username, comment_id):
         comment_data = comment_doc.to_dict()
         likes = comment_data.get('likes', [])
 
-        # Переключаем лайк
         if current_user_id in likes:
             likes.remove(current_user_id)
         else:
             likes.append(current_user_id)
-            # Создаем уведомление для автора комментария
 
 
-        # Обновляем комментарий
+
+
         comment_ref.update({'likes': likes})
 
         return jsonify({
@@ -475,16 +468,16 @@ def like_comment(username, comment_id):
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        identifier = request.form['identifier']  # Может быть email или username
+        identifier = request.form['identifier']  
         password = request.form['password']
         
         try:
-            # Сначала проверяем, является ли identifier email-ом
+
             try:
                 user = auth.get_user_by_email(identifier)
                 email = identifier
             except:
-                # Если это не email, ищем пользователя по username в Firestore
+
                 users_ref = db.collection('users')
                 query = users_ref.where('username', '==', identifier.lower()).limit(1).get()
                 
@@ -494,20 +487,20 @@ def login():
                 
                 user_data = query[0].to_dict()
                 email = user_data['email']
-                # Получаем пользователя Firebase по найденному email
+
                 user = auth.get_user_by_email(email)
             
-            # Проверяем существование пользователя в Firestore
+
             user_doc = db.collection('users').document(user.uid).get()
             user_data = user_doc.to_dict()
 
-            # Проверка блокировки
+
             if user_data.get('blocked', False):
                 flash('This account has been blocked. Please contact support.')
                 return redirect(url_for('login'))
 
             if user_data:
-                # Устанавливаем сессию
+
                 session['user_id'] = user.uid
                 session['username'] = user_data.get('display_username', user_data['username'])
                 return redirect(url_for('profile'))
@@ -516,7 +509,7 @@ def login():
                 return redirect(url_for('login'))
 
         except Exception as e:
-            print(f"Login error: {str(e)}")  # Для отладки
+            print(f"Login error: {str(e)}")
             flash('Login failed: Invalid credentials')
             return redirect(url_for('login'))
 
@@ -528,7 +521,7 @@ def delete_certificate(cert_id):
     try:
         user_id = session['user_id']
         
-        # Получаем данные сертификата
+
         cert_ref = db.collection('users').document(user_id).collection('certificates').document(cert_id)
         cert_doc = cert_ref.get()
         
@@ -537,17 +530,17 @@ def delete_certificate(cert_id):
             
         cert_data = cert_doc.to_dict()
         
-        # Удаляем файл из Storage
+
         if 'file_url' in cert_data:
             try:
-                # Извлекаем путь к файлу из URL
+
                 file_path = cert_data['file_url'].split('/')[-1]
                 blob = bucket.blob(f'certificates/{user_id}/{file_path}')
                 blob.delete()
             except Exception as e:
                 print(f"Error deleting file from storage: {e}")
         
-        # Удаляем документ из Firestore
+
         cert_ref.delete()
         
         return jsonify({'status': 'success'}), 200
@@ -556,7 +549,7 @@ def delete_certificate(cert_id):
 @app.route('/<username>/comments', methods=['GET', 'POST'])
 def comments(username):
     if request.method == 'POST':
-        # Логика для создания комментария
+
         if 'user_id' not in session:
             return jsonify({'error': 'Authentication required'}), 401
 
@@ -568,7 +561,7 @@ def comments(username):
             return jsonify({'error': 'Comment is too long'}), 400
 
         try:
-            # Находим пользователя, на чей профиль оставляют комментарий
+
             users_ref = db.collection('users')
             query = users_ref.where('username', '==', username.lower()).limit(1).stream()
             user_doc = next(query, None)
@@ -578,7 +571,6 @@ def comments(username):
 
             target_user_id = user_doc.id
 
-            # Создаем данные комментария
             comment_data = {
                 'author_id': session['user_id'],
                 'author_username': session['username'],
@@ -587,14 +579,14 @@ def comments(username):
                 'likes': []
             }
 
-            # Сохраняем комментарий
+
             comment_ref = db.collection('users').document(target_user_id).collection('comments').add(comment_data)
             
-            # Получаем данные автора для ответа
+
             author_doc = db.collection('users').document(session['user_id']).get()
             author_data = author_doc.to_dict()
             
-            # Создаем уведомление, если комментарий не от владельца профиля
+
             if session['user_id'] != target_user_id:
                 create_notification(
                     target_user_id,
@@ -607,7 +599,7 @@ def comments(username):
                     related_id=comment_ref[1].id
                 )
 
-            # Подготавливаем ответ
+
             response_data = {
                 'status': 'success',
                 'comment': {
@@ -625,9 +617,9 @@ def comments(username):
             print(f"Error creating comment: {str(e)}")
             return jsonify({'error': str(e)}), 500
 
-    # GET-запрос (существующая логика)
+
     try:
-        # Find user by username (case-insensitive)
+
         users_ref = db.collection('users')
         query = users_ref.where('username', '==', username.lower()).limit(1).stream()
         user_doc = next(query, None)
@@ -637,46 +629,43 @@ def comments(username):
 
         target_user_id = user_doc.id
 
-        # Получаем все комментарии с их ответами
+
         comments_ref = db.collection('users').document(target_user_id).collection('comments')
         comments_query = comments_ref.order_by('created_at', direction=firestore.Query.DESCENDING)
-        
-        # Получаем все комментарии
+
         all_comments = comments_query.stream()
         
-        # Создаем словари для main comments и replies
+
         main_comments = {}
         replies = {}
 
-        # Первый проход: собираем все комментарии и replies
+
         for comment_doc in all_comments:
             comment = comment_doc.to_dict()
             comment['id'] = comment_doc.id
-            
-            # Получаем аватар автора
+
             author_doc = db.collection('users').document(comment['author_id']).get()
             author_data = author_doc.to_dict()
             
             comment['author_avatar'] = generate_avatar_url(author_data)
             comment['likes_count'] = len(comment.get('likes', []))
             comment['is_liked'] = session.get('user_id') in comment.get('likes', [])
-            
-            # Если это ответ (есть parent_id)
+
             if 'parent_id' in comment:
                 if comment['parent_id'] not in replies:
                     replies[comment['parent_id']] = []
                 replies[comment['parent_id']].append(comment)
             else:
-                # Это основной комментарий
+
                 main_comments[comment_doc.id] = comment
 
-        # Второй проход: добавляем replies к основным комментариям
+
         for comment_id, comment in main_comments.items():
             if comment_id in replies:
-                # Сортируем ответы по дате создания
+
                 sorted_replies = sorted(replies[comment_id], key=lambda x: x['created_at'])
                 
-                # Рекурсивно обрабатываем вложенные ответы
+                
                 def process_nested_replies(reply_list):
                     for reply in reply_list:
                         nested_replies = [r for r in replies.get(reply['id'], []) if r.get('parent_id') == reply['id']]
@@ -729,7 +718,7 @@ def get_comment_replies(username, comment_id):
 @login_required
 def delete_comment(username, comment_id):
     try:
-        # Находим пользователя по username
+     
         users_ref = db.collection('users')
         query = users_ref.where('username', '==', username).limit(1).stream()
         user_doc = next(query, None)
@@ -739,7 +728,7 @@ def delete_comment(username, comment_id):
 
         target_user_id = user_doc.id
         
-        # Проверяем, является ли текущий пользователь автором или владельцем профиля
+      
         comment_ref = db.collection('users').document(target_user_id).collection('comments').document(comment_id)
         comment_doc = comment_ref.get()
         
@@ -757,88 +746,88 @@ def delete_comment(username, comment_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
     
-# Обновляем функцию generate_avatar_url
+
 def generate_avatar_url(user_data):
     """Генерирует URL аватарки для пользователя"""
     if not user_data:
         return "https://ui-avatars.com/api/?name=U&background=random&color=fff&size=128"
     
-    # Если есть своя аватарка, возвращаем её
+  
     if user_data.get('avatar_url'):
         return user_data['avatar_url']
     
-    # Генерируем аватарку на основе display_username
+  
     display_name = user_data.get('display_username', user_data.get('username', 'U'))
     initials = ''.join(word[0].upper() for word in display_name.split()[:2])
     
     return f"https://ui-avatars.com/api/?name={initials}&background=random&color=fff&size=128"
 
-# В маршрутах profile и public_profile
+
 @app.route('/profile', methods=['GET', 'POST'])
 @login_required
 def profile():
     user_id = session['user_id']
     
-    user_doc = db.collection('users').document(user_id).get()
-    user_data = user_doc.to_dict() or {}
-    
-    # Сначала определите avatar_url
-    avatar_url = generate_avatar_url(user_data)
-    if user_data.get('blocked', False):
-        # Redirect to 404 for blocked users
-        abort(404)
-    # Затем используйте его для current_user_avatar
-    current_user_avatar = avatar_url
-    # Добавляем значение по умолчанию, если academic_info отсутствует
-    if 'academic_info' not in user_data:
-        user_data['academic_info'] = {
-            'gpa': '',
-            'sat_score': '',
-            'toefl_score': '',
-            'ielts_score': '',
-            'languages': [],
-            'achievements': []
-        }
+    try:
+        user_doc = db.collection('users').document(user_id).get()
+        user_data = user_doc.to_dict() or {}
+        
+        avatar_url = generate_avatar_url(user_data)
+        
+        # Check if user is blocked
+        if user_data.get('blocked', False):
+            abort(404)
 
-    certificates = list(db.collection('users').document(user_id).collection('certificates').stream())
-    
-    if request.method == 'POST':
-        try:
-            # Обработка JSON запроса для обновления ссылок
-            if request.headers.get('Content-Type') == 'application/json':
-                data = request.get_json()
-                if data.get('action') == 'update_links':
-                    links = data.get('links', [])
-                    # Валидация и обработка URL
-                    processed_links = []
-                    for link in links:
-                        if link.get('title') and link.get('url'):
-                            url = link['url']
-                            if not url.startswith(('http://', 'https://')):
-                                url = 'https://' + url
-                            processed_links.append({
-                                'title': link['title'],
-                                'url': url
-                            })
+        current_user_avatar = avatar_url
+
+        # Initialize academic info if not present
+        if 'academic_info' not in user_data:
+            user_data['academic_info'] = {
+                'gpa': '',
+                'sat_score': '',
+                'toefl_score': '',
+                'ielts_score': '',
+                'languages': [],
+                'achievements': []
+            }
+
+        # POST request handling
+        if request.method == 'POST':
+            try:
+                # Handle JSON updates (AJAX requests)
+                if request.headers.get('Content-Type') == 'application/json':
+                    data = request.get_json()
                     
-                    # Обновляем ссылки в документе пользователя
-                    db.collection('users').document(user_id).update({
-                        'links': processed_links,
-                        'updated_at': datetime.datetime.now(tz=datetime.timezone.utc)
-                    })
-                    return jsonify({'success': True})
+                    # Handle links update
+                    if data.get('action') == 'update_links':
+                        links = data.get('links', [])
+                        processed_links = []
+                        
+                        for link in links:
+                            if link.get('title') and link.get('url'):
+                                url = link['url']
+                                if not url.startswith(('http://', 'https://')):
+                                    url = 'https://' + url
+                                processed_links.append({
+                                    'title': link['title'],
+                                    'url': url
+                                })
+                        
+                        db.collection('users').document(user_id).update({
+                            'links': processed_links,
+                            'updated_at': datetime.datetime.now(tz=datetime.timezone.utc)
+                        })
+                        return jsonify({'success': True})
 
-            # Обработка загрузки сертификата
-            if 'certificate' in request.files:
-                file = request.files['certificate']
-                title = request.form.get('title', file.filename)
-                
-                if file and file.filename:
-                    try:
+                # Handle certificate upload
+                if 'certificate' in request.files:
+                    file = request.files['certificate']
+                    title = request.form.get('title', file.filename)
+                    
+                    if file and file.filename:
                         file_extension = file.filename.rsplit('.', 1)[1].lower()
                         filename = f"certificates/{user_id}/{str(uuid.uuid4())}.{file_extension}"
                         
-                        # Upload to Firebase Storage
                         blob = bucket.blob(filename)
                         blob.upload_from_string(
                             file.read(),
@@ -846,170 +835,165 @@ def profile():
                         )
                         
                         blob.make_public()
-
-                        # Save to Firestore
+                        
                         cert_data = {
                             'title': title,
                             'file_url': blob.public_url,
                             'uploaded_at': datetime.datetime.now(tz=datetime.timezone.utc)
                         }
                         
-                        # Add document and get its ID
                         cert_ref = db.collection('users').document(user_id).collection('certificates').add(cert_data)
                         
                         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                            # Return both the ID and the certificate data
                             return jsonify({
                                 'success': True,
                                 'certificate': {
-                                    'id': cert_ref[1].id,  # Get the ID from the DocumentReference
+                                    'id': cert_ref[1].id,
                                     **cert_data
                                 }
                             })
-                    except Exception as e:
-                        return jsonify({'success': False, 'error': str(e)})
-            # Обработка аватара
-            if 'avatar' in request.files:
-                avatar_file = request.files['avatar']
-                if avatar_file and avatar_file.filename:
-                    try:
-                        # Удаление старого аватара из Firebase Storage
-                        if user_data.get('avatar_url'):
-                            old_avatar_path = user_data['avatar_url'].split('/')[-1]
-                            old_blob = bucket.blob(f'avatars/{user_id}/{old_avatar_path}')
-                            old_blob.delete()
-                    except Exception as e:
-                        print(f"Error deleting old avatar: {e}")
 
-                    # Генерируем уникальное имя файла
-                    file_extension = avatar_file.filename.rsplit('.', 1)[1].lower()
-                    filename = f"{str(uuid.uuid4())}.{file_extension}"
-                    full_path = f"avatars/{user_id}/{filename}"
-                    
-                    # Загружаем в Firebase Storage
-                    blob = bucket.blob(full_path)
-                    blob.upload_from_string(
-                        avatar_file.read(),
-                        content_type=avatar_file.content_type
-                    )
-                    
-                    # Делаем файл публичным
-                    blob.make_public()
-                    
-                    # Обновляем URL аватара в профиле пользователя
-                    profile_data = {
-                        'avatar_url': blob.public_url,
-                        'updated_at': datetime.datetime.now(tz=datetime.timezone.utc)
-                    }
-                    db.collection('users').document(user_id).update(profile_data)
+                # Handle avatar upload
+                if 'avatar' in request.files:
+                    avatar_file = request.files['avatar']
+                    if avatar_file and avatar_file.filename:
+                        # Delete old avatar if exists
+                        try:
+                            if user_data.get('avatar_url'):
+                                old_avatar_path = user_data['avatar_url'].split('/')[-1]
+                                old_blob = bucket.blob(f'avatars/{user_id}/{old_avatar_path}')
+                                old_blob.delete()
+                        except Exception as e:
+                            print(f"Error deleting old avatar: {e}")
 
-                    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                        return jsonify({
-                            'success': True,
-                            'avatar_url': blob.public_url
-                        })
-
-            if 'certificates' in request.files:
-                files = request.files.getlist('certificates')
-                uploaded_files = []
-                
-                for file in files:
-                    if file and file.filename:
-                        # Generate unique filename
-                        file_extension = file.filename.rsplit('.', 1)[1].lower()
-                        filename = f"certificates/{user_id}/{str(uuid.uuid4())}.{file_extension}"
+                        # Upload new avatar
+                        file_extension = avatar_file.filename.rsplit('.', 1)[1].lower()
+                        filename = f"{str(uuid.uuid4())}.{file_extension}"
+                        full_path = f"avatars/{user_id}/{filename}"
                         
-                        # Upload to Firebase Storage
-                        blob = bucket.blob(filename)
+                        blob = bucket.blob(full_path)
                         blob.upload_from_string(
-                            file.read(),
-                            content_type=file.content_type
+                            avatar_file.read(),
+                            content_type=avatar_file.content_type
                         )
                         
-                        # Make the file publicly accessible
                         blob.make_public()
-
-                        # Save certificate info in Firestore
-                        cert_data = {
-                            'title': file.filename,
-                            'file_url': blob.public_url,
-                            'uploaded_at': datetime.datetime.now(tz=datetime.timezone.utc)
+                        
+                        profile_data = {
+                            'avatar_url': blob.public_url,
+                            'updated_at': datetime.datetime.now(tz=datetime.timezone.utc)
                         }
-                        db.collection('users').document(user_id).collection('certificates').add(cert_data)
-                        uploaded_files.append(cert_data)
+                        db.collection('users').document(user_id).update(profile_data)
 
-                # Если это AJAX запрос, возвращаем JSON
+                        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                            return jsonify({
+                                'success': True,
+                                'avatar_url': blob.public_url
+                            })
+
+                # Handle regular form submission
+                if request.form:
+                    profile_data = {
+                        'full_name': request.form.get('full_name', ''),
+                        'age': request.form.get('age', ''),
+                        'specialty': request.form.get('specialty', ''),
+                        'goals': request.form.get('goals', ''),
+                        'bio': request.form.get('bio', ''),
+                        'education': request.form.get('education', ''),
+                        'updated_at': datetime.datetime.now(tz=datetime.timezone.utc)
+                    }
+
+                    # Convert age to integer if provided
+                    if profile_data['age']:
+                        try:
+                            profile_data['age'] = int(profile_data['age'])
+                        except ValueError:
+                            del profile_data['age']
+
+                    # Add social media and contact links
+                    social_media = {
+                        'linkedin': request.form.get('linkedin', ''),
+                        'github': request.form.get('github', ''),
+                        'twitter': request.form.get('twitter', ''),
+                        'website': request.form.get('website', '')
+                    }
+                    profile_data['social_media'] = {k: v for k, v in social_media.items() if v}
+
+                    # Update academic information
+                    academic_info = {
+                        'current_institution': request.form.get('current_institution', ''),
+                        'field_of_study': request.form.get('field_of_study', ''),
+                        'graduation_year': request.form.get('graduation_year', ''),
+                        'research_interests': request.form.get('research_interests', '').split(','),
+                        'achievements': request.form.getlist('achievements[]')
+                    }
+                    profile_data['academic_info'] = academic_info
+
+                    # Update all profile data
+                    db.collection('users').document(user_id).update(profile_data)
+                    
+                    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                        return jsonify({'success': True})
+                    
+                    flash('Profile updated successfully!')
+                    return redirect(url_for('profile'))
+
+            except Exception as e:
                 if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                    return jsonify({
-                        'success': True,
-                        'files': uploaded_files
-                    })
-                
-                flash('Files uploaded successfully!')
+                    return jsonify({'success': False, 'error': str(e)})
+                flash(f'Error updating profile: {str(e)}')
                 return redirect(url_for('profile'))
 
-            # Обработка других POST данных...
-            # Обновление основных данных профиля
-            if request.form:
-                profile_data = {
-                    'full_name': request.form.get('full_name', ''),
-                    'bio': request.form.get('bio', ''),
-                    'education': request.form.get('education', ''),
-                    'updated_at': datetime.datetime.now(tz=datetime.timezone.utc)
-                }
-                
-                db.collection('users').document(user_id).update(profile_data)
-                
-                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                    return jsonify({'success': True})
-                
-                flash('Profile updated successfully!')
-                return redirect(url_for('profile'))
-
-        except Exception as e:
-            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                return jsonify({'success': False, 'error': str(e)})
-            flash(f'Error updating profile: {str(e)}')
-            return redirect(url_for('profile'))
+        # Get certificates for display
+        certificates = list(db.collection('users').document(user_id).collection('certificates').stream())
         
-    # GET запрос
-    user_doc = db.collection('users').document(user_id).get()
-    certificates = list(db.collection('users').document(user_id).collection('certificates').stream())
-    
-    return render_template('profile.html',
-                         user_data=user_data,
-                         avatar_url=avatar_url,
-                         current_user_avatar=current_user_avatar,
-                         certificates=certificates)
+        # Get notifications count
+        notifications_ref = db.collection('users').document(user_id).collection('notifications')
+        unread_notifications = notifications_ref.where('is_read', '==', False).get()
+        notifications_count = len(list(unread_notifications))
+
+        # Render template with all necessary data
+        return render_template('profile.html',
+                            user_data=user_data,
+                            avatar_url=avatar_url,
+                            current_user_avatar=current_user_avatar,
+                            certificates=certificates,
+                            notifications_count=notifications_count,
+                            social_media=user_data.get('social_media', {}),
+                            academic_info=user_data.get('academic_info', {}))
+
+    except Exception as e:
+        print(f"Error in profile route: {e}")
+        flash('An error occurred while loading your profile.')
+        return redirect(url_for('index'))
+
 @app.route('/<username>')
 def public_profile(username):
     try:
-        # Additional logging for debugging
         print(f"Attempting to access profile for username: {username}")
         
-        # Find user without case sensitivity
         users_ref = db.collection('users')
         query = users_ref.where('username', '==', username.lower()).limit(1).stream()
         user_doc = next(query, None)
 
-        # Log query results
+
         if user_doc is None:
             print(f"No user found with username: {username}")
             abort(404, description=f"User '{username}' not found")
 
         viewed_user_data = user_doc.to_dict()
         
-        # Log user data
+
         print(f"User data: {viewed_user_data}")
         
-        # Check if the viewed profile is blocked
+
         if viewed_user_data.get('blocked', False):
             print(f"Profile for {username} is blocked")
             abort(404, description="User profile not available")
         
         viewed_user_avatar = generate_avatar_url(viewed_user_data)
         
-        # Get current user's avatar if logged in
+
         current_user_avatar = None
         if 'user_id' in session:
             current_user = db.collection('users').document(session['user_id']).get()
@@ -1028,45 +1012,45 @@ def public_profile(username):
                              certificates=certificates,
                              certificates_count=certificates_count)
     except Exception as e:
-        # Log the full error details
+
         print(f"Comprehensive error in public_profile: {e}")
         import traceback
         traceback.print_exc()
         
-        # Re-raise to let Flask's error handler catch it
+
         raise
 from firebase_admin import auth
 
 @app.route('/update_links', methods=['POST'])
 def update_links():
     try:
-        # Получаем токен из заголовка
+
         id_token = request.headers.get('Authorization')
         if not id_token:
             return jsonify(success=False, error="No token provided"), 401
             
-        # Убираем 'Bearer ' из токена если он есть
+
         if id_token.startswith('Bearer '):
             id_token = id_token.split('Bearer ')[1]
             
-        # Верифицируем токен и получаем информацию о пользователе
+
         decoded_token = auth.verify_id_token(id_token)
         user_id = decoded_token['uid']
         
-        # Получаем данные из JSON
+
         data = request.get_json()
         links = data.get('links', [])
         
-        # Валидация данных
+
         if not isinstance(links, list):
             return jsonify(success=False, error="Invalid data format"), 400
             
-        # Проверяем структуру каждой ссылки
+
         for link in links:
             if not isinstance(link, dict) or 'title' not in link or 'url' not in link:
                 return jsonify(success=False, error="Invalid link format"), 400
         
-        # Обновляем документ пользователя в Firestore
+
         db.collection('users').document(user_id).update({
             'links': links
         })
@@ -1078,10 +1062,10 @@ def update_links():
         print(f"Error updating links: {str(e)}")
         return jsonify(success=False, error=str(e)), 500
 @app.route('/admin/migrate_usernames', methods=['GET'])
-@login_required  # Добавьте декоратор для защиты
+@login_required  
 def migrate_usernames():
-    # Проверка, что это администратор
-    if session.get('user_id') != 'admin_user_id':  # Замените на ваш реальный admin ID
+
+    if session.get('user_id') != 'admin_user_id':  
         return "Unauthorized", 403
     
     users_ref = db.collection('users')
@@ -1090,7 +1074,7 @@ def migrate_usernames():
     for user_doc in users:
         user_data = user_doc.to_dict()
         
-        # Добавляем display_username, если его нет
+
         if 'display_username' not in user_data:
             users_ref.document(user_doc.id).update({
                 'username': user_data['username'].lower(),
@@ -1099,7 +1083,7 @@ def migrate_usernames():
     
     return "Migration completed successfully"    
 
-# В app.py добавьте:
+
 ADMIN_PASSWORD = os.getenv('ADMIN_PASSWORD', 'default_secret_password')
 
 @app.route('/admin/login', methods=['GET', 'POST'])
@@ -1119,16 +1103,16 @@ def admin_login():
 def update_username():
     user_id = session['user_id']
     new_username = request.json.get('username').lower()
-    display_username = request.json.get('username')  # Original case for display
+    display_username = request.json.get('username') 
     
     try:
-        # Check if username is taken
+
         users_ref = db.collection('users')
         username_query = users_ref.where('username', '==', new_username).get()
         if len(list(username_query)) > 0:
             return jsonify({'error': 'Username already taken'}), 400
             
-        # Update username in Firestore
+
         user_ref = db.collection('users').document(user_id)
         user_ref.update({
             'username': new_username,
@@ -1136,7 +1120,7 @@ def update_username():
             'updated_at': datetime.datetime.now(tz=datetime.timezone.utc)
         })
         
-        # Update session
+
         session['username'] = display_username
         
         return jsonify({'success': True, 'message': 'Username updated successfully'})
@@ -1154,7 +1138,7 @@ def update_profile():
         
         if 'full_name' in data:
             profile_data['full_name'] = data['full_name']
-            # Добавляем нижний регистр для поиска
+
             profile_data['full_name_lower'] = data['full_name'].lower()
         
         if 'bio' in data:
@@ -1186,14 +1170,14 @@ def update_password():
         }
     )
     try:
-        # Get user's email from Firestore
+
         user_doc = db.collection('users').document(user_id).get()
         user_data = user_doc.to_dict()
         
-        # Verify current password through Firebase Auth
+
         user = auth.get_user_by_email(user_data['email'])
         
-        # Update password in Firebase Auth
+
         auth.update_user(
             user_id,
             password=new_password
@@ -1210,35 +1194,31 @@ def delete_account():
     password = request.json.get('password')
     
     try:
-        # Get user's email from Firestore
+
         user_doc = db.collection('users').document(user_id).get()
         user_data = user_doc.to_dict()
         
-        # Verify password through Firebase Auth
         user = auth.get_user_by_email(user_data['email'])
         
-        # Delete user's data from Firestore
-        # First, delete subcollections
         certificates_ref = db.collection('users').document(user_id).collection('certificates')
         comments_ref = db.collection('users').document(user_id).collection('comments')
         
-        # Delete certificates
+
         certs = certificates_ref.stream()
         for cert in certs:
             cert.reference.delete()
-            
-        # Delete comments
+
         comments = comments_ref.stream()
         for comment in comments:
             comment.reference.delete()
             
-        # Delete main user document
+
         db.collection('users').document(user_id).delete()
         
-        # Delete user from Firebase Auth
+
         auth.delete_user(user_id)
         
-        # Clear session
+
         session.clear()
         
         return jsonify({'success': True, 'message': 'Account deleted successfully'})
@@ -1255,19 +1235,19 @@ def reset_password():
                 'error': 'Email is required'
             }), 400
 
-        # Создаем настройки для ссылки сброса пароля
+
         action_code_settings = auth.ActionCodeSettings(
-            url=f"{request.host_url}login",  # URL для возврата после сброса
+            url=f"{request.host_url}login",
             handle_code_in_app=False
         )
         
-        # Генерируем и отправляем ссылку для сброса пароля
+
         reset_link = auth.generate_password_reset_link(
             email,
             action_code_settings
         )
         
-        # Логируем для отладки
+
         print(f"Generated reset link for {email}")
         
         return jsonify({
@@ -1276,7 +1256,7 @@ def reset_password():
         })
         
     except Exception as e:
-        print(f"Error in reset_password: {str(e)}")  # Для отладки
+        print(f"Error in reset_password: {str(e)}")
         return jsonify({
             'success': False,
             'error': 'An error occurred. Please try again later.'
@@ -1288,9 +1268,9 @@ def search_users():
     
     try:
         users_ref = db.collection('users')
-        results = {}  # Используем словарь для уникальности результатов
+        results = {} 
         
-        # Получаем все документы, которые могут соответствовать запросу
+
         all_users = users_ref.stream()
         
         for user_doc in all_users:
@@ -1299,18 +1279,18 @@ def search_users():
             if not user_data or 'username' not in user_data:
                 continue
                 
-            # Получаем все поля для поиска
+
             username = user_data.get('username', '').lower()
             display_username = user_data.get('display_username', '').lower()
             full_name = user_data.get('full_name', '').lower()
             
-            # Проверяем совпадения во всех полях
+
             if (query in username or 
                 query in display_username or 
                 query in full_name or 
                 any(query in word.lower() for word in full_name.split())):
                 
-                # Если нашли совпадение, добавляем пользователя в результаты
+
                 results[user_doc.id] = {
                     'username': user_data.get('display_username', user_data['username']),
                     'full_name': user_data.get('full_name', ''),
@@ -1319,14 +1299,14 @@ def search_users():
                     'verification_type': user_data.get('verification_type', None)
                 }
         
-        # Ограничиваем количество результатов
+
         results_list = list(results.values())[:10]
         
-        # Сортируем результаты: сначала точные совпадения, потом частичные
+
         results_list.sort(key=lambda x: (
-            not x['username'].lower().startswith(query),  # Сначала по началу username
-            not (x['full_name'] and x['full_name'].lower().startswith(query)),  # Потом по началу full_name
-            x['username'].lower(),  # Потом по алфавиту
+            not x['username'].lower().startswith(query), 
+            not (x['full_name'] and x['full_name'].lower().startswith(query)),  
+            x['username'].lower(), 
         ))
         
         return jsonify(results_list)
@@ -1338,7 +1318,7 @@ def search_users():
 @app.route('/admin/migrate_fullnames', methods=['GET'])
 @login_required
 def migrate_fullnames():
-    if session.get('user_id') != 'vVbXL4LKGidXtrKnvqa21gWRY3V2':  # Замените на ваш admin ID
+    if session.get('user_id') != 'vVbXL4LKGidXtrKnvqa21gWRY3V2': 
         return "Unauthorized", 403
         
     try:
@@ -1359,7 +1339,7 @@ def migrate_fullnames():
 @app.route('/admin/add_admin', methods=['POST'])
 @login_required
 def add_admin():
-    # Список суперадминов
+
     SUPER_ADMIN_IDS = ['vVbXL4LKGidXtrKnvqa21gWRY3V2']
 
     if session['user_id'] not in SUPER_ADMIN_IDS:
@@ -1369,14 +1349,14 @@ def add_admin():
     user_id = data.get('user_id')
     
     try:
-        # Обновляем документ пользователя, добавляя ему права администратора
+
         db.collection('users').document(user_id).update({
             'is_admin': True,
             'admin_added_by': session['user_id'],
             'admin_added_at': firestore.SERVER_TIMESTAMP
         })
 
-        # Создаем уведомление пользователю
+
         create_notification(
             user_id, 
             'account_change', 
@@ -1392,8 +1372,8 @@ def add_admin():
 @app.route('/admin/verify_user', methods=['POST'])
 @login_required
 def verify_user():
-    # List of administrators who can verify
-    ADMIN_IDS = ['vVbXL4LKGidXtrKnvqa21gWRY3V2']  # Replace with actual admin user ID
+
+    ADMIN_IDS = ['vVbXL4LKGidXtrKnvqa21gWRY3V2']
 
     # Debug logging
     print(f"Verification attempt by user: {session.get('user_id')}")
@@ -1403,10 +1383,10 @@ def verify_user():
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
     
     try:
-        # Get JSON data from request
+
         data = request.get_json()
         
-        # Validate input
+
         user_id = data.get('user_id')
         verification_type = data.get('type', 'official')
         
@@ -1414,13 +1394,12 @@ def verify_user():
             print("No user ID provided")
             return jsonify({'success': False, 'error': 'User ID is required'}), 400
 
-        # Validate verification type
         valid_types = ['official', 'creator', 'business', 'remove']
         if verification_type not in valid_types:
             print(f"Invalid verification type: {verification_type}")
             return jsonify({'success': False, 'error': 'Invalid verification type'}), 400
 
-        # Get user document
+
         user_ref = db.collection('users').document(user_id)
         user_doc = user_ref.get()
         
@@ -1430,7 +1409,7 @@ def verify_user():
         
         user_data = user_doc.to_dict()
         
-        # Determine verification update
+
         update_data = {
             'verified': verification_type != 'remove',
             'verification_type': None if verification_type == 'remove' else verification_type,
@@ -1438,14 +1417,14 @@ def verify_user():
             'verified_at': firestore.SERVER_TIMESTAMP if verification_type != 'remove' else None
         }
         
-        # Perform update
+
         try:
             user_ref.update(update_data)
         except Exception as update_error:
             print(f"Database update error: {update_error}")
             return jsonify({'success': False, 'error': 'Failed to update user verification'}), 500
 
-        # Create notification based on verification action
+
         if verification_type == 'remove':
             create_notification(
                 user_id, 
@@ -1467,7 +1446,7 @@ def verify_user():
                 sender_id=session['user_id']
             )
 
-        # Log the verification action
+
         print(f"User {user_id} verified as {verification_type}")
         
         return jsonify({
@@ -1477,7 +1456,7 @@ def verify_user():
         })
     
     except Exception as e:
-        # Catch-all for any unexpected errors
+
         print(f"Unexpected error in user verification: {e}")
         return jsonify({
             'success': False, 
@@ -1488,8 +1467,7 @@ def verify_user():
 def admin_dashboard():
     if not session.get('admin_logged_in'):
         return redirect(url_for('admin_login'))
-    
-    # Получаем список всех пользователей
+
     users_ref = db.collection('users')
     users = users_ref.stream()
     
@@ -1512,7 +1490,7 @@ def logout():
     return redirect(url_for('index'))
 def create_notification(user_id, type, content, sender_id=None, related_id=None):
     try:
-        # Определение отправителя
+
         if sender_id:
             try:
                 sender_doc = db.collection('users').document(sender_id).get()
@@ -1527,7 +1505,7 @@ def create_notification(user_id, type, content, sender_id=None, related_id=None)
                 print(f"Error fetching sender info: {e}")
                 sender_info = None
         else:
-            # Использование дефолтных данных из конфигурации типов
+
             type_config = ENHANCED_NOTIFICATION_TYPES.get(type, {})
             sender_info = type_config.get('sender', {
                 'username': 'Jinaq',
@@ -1536,16 +1514,15 @@ def create_notification(user_id, type, content, sender_id=None, related_id=None)
                 'verification_type': 'system'
             })
 
-        # Обогащение контента уведомления
+
         notification_config = ENHANCED_NOTIFICATION_TYPES.get(type, {})
         enriched_content = {
             'type_label': notification_config.get('label', 'Notification'),
             'icon': notification_config.get('icon', '🔔'),
             'priority': notification_config.get('priority', 'normal'),
-            **content  # Сохраняем original content
+            **content
         }
 
-        # Специальная обработка для уведомлений об изменении аккаунта
         if type == 'account_change':
             action = content.get('action')
             if action == 'email_updated':
@@ -1555,7 +1532,6 @@ def create_notification(user_id, type, content, sender_id=None, related_id=None)
             elif not enriched_content.get('message'):
                 enriched_content['message'] = "Account settings have been updated"
 
-        # Формирование полных данных уведомления
         notification_data = {
             'type': type,
             'content': enriched_content,
@@ -1572,11 +1548,11 @@ def create_notification(user_id, type, content, sender_id=None, related_id=None)
             }
         }
 
-        # Добавление расширенной маршрутизации и фильтрации
+
         if notification_config.get('priority') == 'critical':
             notification_data['is_pinned'] = True
 
-        # Сохранение уведомления
+
         notification_ref = db.collection('users').document(user_id).collection('notifications').document()
         notification_ref.set(notification_data)
 
@@ -1601,7 +1577,7 @@ def get_notification_details(notification_id):
             
         notification_data = notification.to_dict()
         
-        # Дополняем данные в зависимости от типа уведомления
+
         if notification_data['type'] == 'reply_comment' and notification_data.get('related_id'):
             comment_id = notification_data['related_id']
             comment_ref = db.collection('users').document(user_id).collection('comments').document(comment_id)
@@ -1632,25 +1608,25 @@ def get_notifications():
             notification = notification_doc.to_dict()
             notification['id'] = notification_doc.id
             
-            # Получаем конфигурацию типа уведомления из расширенного списка
+
             notification_type = notification['type']
             notification_type_info = ENHANCED_NOTIFICATION_TYPES.get(notification_type, {})
             
-            # Добавляем иконку и метку из конфигурации
+
             notification['icon'] = notification_type_info.get('icon', '🔔')
             notification['type_label'] = notification_type_info.get('label', 'Notification')
             
-            # Для системных уведомлений используем информацию об отправителе из конфигурации
+
             if notification_type in ['system', 'admin_message', 'important']:
                 sender_config = notification_type_info.get('sender', {})
                 notification['sender_info'] = {
                     'username': sender_config.get('username', 'Jinaq'),
                     'verified': sender_config.get('verified', True),
                     'verification_type': sender_config.get('verification_type', 'system'),
-                    'avatar_url': url_for('static', filename='jinaq_logo.svg')  # Используем url_for для корректного пути
+                    'avatar_url': url_for('static', filename='jinaq_logo.svg')
                 }
             
-            # Для обычных уведомлений обрабатываем sender_info как раньше
+
             elif notification.get('sender_info'):
                 sender_info = notification['sender_info']
                 notification['sender_info']['avatar_url'] = sender_info.get('avatar_url') or generate_avatar_url({
@@ -1697,14 +1673,14 @@ def mark_notification_read(notification_id):
 @app.route('/admin/send_system_notification', methods=['POST'])
 @login_required
 def send_system_notification():
-    # Список администраторов - замените на реальные ID
-    ADMIN_IDS = ['vVbXL4LKGidXtrKnvqa21gWRY3V2']  # Например, ['vVbXL4LKGidXtrKnvqa21gWRY3V2']
+
+    ADMIN_IDS = ['vVbXL4LKGidXtrKnvqa21gWRY3V2'] 
     
-    # Проверка, что текущий пользователь - администратор
+
     if session.get('user_id') not in ADMIN_IDS:
         return jsonify({'error': 'Unauthorized access'}), 403
     
-    # Получаем JSON-данные
+
     data = request.json
     
     recipient_type = data.get('recipient_type', 'all')
@@ -1716,11 +1692,11 @@ def send_system_notification():
         return jsonify({'error': 'Message cannot be empty'}), 400
     
     try:
-        # Получаем данные администратора
+
         admin_doc = db.collection('users').document(session['user_id']).get()
         admin_data = admin_doc.to_dict()
         
-        # Запрос пользователей в зависимости от типа получателей
+
         users_ref = db.collection('users')
         
         if recipient_type == 'verified':
@@ -1728,7 +1704,7 @@ def send_system_notification():
         elif recipient_type == 'unverified':
             query = users_ref.where('verified', '==', False)
         elif recipient_type == 'selected':
-            # Выбираем только указанных пользователей
+
             if not selected_users:
                 return jsonify({'error': 'No users selected'}), 400
             
@@ -1750,10 +1726,10 @@ def send_system_notification():
                 'notifications_sent': notification_count
             })
         else:
-            # Все пользователи
+
             query = users_ref
         
-        # Для всех и верифицированных/неверифицированных
+
         users = query.stream()
         
         notification_count = 0
@@ -1779,7 +1755,7 @@ def send_system_notification():
 @app.route('/admin/toggle_user_block', methods=['POST'])
 @login_required
 def toggle_user_block():
-    # List of super admins who can block users
+
     SUPER_ADMIN_IDS = ['vVbXL4LKGidXtrKnvqa21gWRY3V2']
 
     if session['user_id'] not in SUPER_ADMIN_IDS:
@@ -1789,7 +1765,7 @@ def toggle_user_block():
     user_id = data.get('user_id')
     
     try:
-        # Get the current user document
+
         user_ref = db.collection('users').document(user_id)
         user_doc = user_ref.get()
         
@@ -1798,18 +1774,18 @@ def toggle_user_block():
         
         user_data = user_doc.to_dict()
         
-        # Toggle block status
+
         current_blocked_status = user_data.get('blocked', False)
         new_blocked_status = not current_blocked_status
         
-        # Update user document
+
         user_ref.update({
             'blocked': new_blocked_status,
             'blocked_at': firestore.SERVER_TIMESTAMP if new_blocked_status else None,
             'blocked_by': session['user_id'] if new_blocked_status else None
         })
         
-        # Create a notification for the user
+
         create_notification(
             user_id, 
             'account_change', 
@@ -1828,14 +1804,73 @@ def toggle_user_block():
     
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
-# Add error handlers
-# Add error handlers
+
+@app.route('/update_header', methods=['POST'])
+@login_required
+def update_header():
+    try:
+        user_id = session['user_id']
+
+        if 'header_image' not in request.files:
+            return jsonify({'success': False, 'error': 'No file provided'}), 400
+
+        file = request.files['header_image']
+        position = request.form.get('position', '50% 50%')
+
+        if not file or not file.filename:
+            return jsonify({'success': False, 'error': 'No file selected'}), 400
+
+        # Get user doc to check for existing header
+        user_doc = db.collection('users').document(user_id).get()
+        user_data = user_doc.to_dict()
+
+        # Delete old header if exists
+        if user_data.get('header_image', {}).get('url'):
+            try:
+                old_path = user_data['header_image']['url'].split('/')[-1]
+                old_blob = bucket.blob(f'headers/{user_id}/{old_path}')
+                old_blob.delete()
+            except Exception as e:
+                print(f"Error deleting old header: {e}")
+
+        # Upload new header
+        file_extension = file.filename.rsplit('.', 1)[1].lower()
+        filename = f"{str(uuid.uuid4())}.{file_extension}"
+        full_path = f"headers/{user_id}/{filename}"
+
+        blob = bucket.blob(full_path)
+        blob.upload_from_string(
+            file.read(),
+            content_type=file.content_type
+        )
+
+        blob.make_public()
+
+        # Update user document with new header info
+        header_data = {
+            'header_image': {
+                'url': blob.public_url,
+                'position': position,
+                'updated_at': datetime.datetime.now(tz=datetime.timezone.utc)
+            }
+        }
+
+        db.collection('users').document(user_id).update(header_data)
+
+        return jsonify({
+            'success': True,
+            'header': header_data['header_image']
+        })
+
+    except Exception as e:
+        print(f"Error updating header: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 @app.errorhandler(404)
 def page_not_found(e):
-    # Additional logging for debugging
+
     print(f"404 Error: {e}")
     
-    # Optional: Log the request details for more context
+
     print(f"Request URL: {request.url}")
     print(f"Request Method: {request.method}")
     
@@ -1843,17 +1878,17 @@ def page_not_found(e):
 
 @app.errorhandler(500)
 def internal_server_error(e):
-    # Additional logging for debugging
+
     print(f"500 Error: {e}")
     print(f"Request URL: {request.url}")
     print(f"Request Method: {request.method}")
     
     return render_template('500.html'), 500
 
-# Explicitly enable debug mode to get more detailed error information
+
 app.config['DEBUG'] = True
 
-# Optional: Add a route to test error handling
+
 @app.route('/test_404')
 def test_404():
     abort(404)

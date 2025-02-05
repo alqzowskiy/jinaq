@@ -1,5 +1,9 @@
 {% extends "base.html" %}
 
+{% block head %}
+{{ super() }}
+
+{% endblock %}
 {% block content %}
 <div class="container mx-auto px-4 py-8" x-data="settingsPage()">
     <div class="max-w-2xl mx-auto">
@@ -109,10 +113,96 @@
             </div>
         </div>
     </div>
+    <!-- Theme Selection Section -->
+    <div class="bg-white rounded-xl border border-gray-200 overflow-hidden mt-8">
+        <div class="p-6 space-y-4">
+            <h3 class="text-lg font-medium">Theme Preferences</h3>
+            <div class="flex space-x-4">
+                <button @click="setTheme('light')" class="flex-1 btn border border-gray-300 
+                           bg-white 
+                           text-gray-800 
+                           hover:bg-gray-100">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20"
+                        fill="currentColor">
+                        <path fill-rule="evenodd"
+                            d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.464 5.05l-.707-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z"
+                            clip-rule="evenodd" />
+                    </svg>
+                    Light Theme
+                </button>
+                <button @click="setTheme('dark')" class="flex-1 btn border border-gray-300 
+                           bg-white 
+                           text-gray-800 
+                           hover:bg-gray-100">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20"
+                        fill="currentColor">
+                        <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
+                    </svg>
+                    Dark Theme
+                </button>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
+<script>
+    // Enhanced Theme Management
+    const ThemeManager = {
+        init() {
+            console.log('ThemeManager: Initializing');
+            const savedTheme = localStorage.getItem('jinaq-theme') || 'light';
+            console.log('Saved theme:', savedTheme);
+
+            // Add theme class to <html>
+            document.documentElement.classList.remove('light', 'dark');
+            document.documentElement.classList.add(savedTheme);
+
+            // Set color scheme
+            document.documentElement.setAttribute('data-theme', savedTheme);
+
+            // Optional: Dispatch theme change event
+            const themeChangeEvent = new CustomEvent('themeChanged', { detail: savedTheme });
+            window.dispatchEvent(themeChangeEvent);
+        },
+
+        setTheme(theme) {
+            console.log(`ThemeManager: Setting theme to ${theme}`);
+
+            // Remove existing theme classes
+            document.documentElement.classList.remove('light', 'dark');
+
+            // Add new theme class
+            document.documentElement.classList.add(theme);
+
+            // Set color scheme
+            document.documentElement.setAttribute('data-theme', theme);
+
+            // Save to localStorage
+            localStorage.setItem('jinaq-theme', theme);
+
+            // Dispatch theme change event
+            const themeChangeEvent = new CustomEvent('themeChanged', { detail: theme });
+            window.dispatchEvent(themeChangeEvent);
+        },
+
+        getCurrentTheme() {
+            return localStorage.getItem('jinaq-theme') || 'light';
+        }
+    };
+
+    // Initialize theme on script load and page load
+    ThemeManager.init();
+
+    // Ensure theme is set after DOM content loaded
+    document.addEventListener('DOMContentLoaded', () => {
+        ThemeManager.init();
+    });
+
+    // Global access to ThemeManager
+    window.ThemeManager = ThemeManager;
+</script>
 <script>
 
     function settingsPage() {
@@ -185,7 +275,16 @@
                     }
                 });
             },
+            initTheme() {
+                const savedTheme = ThemeManager.getCurrentTheme();
+                document.documentElement.classList.remove('light', 'dark');
+                document.documentElement.classList.add(savedTheme);
+            },
 
+            // Use ThemeManager for setting theme
+            setTheme(theme) {
+                ThemeManager.setTheme(theme);
+            },
             // Обновление email
             async updateEmail() {
                 if (!this.emailData.newEmail) {
@@ -287,6 +386,10 @@
             }
         }
     }
+    // Ensure theme is set on initial page load
+    document.addEventListener('DOMContentLoaded', () => {
+        ThemeManager.init();
+    });
 </script>
 
 {% endblock %}
