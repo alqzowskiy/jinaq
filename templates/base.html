@@ -673,6 +673,9 @@
             <a href="{{ url_for('profile') }}" class="block px-4 py-3 rounded-lg hover:bg-gray-100">
                 My Portfolio
             </a>
+            <a href="{{ url_for('list_internships') }}" class="block px-4 py-3 rounded-lg hover:bg-gray-100">
+                Internships
+            </a>
             <a href="{{ url_for('settings') }}" class="block px-4 py-3 rounded-lg hover:bg-gray-100">
                 Settings
             </a>
@@ -853,7 +856,7 @@
                                                     <path stroke-linecap="round" stroke-linejoin="round"
                                                         stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                                                 </svg>
-                                            </button>
+                                            </button>s
                                         </div>
                                     </div>
                                 </template>
@@ -863,6 +866,10 @@
 
                     <a href="{{ url_for('profile') }}" class="px-3 py-2 rounded-lg hover:bg-gray-100 nav-hover">
                         My Portfolio
+                    </a>
+                    
+                    <a href="{{ url_for('list_internships') }}" class="px-3 py-2 rounded-lg hover:bg-gray-100 nav-hover">
+                        Internships
                     </a>
                     <a href="{{ url_for('settings') }}" class="px-3 py-2 rounded-lg hover:bg-gray-100 nav-hover">
                         Settings
