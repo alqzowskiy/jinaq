@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-gray-50 to-gray-100"
+    x-data="loginForm()">
+    <div class="max-w-md w-full">
+        <!-- Login Card -->
+        <div class="bg-white border border-gray-100 rounded-3xl shadow-2xl overflow-hidden">
+            <div class="p-10 space-y-8">
+                <div class="text-center">
+                    <h2 class="text-4xl font-bold gradient-text mb-4">Welcome back</h2>
+                    <p class="text-gray-600">
+                        Don't have an account?
+                        <a href="{{ url_for('register') }}"
+                            class="font-medium text-black hover:text-gray-700 transition-colors">
+                            Sign up
+                        </a>
+                    </p>
+                </div>
+
+                <form class="space-y-6" method="POST">
+                    <div class="space-y-4">
+                        <!-- Username/Email Input -->
+                        <div>
+                            <label for="identifier" class="label">
+                                <span class="label-text font-medium">Username or Email</span>
+                            </label>
+                            <div class="relative">
+                                <input id="identifier" name="identifier" type="text" required x-model="identifier"
+                                    class="input input-bordered bg-gray-50 w-full pl-10"
+                                    placeholder="username or email">
+                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400"
+                                        viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd"
+                                            d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"
+                                            clip-rule="evenodd" />
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Password Input -->
+                        <div>
+                            <label for="password" class="label">
+                                <span class="label-text font-medium">Password</span>
+                            </label>
+                            <div class="relative">
+                                <input id="password" name="password" :type="showPassword ? 'text' : 'password'" required
+                                    x-model="password" class="input input-bordered bg-gray-50 w-full pl-10 pr-10"
+                                    placeholder="********">
+                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400"
+                                        viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd"
+                                            d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z"
+                                            clip-rule="evenodd" />
+                                    </svg>
+                                </div>
+                                <button type="button" @click="showPassword = !showPassword"
+                                    class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-black transition-colors">
+                                    <svg x-show="!showPassword" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5"
+                                        viewBox="0 0 20 20" fill="currentColor">
+                                        <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                                        <path fill-rule="evenodd"
+                                            d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z"
+                                            clip-rule="evenodd" />
+                                    </svg>
+                                    <svg x-show="showPassword" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5"
+                                        viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd"
+                                            d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.78zm4.261 4.261l1.514 1.514a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z"
+                                            clip-rule="evenodd" />
+                                        <path
+                                            d="M12.454 16.697L9.88 14.123a4 4 0 01-5.023-5.023L2.343 6.758a10.014 10.014 0 00-1.885 4.242c1.274 4.057 5.064 7 9.542 7 .847 0 1.669-.105 2.454-.303z" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <button type="submit"
+                            class="btn bg-black hover:bg-gray-800 text-white w-full transition-all duration-300 transform hover:scale-105">
+                            Sign in
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="mt-6 text-center">
+            <a href="#" @click.prevent="showResetModal = true"
+                class="text-sm text-gray-600 hover:text-black transition-colors">
+                Forgot your password?
+            </a>
+        </div>
+    </div>
+
+    <!-- Reset Password Modal -->
+    <div x-show="showResetModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center"
+        x-cloak @keydown.escape.window="closeResetModal()">
+        <div class="bg-white rounded-lg p-8 max-w-md w-full mx-4" @click.away="closeResetModal()">
+            <h3 class="text-2xl font-bold mb-4">Reset Password</h3>
+            <p class="text-gray-600 mb-6">Enter your email address and we'll send you instructions to reset your
+                password.</p>
+
+            <form @submit.prevent="submitResetPassword">
+                <div class="mb-6">
+                    <label for="reset-email" class="label">
+                        <span class="label-text font-medium">Email address</span>
+                    </label>
+                    <input id="reset-email" type="email" x-model="resetEmail"
+                        class="input input-bordered bg-gray-50 w-full" required>
+                </div>
+
+                <div class="flex justify-end space-x-4">
+                    <button type="button" @click="closeResetModal" class="btn btn-ghost">
+                        Cancel
+                    </button>
+                    <button type="submit" class="btn bg-black text-white hover:bg-gray-800" :disabled="isResetting">
+                        <span x-show="!isResetting">Send Instructions</span>
+                        <span x-show="isResetting">
+                            <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg"
+                                fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
+                                    stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor"
+                                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                                </path>
+                            </svg>
+                            Sending...
+                        </span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Message Modal -->
+    <div x-show="showMessage" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center" x-cloak
+        @keydown.escape.window="showMessage = false">
+        <div class="bg-white text-black rounded-lg p-6 max-w-md w-full mx-4 border border-white"
+            @click.away="showMessage = false">
+            <p class="text-lg mb-6" x-text="message"></p>
+            <div class="flex justify-end">
+                <button @click="showMessage = false"
+                    class="px-4 py-2 rounded bg-black hover:bg-gray-800 text-white transition-colors">
+                    OK
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block scripts %}
+<script>
+    function loginForm() {
+        return {
+            identifier: '',
+            password: '',
+            showPassword: false,
+            showResetModal: false,
+            resetEmail: '',
+            isResetting: false,
+            showMessage: false,
+            message: '',
+
+            async submitResetPassword() {
+                if (!this.resetEmail) {
+                    this.showMessageModal('Please enter your email address');
+                    return;
+                }
+
+                this.isResetting = true;
+
+                try {
+                    const response = await fetch('/reset-password', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ email: this.resetEmail })
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok) {
+                        this.closeResetModal();
+                        this.showMessageModal('Password reset instructions have been sent to your email. Please check your inbox and spam folder.');
+                    } else {
+                        throw new Error(data.error || 'Failed to send reset instructions');
+                    }
+                } catch (error) {
+                    console.error('Reset password error:', error);
+                    this.showMessageModal(error.message || 'An error occurred. Please try again.');
+                } finally {
+                    this.isResetting = false;
+                }
+            },
+
+            showMessageModal(text) {
+                this.message = text;
+                this.showMessage = true;
+            },
+
+            closeResetModal() {
+                this.showResetModal = false;
+                this.resetEmail = '';
+                this.isResetting = false;
+            }
+        }
+    }
+</script>
+{% endblock %}
+{% endblock %}

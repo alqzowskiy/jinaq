@@ -1,0 +1,123 @@
+<!-- templates/view_applications.html -->
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-center justify-between mb-8">
+            <h1 class="text-2xl font-bold">Applications for {{ internship.title }}</h1>
+            <div class="text-sm text-gray-500">
+                {{ applications|length }} application(s)
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 divide-y">
+            {% for application in applications %}
+            <div class="p-6 hover:bg-gray-50 transition-colors">
+                <div class="flex items-start justify-between">
+                    <div class="flex items-start space-x-4">
+                        <img src="{{ application.avatar_url }}" 
+                             alt="{{ application.username }}" 
+                             class="w-12 h-12 rounded-full object-cover">
+                        
+                        <div>
+                            <div class="flex items-center">
+                                <a href="{{ url_for('public_profile', username=application.username) }}"
+                                   class="font-medium hover:underline">
+                                    {{ application.username }}
+                                </a>
+                                {% if application.status == 'pending' %}
+                                <span class="ml-2 px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">
+                                    Pending
+                                </span>
+                                {% elif application.status == 'accepted' %}
+                                <span class="ml-2 px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                                    Accepted
+                                </span>
+                                {% elif application.status == 'rejected' %}
+                                <span class="ml-2 px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">
+                                    Rejected
+                                </span>
+                                {% endif %}
+                            </div>
+
+                            <div class="mt-2 text-sm text-gray-600">
+                                Applied {{ application.applied_at|datetime }}
+                            </div>
+
+                            {% if application.skills %}
+                            <div class="mt-3">
+                                <div class="text-sm font-medium mb-1">Skills</div>
+                                <div class="flex flex-wrap gap-2">
+                                    {% for skill in application.skills %}
+                                    <span class="px-2 py-1 bg-gray-100 text-sm rounded-full">
+                                        {{ skill }}
+                                    </span>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% endif %}
+
+                            {% if application.academic_info %}
+                            <div class="mt-3">
+                                <div class="text-sm font-medium mb-1">Academic Information</div>
+                                <div class="text-sm text-gray-600">
+                                    {% if application.academic_info.gpa %}
+                                    <div>GPA: {{ application.academic_info.gpa }}</div>
+                                    {% endif %}
+                                    {% if application.academic_info.current_institution %}
+                                    <div>Institution: {{ application.academic_info.current_institution }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    {% if application.status == 'pending' %}
+                    <div class="flex items-center space-x-2">
+                        <button onclick="respondToApplication('{{ internship.id }}', '{{ application.user_id }}', 'accept')"
+                                class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors">
+                            Accept
+                        </button>
+                        <button onclick="respondToApplication('{{ internship.id }}', '{{ application.user_id }}', 'reject')"
+                                class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">
+                            Reject
+                        </button>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% else %}
+            <div class="p-8 text-center text-gray-500">
+                No applications yet
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<script>
+function respondToApplication(internshipId, applicantId, response) {
+    fetch(`/internships/${internshipId}/applications/${applicantId}/respond`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ response: response })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            window.location.reload();
+        } else {
+            alert(data.error || 'Error responding to application');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error responding to application');
+    });
+}
+</script>
+{% endblock %}
