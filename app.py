@@ -13,6 +13,12 @@ from flask import jsonify, url_for
 from firebase_admin import firestore
 from dotenv import load_dotenv
 import gunicorn
+import geocoder
+import requests
+from flask import jsonify
+from geopy.geocoders import Nominatim
+
+
 app = Flask(__name__)
 app.secret_key = 'mega-secret-key-yeah'  
 app.config['LOGO_SVG_PATH'] = 'jinaq_logo.svg'
@@ -123,6 +129,33 @@ def get_current_user_avatar():
         print(f"Error getting current user avatar: {e}")
         return None
 
+app.config['INTERNSHIP_IMAGES'] = 'static/internship_images'
+if not os.path.exists(app.config['INTERNSHIP_IMAGES']):
+    os.makedirs(app.config['INTERNSHIP_IMAGES'])
+
+# Add this schema to your database
+internships_schema = """
+CREATE TABLE IF NOT EXISTS internships (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    company TEXT NOT NULL,
+    description TEXT NOT NULL,
+    requirements TEXT,
+    location TEXT NOT NULL,
+    start_date TIMESTAMP,
+    end_date TIMESTAMP,
+    image_url TEXT,
+    created_at TIMESTAMP,
+    created_by TEXT,
+    status TEXT DEFAULT 'active',
+    area TEXT,
+    format TEXT,
+    address TEXT,
+    positions INTEGER DEFAULT 1
+)
+"""
+
+
 def get_current_username():
     """Helper function to get current user's username"""
     if 'username' in session:
@@ -135,6 +168,26 @@ def login_required(f):
             return redirect(url_for('login'))
         return f(*args, **kwargs)
     return decorated_function
+# Add this route to handle skills updates
+@app.route('/update-skills', methods=['POST'])
+@login_required
+def update_skills():
+    user_id = session['user_id']
+    data = request.json
+    
+    try:
+        # Clean and validate skills
+        skills = [skill.strip() for skill in data.get('skills', []) if skill.strip()]
+        
+        # Update user document
+        db.collection('users').document(user_id).update({
+            'skills': skills,
+            'updated_at': datetime.datetime.now(tz=datetime.timezone.utc)
+        })
+        
+        return jsonify({'success': True, 'message': 'Skills updated successfully'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 @app.route('/update_academic_portfolio', methods=['POST'])
 @login_required
 def update_academic_portfolio():
@@ -761,7 +814,28 @@ def generate_avatar_url(user_data):
     initials = ''.join(word[0].upper() for word in display_name.split()[:2])
     
     return f"https://ui-avatars.com/api/?name={initials}&background=random&color=fff&size=128"
-
+def get_user_location():
+    try:
+        # Try to get IP address
+        if request.headers.get('X-Forwarded-For'):
+            ip = request.headers.get('X-Forwarded-For').split(',')[0]
+        else:
+            ip = request.remote_addr
+            
+        # Get location data from IP
+        g = geocoder.ip(ip)
+        if g.ok:
+            return {
+                'city': g.city,
+                'country': g.country,
+                'coordinates': {
+                    'lat': g.lat,
+                    'lng': g.lng
+                }
+            }
+    except Exception as e:
+        print(f"Error getting location: {e}")
+    return None
 
 @app.route('/profile', methods=['GET', 'POST'])
 @login_required
@@ -779,7 +853,14 @@ def profile():
             abort(404)
 
         current_user_avatar = avatar_url
-
+        if not user_data.get('location'):
+            location = get_user_location()
+            if location:
+                user_data['location'] = location
+                db.collection('users').document(user_id).update({
+                    'location': location
+                })
+        
         # Initialize academic info if not present
         if 'academic_info' not in user_data:
             user_data['academic_info'] = {
@@ -1804,6 +1885,82 @@ def toggle_user_block():
     
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+# Add these routes to your Flask app
+@app.route('/update-location', methods=['POST'])
+@login_required
+def update_location():
+    try:
+        data = request.get_json()
+        coordinates = data.get('coordinates')
+        
+        if not coordinates:
+            return jsonify({'success': False, 'error': 'No coordinates provided'}), 400
+
+        geolocator = Nominatim(user_agent="your_app_name")
+        location = geolocator.reverse(f"{coordinates['lat']}, {coordinates['lng']}")
+
+        if location:
+            location_data = {
+                'city': location.raw.get('address', {}).get('city') or 
+                       location.raw.get('address', {}).get('town') or 
+                       location.raw.get('address', {}).get('municipality'),
+                'country': location.raw.get('address', {}).get('country'),
+                'coordinates': coordinates
+            }
+
+            # Update user's location in database
+            db.collection('users').document(session['user_id']).update({
+                'location': location_data
+            })
+
+            return jsonify({
+                'success': True,
+                'location': location_data
+            })
+
+        return jsonify({'success': False, 'error': 'Location not found'}), 404
+
+    except Exception as e:
+        print(f"Error updating location: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/get-ip-location')
+@login_required
+def get_ip_location():
+    try:
+        # Get IP address
+        ip = request.headers.get('X-Forwarded-For', request.remote_addr)
+        
+        # Use ip-api.com for IP geolocation (free tier)
+        response = requests.get(f'http://ip-api.com/json/{ip}')
+        data = response.json()
+        
+        if data['status'] == 'success':
+            location_data = {
+                'city': data.get('city'),
+                'country': data.get('country'),
+                'coordinates': {
+                    'lat': data.get('lat'),
+                    'lng': data.get('lon')
+                }
+            }
+
+            # Update user's location in database
+            db.collection('users').document(session['user_id']).update({
+                'location': location_data
+            })
+
+            return jsonify({
+                'success': True,
+                'location': location_data
+            })
+
+        return jsonify({'success': False, 'error': 'Location not found'}), 404
+
+    except Exception as e:
+        print(f"Error getting IP location: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 
 @app.route('/update_header', methods=['POST'])
 @login_required
@@ -1865,6 +2022,533 @@ def update_header():
     except Exception as e:
         print(f"Error updating header: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/internships/create', methods=['GET', 'POST'])
+@login_required
+def create_internship():
+    if request.method == 'POST':
+        try:
+            user_id = session['user_id']
+            
+            # Get form data
+            title = request.form.get('title')
+            company = request.form.get('company')
+            description = request.form.get('description')
+            requirements = request.form.get('requirements')
+            location = request.form.get('location')
+            start_date = request.form.get('start_date')
+            end_date = request.form.get('end_date')
+            area = request.form.get('area')
+            format_type = request.form.get('format')
+            address = request.form.get('address')
+            positions = int(request.form.get('positions', 1))
+
+            # Handle image upload
+            image_url = None
+            if 'image' in request.files:
+                image = request.files['image']
+                if image and image.filename:
+                    # Create a unique filename
+                    ext = image.filename.split('.')[-1]
+                    filename = f"internships/{user_id}/{str(uuid.uuid4())}.{ext}"
+                    
+                    # Upload to Firebase Storage
+                    blob = bucket.blob(filename)
+                    blob.upload_from_string(
+                        image.read(),
+                        content_type=image.content_type
+                    )
+                    
+                    # Make the image public and get URL
+                    blob.make_public()
+                    image_url = blob.public_url
+
+            # Create internship document
+            internship_data = {
+                'title': title,
+                'company': company,
+                'description': description,
+                'requirements': requirements,
+                'location': location,
+                'start_date': start_date,
+                'end_date': end_date,
+                'image_url': image_url,
+                'created_at': datetime.datetime.now(tz=datetime.timezone.utc),
+                'created_by': user_id,
+                'status': 'active',
+                'area': area,
+                'format': format_type,
+                'address': address,
+                'positions': positions,
+                'applications': []
+            }
+
+            # Save to Firestore
+            internship_ref = db.collection('internships').document()
+            internship_ref.set(internship_data)
+
+            # Create notification for followers
+            user_doc = db.collection('users').document(user_id).get()
+            user_data = user_doc.to_dict()
+            
+            if user_data.get('followers'):
+                for follower_id in user_data['followers']:
+                    create_notification(
+                        follower_id,
+                        'new_internship',
+                        {
+                            'internship_id': internship_ref.id,
+                            'company': company,
+                            'title': title
+                        },
+                        sender_id=user_id
+                    )
+
+            flash('Internship posted successfully!')
+            return redirect(url_for('view_internship', internship_id=internship_ref.id))
+
+        except Exception as e:
+            print(f"Error creating internship: {e}")
+            flash('Error creating internship. Please try again.')
+            return redirect(url_for('create_internship'))
+
+    return render_template('create_internship.html')
+
+@app.route('/internships')
+def list_internships():
+    try:
+        # Get all active internships
+        internships_ref = db.collection('internships')\
+            .where('status', '==', 'active')\
+            .order_by('created_at', direction=firestore.Query.DESCENDING)\
+            .stream()
+
+        internships = []
+        for doc in internships_ref:
+            internship = doc.to_dict()
+            internship['id'] = doc.id
+            
+            # Get creator information
+            creator_doc = db.collection('users').document(internship['created_by']).get()
+            if creator_doc.exists:
+                creator_data = creator_doc.to_dict()
+                internship['creator'] = {
+                    'username': creator_data.get('display_username', creator_data.get('username')),
+                    'avatar_url': generate_avatar_url(creator_data),
+                    'verified': creator_data.get('verified', False),
+                    'verification_type': creator_data.get('verification_type')
+                }
+
+            internships.append(internship)
+
+        return render_template('internships.html', 
+                             internships=internships,
+                             current_user_id=session.get('user_id'))
+
+    except Exception as e:
+        print(f"Error listing internships: {e}")
+        flash('Error loading internships. Please try again.')
+        return redirect(url_for('index'))
+
+@app.route('/internships/<internship_id>')
+def view_internship(internship_id):
+    try:
+        internship_doc = db.collection('internships').document(internship_id).get()
+        if not internship_doc.exists:
+            flash('Internship not found')
+            return redirect(url_for('list_internships'))
+
+        internship = internship_doc.to_dict()
+        internship['id'] = internship_doc.id
+        
+        # Get creator information
+        creator_doc = db.collection('users').document(internship['created_by']).get()
+        if creator_doc.exists:
+            creator_data = creator_doc.to_dict()
+            internship['creator'] = {
+                'username': creator_data.get('display_username', creator_data.get('username')),
+                'avatar_url': generate_avatar_url(creator_data),
+                'verified': creator_data.get('verified', False),
+                'verification_type': creator_data.get('verification_type')
+            }
+
+        return render_template('view_internship.html', 
+                             internship=internship,
+                             current_user_id=session.get('user_id'))
+
+    except Exception as e:
+        print(f"Error viewing internship: {e}")
+        flash('Error loading internship. Please try again.')
+        return redirect(url_for('list_internships'))
+
+@app.route('/internships/<internship_id>/apply', methods=['POST'])
+@login_required
+def apply_internship(internship_id):
+    try:
+        user_id = session['user_id']
+        
+        # Get user data for application
+        user_doc = db.collection('users').document(user_id).get()
+        user_data = user_doc.to_dict()
+        
+        # Get the internship
+        internship_ref = db.collection('internships').document(internship_id)
+        internship_doc = internship_ref.get()
+        
+        if not internship_doc.exists:
+            return jsonify({'error': 'Internship not found'}), 404
+            
+        internship_data = internship_doc.to_dict()
+        
+        # Ensure applications is a list
+        applications = internship_data.get('applications', [])
+        if not isinstance(applications, list):
+            print(f"Invalid applications type: {type(applications)}")
+            applications = []
+        
+        # Clean existing applications to remove invalid entries
+        cleaned_applications = [
+            app for app in applications 
+            if isinstance(app, dict) and app.get('user_id')
+        ]
+        
+        # Check if user already applied
+        if any(app.get('user_id') == user_id for app in cleaned_applications):
+            return jsonify({'error': 'Already applied'}), 400
+            
+        # Create application object
+        application = {
+            'user_id': user_id,
+            'username': user_data.get('display_username', user_data.get('username')),
+            'avatar_url': generate_avatar_url(user_data),
+            'status': 'pending',
+            'applied_at': datetime.datetime.now(tz=datetime.timezone.utc),
+            'skills': user_data.get('skills', []),
+            'academic_info': user_data.get('academic_info', {})
+        }
+        
+        # Add application to internship
+        cleaned_applications.append(application)
+        internship_ref.update({
+            'applications': cleaned_applications
+        })
+        
+        # Create notification for internship creator
+        create_notification(
+            internship_data['created_by'],
+            'new_application',
+            {
+                'internship_id': internship_id,
+                'internship_title': internship_data['title']
+            },
+            sender_id=user_id
+        )
+        
+        return jsonify({'success': True, 'message': 'Application submitted successfully'})
+        
+    except Exception as e:
+        print(f"Error applying to internship: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': 'Error submitting application'}), 500
+@app.route('/admin/clean_internship_applications', methods=['GET'])
+@login_required
+def clean_internship_applications():
+    # Only allow super admin to run this
+    if session.get('user_id') != 'vVbXL4LKGidXtrKnvqa21gWRY3V2':
+        return "Unauthorized", 403
+    
+    try:
+        # Get all internships
+        internships_ref = db.collection('internships')
+        internships = internships_ref.stream()
+        
+        cleaned_count = 0
+        for internship_doc in internships:
+            internship_data = internship_doc.to_dict()
+            
+            # Ensure applications is a list of dictionaries
+            applications = internship_data.get('applications', [])
+            
+            # Clean applications
+            cleaned_applications = [
+                app for app in applications 
+                if isinstance(app, dict) and 
+                   isinstance(app.get('user_id'), str) and 
+                   app.get('user_id')
+            ]
+            
+            # Update if cleaned applications differ
+            if len(cleaned_applications) != len(applications):
+                internships_ref.document(internship_doc.id).update({
+                    'applications': cleaned_applications
+                })
+                cleaned_count += 1
+        
+        return f"Cleaned applications in {cleaned_count} internships"
+    
+    except Exception as e:
+        print(f"Error cleaning internship applications: {e}")
+        return f"Error: {str(e)}", 500
+@app.route('/internships/<internship_id>/delete', methods=['POST'])
+@login_required
+def delete_internship(internship_id):
+    try:
+        user_id = session['user_id']
+        
+        # Get the internship
+        internship_ref = db.collection('internships').document(internship_id)
+        internship_doc = internship_ref.get()
+        
+        if not internship_doc.exists:
+            flash('Internship not found')
+            return redirect(url_for('list_internships'))
+            
+        internship_data = internship_doc.to_dict()
+        
+        # Check if user is the creator
+        if internship_data.get('created_by') != user_id:
+            flash('Unauthorized to delete this internship')
+            return redirect(url_for('view_internship', internship_id=internship_id))
+            
+        # Delete image from storage if exists
+        if internship_data.get('image_url'):
+            try:
+                image_path = internship_data['image_url'].split('/')[-1]
+                blob = bucket.blob(f"internships/{user_id}/{image_path}")
+                blob.delete()
+            except Exception as e:
+                print(f"Error deleting internship image: {e}")
+        
+        # Delete the internship document
+        internship_ref.delete()
+        
+        flash('Internship deleted successfully')
+        return redirect(url_for('list_internships'))
+        
+    except Exception as e:
+        print(f"Error deleting internship: {e}")
+        flash('Error deleting internship. Please try again.')
+        return redirect(url_for('view_internship', internship_id=internship_id))
+
+
+@app.route('/internships/<internship_id>/applications/<applicant_id>/respond', methods=['POST'])
+@login_required
+def respond_to_application(internship_id, applicant_id):
+    try:
+        user_id = session['user_id']
+        response = request.json.get('response')  # 'accept' or 'reject'
+        
+        if response not in ['accept', 'reject']:
+            return jsonify({'error': 'Invalid response'}), 400
+        
+        # Get internship data
+        internship_ref = db.collection('internships').document(internship_id)
+        internship_doc = internship_ref.get()
+        
+        if not internship_doc.exists:  # Changed from internship_doc.exists()
+            return jsonify({'error': 'Internship not found'}), 404
+            
+        internship_data = internship_doc.to_dict()
+        
+        # Verify ownership
+        if internship_data.get('created_by') != user_id:
+            return jsonify({'error': 'Unauthorized'}), 403
+        
+        # Ensure applications is a list
+        applications = internship_data.get('applications', [])
+        if not isinstance(applications, list):
+            print(f"Invalid applications type: {type(applications)}")
+            applications = []
+        
+        # Clean and validate applications
+        cleaned_applications = [
+            app for app in applications 
+            if isinstance(app, dict) and 
+               isinstance(app.get('user_id'), str) and 
+               app.get('user_id')
+        ]
+        
+        # Find and update application
+        found = False
+        for app in cleaned_applications:
+            if app.get('user_id') == applicant_id:
+                app['status'] = 'accepted' if response == 'accept' else 'rejected'
+                app['responded_at'] = datetime.datetime.now(tz=datetime.timezone.utc)
+                found = True
+                break
+                
+        if not found:
+            return jsonify({'error': 'Application not found'}), 404
+            
+        # Update internship with modified applications
+        internship_ref.update({
+            'applications': cleaned_applications
+        })
+        
+        # Check if all positions are filled after accepting
+        if response == 'accept':
+            accepted_count = sum(1 for app in cleaned_applications if app.get('status') == 'accepted')
+            if accepted_count >= internship_data.get('positions', 1):
+                # Mark internship as closed
+                internship_ref.update({
+                    'status': 'closed',
+                    'closed_at': datetime.datetime.now(tz=datetime.timezone.utc)
+                })
+                
+                # Notify remaining pending applicants
+                for app in cleaned_applications:
+                    if app.get('status') == 'pending':
+                        create_notification(
+                            app.get('user_id'),
+                            'application_update',
+                            {
+                                'internship_id': internship_id,
+                                'internship_title': internship_data['title'],
+                                'message': 'This position has been filled'
+                            }
+                        )
+        
+        # Create notification for applicant
+        create_notification(
+            applicant_id,
+            'application_update',
+            {
+                'internship_id': internship_id,
+                'internship_title': internship_data['title'],
+                'status': 'accepted' if response == 'accept' else 'rejected',
+                'message': f'Your application has been {"accepted" if response == "accept" else "rejected"}'
+            }
+        )
+        
+        return jsonify({
+            'success': True,
+            'message': f'Application {response}ed successfully'
+        })
+        
+    except Exception as e:
+        print(f"Error responding to application: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+@app.route('/internships/<internship_id>/applications')
+@login_required
+def view_applications(internship_id):
+    try:
+        user_id = session['user_id']
+        
+        # Get internship data
+        internship_ref = db.collection('internships').document(internship_id)
+        internship_doc = internship_ref.get()
+        
+        if not internship_doc.exists:
+            flash('Internship not found')
+            return redirect(url_for('list_internships'))
+            
+        internship_data = internship_doc.to_dict()
+        
+        # Ensure internship_data is a dictionary
+        if not isinstance(internship_data, dict):
+            print(f"Unexpected internship data type: {type(internship_data)}")
+            flash('Invalid internship data')
+            return redirect(url_for('list_internships'))
+        
+        internship_data['id'] = internship_id
+        
+        # Verify ownership
+        if internship_data.get('created_by') != user_id:
+            flash('Unauthorized')
+            return redirect(url_for('list_internships'))
+            
+        # Sort applications by status and date
+        applications = internship_data.get('applications', [])
+        
+        # Ensure applications is a list and each item is a dictionary
+        if not isinstance(applications, list):
+            print(f"Unexpected applications type: {type(applications)}")
+            applications = []
+        
+        # Clean and validate applications
+        cleaned_applications = []
+        for app in applications:
+            # If app is a string, skip it
+            if isinstance(app, str):
+                print(f"Skipping invalid string application: {app}")
+                continue
+            
+            # Ensure app is a dictionary
+            if not isinstance(app, dict):
+                print(f"Skipping invalid application type: {type(app)}")
+                continue
+            
+            # Normalize applied_at to datetime
+            applied_at = app.get('applied_at')
+            if isinstance(applied_at, str):
+                try:
+                    applied_at = datetime.datetime.fromisoformat(applied_at.replace('Z', '+00:00'))
+                except:
+                    applied_at = datetime.datetime.min
+            elif not isinstance(applied_at, datetime.datetime):
+                applied_at = datetime.datetime.min
+            
+            # Prepare clean application dictionary
+            app_copy = {
+                'user_id': app.get('user_id', ''),
+                'username': app.get('username', ''),
+                'avatar_url': app.get('avatar_url', ''),
+                'status': app.get('status', 'pending'),
+                'applied_at': applied_at,
+                'skills': app.get('skills', []),
+                'academic_info': app.get('academic_info', {})
+            }
+            cleaned_applications.append(app_copy)
+        
+        # Sort applications 
+        sorted_applications = sorted(
+            cleaned_applications,
+            key=lambda x: (
+                {'pending': 0, 'accepted': 1, 'rejected': 2}.get(x.get('status', 'pending'), 0),
+                x.get('applied_at', datetime.datetime.min)
+            )
+        )
+        
+        return render_template(
+            'view_applications.html',
+            internship=internship_data,
+            applications=sorted_applications
+        )
+        
+    except Exception as e:
+        print(f"Comprehensive error viewing applications: {e}")
+        print(f"Internship ID: {internship_id}")
+        print(f"User ID: {user_id}")
+        
+        import traceback
+        traceback.print_exc()
+        
+        flash('Error loading applications')
+        return redirect(url_for('list_internships'))
+
+
+
+
+
+def format_datetime(value, format='%b %d, %Y'):
+    """Custom datetime filter for Jinja2"""
+    if value is None:
+        return ""
+    if not isinstance(value, datetime.datetime):
+        return str(value)
+    return value.strftime(format)
+
+# Register the filter with Jinja2
+app.jinja_env.filters['datetime'] = format_datetime
+
+
+
+
+
 @app.errorhandler(404)
 def page_not_found(e):
 
