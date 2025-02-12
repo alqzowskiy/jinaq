@@ -1,7 +1,8 @@
-flask
+Flask
 firebase-admin
+Werkzeug
 python-dotenv
-werkzeug
-uuid
 gunicorn
-
+geocoder
+requests
+geopy
