@@ -750,16 +750,15 @@
                                 </template>
 
                                 <!-- Общий шаблон уведомлений для обоих видов (мобильного и десктопного) -->
-                                <!-- Общий шаблон уведомлений для обоих видов (мобильного и десктопного) -->
+
                                 <template x-for="notification in notifications" :key="notification.id">
                                     <div class="p-4 hover:bg-gray-50 border-b cursor-pointer group"
                                         @click="handleNotificationClick(notification)">
                                         <div class="flex items-center gap-3 w-full">
                                             <!-- Аватар -->
-                                            <!-- Обновленный шаблон для аватара в уведомлениях -->
-                                            <!-- Обновленный шаблон для аватара в уведомлениях -->
+
                                             <div class="flex-shrink-0">
-                                                <!-- Для системных, account_change и других системных уведомлений показываем логотип -->
+
                                                 <template
                                                     x-if="['system', 'admin_message', 'important', 'account_change', 'verification'].includes(notification.type)">
                                                     <div
@@ -768,7 +767,7 @@
                                                             alt="Jinaq" style="aspect-ratio: 877/243;">
                                                     </div>
                                                 </template>
-                                                <!-- Для обычных уведомлений показываем аватар пользователя -->
+
                                                 <template
                                                     x-if="!['system', 'admin_message', 'important', 'account_change', 'verification'].includes(notification.type) && notification.sender_info">
                                                     <img :src="notification.sender_info.avatar_url || generateDefaultAvatar(notification.sender_info.username)"
@@ -807,7 +806,6 @@
                                                         <!-- Тип уведомления -->
 
                                                         <!-- Тип уведомления -->
-                                                        <!-- Добавьте этот блок внутри секции с типами уведомлений -->
                                                         <template
                                                             x-if="['system', 'admin_message', 'important', 'account_change', 'verification'].includes(notification.type)">
                                                             <span class="text-sm text-gray-600"
@@ -856,7 +854,7 @@
                                                     <path stroke-linecap="round" stroke-linejoin="round"
                                                         stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                                                 </svg>
-                                            </button>s
+                                            </button>
                                         </div>
                                     </div>
                                 </template>
