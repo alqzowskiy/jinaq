@@ -31,8 +31,6 @@ Jinaq is a comprehensive educational social platform that bridges the gap betwee
 #### 3. Verification System
 - Multiple verification types:
   - Official accounts
-  - Creator accounts
-  - Business accounts
 - Custom verification badges
 - Admin verification panel
 - Verification request system
