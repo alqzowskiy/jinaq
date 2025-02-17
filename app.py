@@ -1973,9 +1973,21 @@ def update_header():
 
         file = request.files['header_image']
         position = request.form.get('position', '50% 50%')
+        focal_point = request.form.get('focal_point', 'center') # New parameter for focal point
 
         if not file or not file.filename:
             return jsonify({'success': False, 'error': 'No file selected'}), 400
+
+        # Validate file type
+        allowed_extensions = {'png', 'jpg', 'jpeg', 'webp'}
+        if '.' not in file.filename or \
+           file.filename.rsplit('.', 1)[1].lower() not in allowed_extensions:
+            return jsonify({'success': False, 'error': 'Invalid file type'}), 400
+
+        # Validate file size (max 5MB)
+        if len(file.read()) > 5 * 1024 * 1024:  # 5MB in bytes
+            return jsonify({'success': False, 'error': 'File too large (max 5MB)'}), 400
+        file.seek(0)  # Reset file pointer after reading
 
         # Get user doc to check for existing header
         user_doc = db.collection('users').document(user_id).get()
@@ -1990,15 +2002,31 @@ def update_header():
             except Exception as e:
                 print(f"Error deleting old header: {e}")
 
-        # Upload new header
+        # Upload new header to Firebase Storage
         file_extension = file.filename.rsplit('.', 1)[1].lower()
         filename = f"{str(uuid.uuid4())}.{file_extension}"
         full_path = f"headers/{user_id}/{filename}"
 
         blob = bucket.blob(full_path)
+        
+        # Set content type and cache control
+        content_type = f'image/{file_extension}'
+        if file_extension == 'jpg':
+            content_type = 'image/jpeg'
+            
+        blob.content_type = content_type
+        blob.cache_control = 'public, max-age=31536000'  # Cache for 1 year
+
+        # Upload with metadata
+        blob.metadata = {
+            'uploaded_by': user_id,
+            'original_filename': file.filename,
+            'focal_point': focal_point
+        }
+
         blob.upload_from_string(
             file.read(),
-            content_type=file.content_type
+            content_type=content_type
         )
 
         blob.make_public()
@@ -2008,6 +2036,8 @@ def update_header():
             'header_image': {
                 'url': blob.public_url,
                 'position': position,
+                'focal_point': focal_point,
+                'original_filename': file.filename,
                 'updated_at': datetime.datetime.now(tz=datetime.timezone.utc)
             }
         }
@@ -2022,8 +2052,6 @@ def update_header():
     except Exception as e:
         print(f"Error updating header: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
-
-
 @app.route('/internships/create', methods=['GET', 'POST'])
 @login_required
 def create_internship():
