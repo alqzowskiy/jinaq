@@ -673,16 +673,16 @@
             <a href="{{ url_for('profile') }}" class="block px-4 py-3 rounded-lg hover:bg-gray-100">
                 My Portfolio
             </a>
-            <a href="{{ url_for('list_internships') }}" class="block px-4 py-3 rounded-lg hover:bg-gray-100">
+            <!-- <a href="{{ url_for('list_internships') }}" class="block px-4 py-3 rounded-lg hover:bg-gray-100">
                 Internships
-            </a>
+            </a> -->
             <a href="{{ url_for('settings') }}" class="block px-4 py-3 rounded-lg hover:bg-gray-100">
                 Settings
             </a>
             <a href="{{ url_for('logout') }}" class="block px-4 py-3 text-red-500 rounded-lg hover:bg-red-50">
                 Logout
             </a>
-            
+
             {% else %}
             <div class="relative w-full mb-4">
                 <input type="text" id="mobileUserSearch" placeholder="Find users..."
@@ -867,10 +867,10 @@
                     <a href="{{ url_for('profile') }}" class="px-3 py-2 rounded-lg hover:bg-gray-100 nav-hover">
                         My Portfolio
                     </a>
-                    
-                    <a href="{{ url_for('list_internships') }}" class="px-3 py-2 rounded-lg hover:bg-gray-100 nav-hover">
+
+                    <!-- <a href="{{ url_for('list_internships') }}" class="px-3 py-2 rounded-lg hover:bg-gray-100 nav-hover">
                         Internships
-                    </a>
+                    </a> -->
                     <a href="{{ url_for('settings') }}" class="px-3 py-2 rounded-lg hover:bg-gray-100 nav-hover">
                         Settings
                     </a>
