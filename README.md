@@ -303,5 +303,5 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Contact
 
-Email: support@jinaq.com
-GitHub: [Repository](https://github.com/yourusername/jinaq)
+Email: alazimvak@gmail.com
+GitHub: [Repository](https://github.com/adlenxk/jinaq)
