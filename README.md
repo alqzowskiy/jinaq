@@ -10,7 +10,7 @@
 Jinaq is a comprehensive educational social platform that bridges the gap between academic achievements and social networking. The platform enables students to create detailed academic portfolios, connect with peers, and build their professional academic presence online.
 
 ### Website
-[jinaq.com](https://jinaq.onrender.com)
+[🌐website](https://jinaq.onrender.com)
 
 ### Key Features
 
