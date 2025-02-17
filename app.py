@@ -1271,41 +1271,95 @@ def update_password():
 @app.route('/delete-account', methods=['POST'])
 @login_required
 def delete_account():
-    user_id = session['user_id']
-    password = request.json.get('password')
-    
     try:
+        user_id = session['user_id']
+        password = request.json.get('password')
+        
+        if not password:
+            return jsonify({'error': 'Password is required'}), 400
 
+        # Get user data from Firestore
         user_doc = db.collection('users').document(user_id).get()
+        if not user_doc.exists:
+            return jsonify({'error': 'User not found'}), 404
+            
         user_data = user_doc.to_dict()
         
-        user = auth.get_user_by_email(user_data['email'])
-        
-        certificates_ref = db.collection('users').document(user_id).collection('certificates')
-        comments_ref = db.collection('users').document(user_id).collection('comments')
-        
-
-        certs = certificates_ref.stream()
-        for cert in certs:
-            cert.reference.delete()
-
-        comments = comments_ref.stream()
-        for comment in comments:
-            comment.reference.delete()
+        try:
+            # Get Firebase Auth user
+            user = auth.get_user(user_id)
             
+            # Clean up user data
+            # 1. Delete user's certificates
+            certificates_ref = db.collection('users').document(user_id).collection('certificates')
+            certs = certificates_ref.stream()
+            for cert in certs:
+                # Delete certificate file from storage if exists
+                cert_data = cert.to_dict()
+                if cert_data.get('file_url'):
+                    try:
+                        file_path = cert_data['file_url'].split('/')[-1]
+                        blob = bucket.blob(f'certificates/{user_id}/{file_path}')
+                        blob.delete()
+                    except Exception as e:
+                        print(f"Error deleting certificate file: {e}")
+                cert.reference.delete()
 
-        db.collection('users').document(user_id).delete()
-        
+            # 2. Delete user's comments
+            comments_ref = db.collection('users').document(user_id).collection('comments')
+            comments = comments_ref.stream()
+            for comment in comments:
+                comment.reference.delete()
 
-        auth.delete_user(user_id)
-        
+            # 3. Delete user's notifications
+            notifications_ref = db.collection('users').document(user_id).collection('notifications')
+            notifications = notifications_ref.stream()
+            for notification in notifications:
+                notification.reference.delete()
 
-        session.clear()
-        
-        return jsonify({'success': True, 'message': 'Account deleted successfully'})
+            # 4. Delete user's avatar if exists
+            if user_data.get('avatar_url'):
+                try:
+                    avatar_path = user_data['avatar_url'].split('/')[-1]
+                    avatar_blob = bucket.blob(f'avatars/{user_id}/{avatar_path}')
+                    avatar_blob.delete()
+                except Exception as e:
+                    print(f"Error deleting avatar: {e}")
+
+            # 5. Delete user's header image if exists
+            if user_data.get('header_image', {}).get('url'):
+                try:
+                    header_path = user_data['header_image']['url'].split('/')[-1]
+                    header_blob = bucket.blob(f'headers/{user_id}/{header_path}')
+                    header_blob.delete()
+                except Exception as e:
+                    print(f"Error deleting header image: {e}")
+
+            # 6. Delete user document from Firestore
+            db.collection('users').document(user_id).delete()
+
+            # 7. Delete user from Firebase Auth
+            auth.delete_user(user_id)
+
+            # 8. Clear session
+            session.clear()
+            
+            return jsonify({
+                'success': True, 
+                'message': 'Account deleted successfully'
+            })
+
+        except auth.AuthError as auth_error:
+            print(f"Auth error during account deletion: {auth_error}")
+            return jsonify({
+                'error': 'Authentication failed. Please check your password.'
+            }), 401
+
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
+        print(f"Error during account deletion: {e}")
+        return jsonify({
+            'error': 'An error occurred while deleting your account. Please try again.'
+        }), 500
 @app.route('/reset-password', methods=['POST'])
 def reset_password():
     try:

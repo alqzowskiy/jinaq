@@ -78,180 +78,358 @@
                     </form>
                 </div>
 
-                <!-- Delete Account -->
-                <div>
+                <!-- Delete Account Section -->
+                <div class="pb-6 border-b border-gray-200">
                     <h3 class="text-lg font-medium mb-2">Delete Account</h3>
                     <p class="text-gray-600 mb-4">Once you delete your account, there is no going back. Please be
                         certain.</p>
-                    <button @click="confirmDelete" class="btn btn-error text-white hover:bg-red-600">
+                    <button @click="openDeleteModal" class="btn btn-error text-white hover:bg-red-600">
                         Delete Account
+                    </button>
+                </div>
+
+                <!-- Modal Component -->
+                <!-- Replace the existing modal component section with this -->
+                <div x-show="isModalOpen"
+                    class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center"
+                    @keydown.escape.window="closeModal">
+                    <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4" @click.away="closeModal">
+                        <p class="text-lg mb-6" x-text="modalMessage"></p>
+
+                        <!-- Password input for delete account -->
+                        <template x-if="modalTemplate">
+                            <div class="mb-4" x-html="modalTemplate"></div>
+                        </template>
+
+                        <div class="flex justify-end space-x-4">
+                            <template x-if="modalShowCancel">
+                                <button @click="closeModal" class="btn btn-ghost" x-text="modalCancelText"></button>
+                            </template>
+                            <button @click="confirmModal" class="btn bg-black hover:bg-gray-800 text-white"
+                                x-text="modalConfirmText"></button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Theme Selection Section -->
+        <div class="bg-white rounded-xl border border-gray-200 overflow-hidden mt-8">
+            <div class="p-6 space-y-4">
+                <h3 class="text-lg font-medium">Theme Preferences</h3>
+                <div class="flex space-x-4">
+                    <button @click="setTheme('light')" class="flex-1 btn border border-gray-300 
+                           bg-white 
+                           text-gray-800 
+                           hover:bg-gray-100">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20"
+                            fill="currentColor">
+                            <path fill-rule="evenodd"
+                                d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.464 5.05l-.707-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z"
+                                clip-rule="evenodd" />
+                        </svg>
+                        Light Theme
+                    </button>
+                    <button @click="setTheme('dark')" class="flex-1 btn border border-gray-300 
+                           bg-white 
+                           text-gray-800 
+                           hover:bg-gray-100">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20"
+                            fill="currentColor">
+                            <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
+                        </svg>
+                        Dark Theme
                     </button>
                 </div>
             </div>
         </div>
     </div>
-    <div x-show="showConfirmModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center"
-        @keydown.escape.window="closeModal">
-        <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4" @click.away="closeModal">
-            <p class="text-lg mb-6" x-text="modalMessage"></p>
+    {% endblock %}
 
-            <!-- Password input for delete account -->
-            <template x-if="showPasswordInput">
-                <div class="mb-4">
-                    <input type="password" id="deleteAccountPassword" class="input input-bordered w-full"
-                        placeholder="Enter your password">
-                </div>
-            </template>
-
-            <div class="flex justify-end space-x-4">
-                <button @click="closeModal" class="btn btn-ghost">
-                    Cancel
-                </button>
-                <button @click="confirmModal(true)" class="btn bg-black hover:bg-gray-800 text-white">
-                    Confirm
-                </button>
-            </div>
-        </div>
-    </div>
-    <!-- Theme Selection Section -->
-    <div class="bg-white rounded-xl border border-gray-200 overflow-hidden mt-8">
-        <div class="p-6 space-y-4">
-            <h3 class="text-lg font-medium">Theme Preferences</h3>
-            <div class="flex space-x-4">
-                <button @click="setTheme('light')" class="flex-1 btn border border-gray-300 
-                           bg-white 
-                           text-gray-800 
-                           hover:bg-gray-100">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20"
-                        fill="currentColor">
-                        <path fill-rule="evenodd"
-                            d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.464 5.05l-.707-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z"
-                            clip-rule="evenodd" />
-                    </svg>
-                    Light Theme
-                </button>
-                <button @click="setTheme('dark')" class="flex-1 btn border border-gray-300 
-                           bg-white 
-                           text-gray-800 
-                           hover:bg-gray-100">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20"
-                        fill="currentColor">
-                        <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
-                    </svg>
-                    Dark Theme
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-{% endblock %}
-
-{% block scripts %}
-<script>
-    // Enhanced Theme Management
-    const ThemeManager = {
-        init() {
-            console.log('ThemeManager: Initializing');
-            const savedTheme = localStorage.getItem('jinaq-theme') || 'light';
-            console.log('Saved theme:', savedTheme);
-
-            // Add theme class to <html>
-            document.documentElement.classList.remove('light', 'dark');
-            document.documentElement.classList.add(savedTheme);
-
-            // Set color scheme
-            document.documentElement.setAttribute('data-theme', savedTheme);
-
-            // Optional: Dispatch theme change event
-            const themeChangeEvent = new CustomEvent('themeChanged', { detail: savedTheme });
-            window.dispatchEvent(themeChangeEvent);
-        },
-
-        setTheme(theme) {
-            console.log(`ThemeManager: Setting theme to ${theme}`);
-
-            // Remove existing theme classes
-            document.documentElement.classList.remove('light', 'dark');
-
-            // Add new theme class
-            document.documentElement.classList.add(theme);
-
-            // Set color scheme
-            document.documentElement.setAttribute('data-theme', theme);
-
-            // Save to localStorage
-            localStorage.setItem('jinaq-theme', theme);
-
-            // Dispatch theme change event
-            const themeChangeEvent = new CustomEvent('themeChanged', { detail: theme });
-            window.dispatchEvent(themeChangeEvent);
-        },
-
-        getCurrentTheme() {
-            return localStorage.getItem('jinaq-theme') || 'light';
-        }
-    };
-
-    // Initialize theme on script load and page load
-    ThemeManager.init();
-
-    // Ensure theme is set after DOM content loaded
-    document.addEventListener('DOMContentLoaded', () => {
-        ThemeManager.init();
-    });
-
-    // Global access to ThemeManager
-    window.ThemeManager = ThemeManager;
-</script>
-<script>
-
-    function settingsPage() {
-        return {
-            newUsername: '',
-            emailData: {
-                currentPassword: '',
-                newEmail: ''
-            },
-            passwordData: {
-                currentPassword: '',
-                newPassword: '',
-                confirmPassword: ''
-            },
-            showConfirmModal: false,
-            modalMessage: '',
-            modalCallback: null,
-            showPasswordInput: false,
-
-            // Модальное окно
-            openModal(message, callback = null, showPassword = false) {
-                this.modalMessage = message;
-                this.modalCallback = callback;
-                this.showPasswordInput = showPassword;
-                this.showConfirmModal = true;
-            },
-
-            closeModal() {
-                this.showConfirmModal = false;
-                this.modalMessage = '';
-                this.modalCallback = null;
-                this.showPasswordInput = false;
-            },
-
-            confirmModal(confirmed) {
-                if (this.modalCallback && confirmed) {
-                    this.modalCallback();
-                }
-                this.closeModal();
-            },
-
-            // Обновление username
-            async updateUsername() {
-                if (!this.newUsername) {
-                    this.openModal('Please enter a new username');
+    {% block scripts %}
+    <script>
+        // Enhanced Theme Management
+        // Enhanced Theme Management
+        const ThemeManager = {
+            init() {
+                // Ensure we're not running this before DOM is ready
+                if (!document.documentElement) {
+                    console.warn('ThemeManager: DOM not ready');
                     return;
                 }
 
-                this.openModal('Are you sure you want to change your username?', async () => {
+                console.log('ThemeManager: Initializing');
+                const savedTheme = localStorage.getItem('jinaq-theme') || 'light';
+                console.log('Saved theme:', savedTheme);
+
+                // Add theme class to <html>
+                document.documentElement.classList.remove('light', 'dark');
+                document.documentElement.classList.add(savedTheme);
+
+                // Set color scheme
+                document.documentElement.setAttribute('data-theme', savedTheme);
+
+                // Optional: Dispatch theme change event
+                const themeChangeEvent = new CustomEvent('themeChanged', { detail: savedTheme });
+                window.dispatchEvent(themeChangeEvent);
+            },
+
+            setTheme(theme) {
+                if (!document.documentElement) {
+                    console.warn('ThemeManager: DOM not ready');
+                    return;
+                }
+
+                console.log(`ThemeManager: Setting theme to ${theme}`);
+
+                // Remove existing theme classes
+                document.documentElement.classList.remove('light', 'dark');
+
+                // Add new theme class
+                document.documentElement.classList.add(theme);
+
+                // Set color scheme
+                document.documentElement.setAttribute('data-theme', theme);
+
+                // Save to localStorage
+                localStorage.setItem('jinaq-theme', theme);
+
+                // Dispatch theme change event
+                const themeChangeEvent = new CustomEvent('themeChanged', { detail: theme });
+                window.dispatchEvent(themeChangeEvent);
+            },
+
+            getCurrentTheme() {
+                return localStorage.getItem('jinaq-theme') || 'light';
+            }
+        };
+
+        // Wait for DOM to be ready before initializing
+        document.addEventListener('DOMContentLoaded', () => {
+            ThemeManager.init();
+        });
+
+        // Make ThemeManager globally available
+        window.ThemeManager = ThemeManager;
+    </script>
+    <script>
+        // Notification System Component
+        function notificationsSystem() {
+            return {
+                notifications: [],
+                unreadCount: 0,
+                showNotifications: false,
+                showMobileNotifications: false,
+                loading: false,
+
+                init() {
+                    this.fetchNotifications();
+                    // Poll for new notifications every 30 seconds
+                    setInterval(() => this.fetchNotifications(), 30000);
+                },
+
+                async fetchNotifications() {
+                    try {
+                        this.loading = true;
+                        const response = await fetch('/notifications');
+                        const data = await response.json();
+                        this.notifications = data;
+                        this.unreadCount = data.filter(n => !n.is_read).length;
+                    } catch (error) {
+                        console.error('Error fetching notifications:', error);
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                async markAsRead(notificationId) {
+                    try {
+                        const response = await fetch(`/notifications/mark_read/${notificationId}`, {
+                            method: 'POST',
+                        });
+                        if (response.ok) {
+                            this.notifications = this.notifications.map(n => {
+                                if (n.id === notificationId) {
+                                    return { ...n, is_read: true };
+                                }
+                                return n;
+                            });
+                            this.unreadCount = Math.max(0, this.unreadCount - 1);
+                        }
+                    } catch (error) {
+                        console.error('Error marking notification as read:', error);
+                    }
+                },
+
+                async deleteNotification(notificationId) {
+                    try {
+                        const response = await fetch(`/notifications/${notificationId}`, {
+                            method: 'DELETE',
+                        });
+                        if (response.ok) {
+                            this.notifications = this.notifications.filter(n => n.id !== notificationId);
+                            this.unreadCount = this.notifications.filter(n => !n.is_read).length;
+                        }
+                    } catch (error) {
+                        console.error('Error deleting notification:', error);
+                    }
+                },
+
+                toggleNotifications() {
+                    this.showNotifications = !this.showNotifications;
+                    if (this.showNotifications) {
+                        this.showMobileNotifications = false;
+                    }
+                },
+
+                toggleMobileNotifications() {
+                    this.showMobileNotifications = !this.showMobileNotifications;
+                    if (this.showMobileNotifications) {
+                        this.showNotifications = false;
+                    }
+                }
+            };
+        }
+
+        // Modal System Component
+        function modalSystem() {
+            return {
+                isOpen: false,
+                message: '',
+                template: '',
+                showCancel: true,
+                cancelText: 'Cancel',
+                confirmText: 'Confirm',
+                callback: null,
+
+                openModal(message, callback = null, options = {}) {
+                    this.message = message;
+                    this.callback = callback;
+                    this.template = options.template || '';
+                    this.showCancel = options.showCancel !== false;
+                    this.cancelText = options.cancelText || 'Cancel';
+                    this.confirmText = options.confirmText || 'Confirm';
+                    this.isOpen = true;
+                },
+
+                closeModal() {
+                    this.isOpen = false;
+                    this.message = '';
+                    this.template = '';
+                    this.callback = null;
+                },
+
+                confirm() {
+                    if (this.callback) {
+                        this.callback(true);
+                    }
+                    this.closeModal();
+                }
+            };
+        }
+
+        function settingsPage() {
+            return {
+                // Settings data
+                newUsername: '',
+                emailData: {
+                    currentPassword: '',
+                    newEmail: ''
+                },
+                passwordData: {
+                    currentPassword: '',
+                    newPassword: '',
+                    confirmPassword: ''
+                },
+
+                // Modal state
+                isModalOpen: false,
+                modalMessage: '',
+                modalTemplate: '',
+                modalCallback: null,
+                modalShowCancel: true,
+                modalCancelText: 'Cancel',
+                modalConfirmText: 'Confirm',
+
+                // Modal methods
+                openModal(message, callback = null, options = {}) {
+                    this.modalMessage = message;
+                    this.modalCallback = callback;
+                    this.modalTemplate = options.template || '';
+                    this.modalShowCancel = options.showCancel !== false;
+                    this.modalCancelText = options.cancelText || 'Cancel';
+                    this.modalConfirmText = options.confirmText || 'Confirm';
+                    this.isModalOpen = true;
+                },
+
+                openDeleteModal() {
+                    this.modalMessage = 'Are you sure you want to delete your account? This action cannot be undone.';
+                    this.modalTemplate = '<input type="password" id="deleteAccountPassword" class="input input-bordered w-full" placeholder="Enter your password to confirm">';
+                    this.modalShowCancel = true;
+                    this.modalCancelText = 'Cancel';
+                    this.modalConfirmText = 'Delete Account';
+                    this.modalCallback = async () => {
+                        const passwordInput = document.querySelector('#deleteAccountPassword');
+                        const password = passwordInput?.value;
+
+                        if (!password) {
+                            this.modalMessage = 'Password is required';
+                            return;
+                        }
+
+                        try {
+                            const response = await fetch('/delete-account', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify({ password })
+                            });
+
+                            const data = await response.json();
+
+                            if (response.ok && data.success) {
+                                window.location.href = '/';
+                            } else {
+                                this.modalMessage = data.error || 'Failed to delete account';
+                                this.modalTemplate = '';
+                                this.modalConfirmText = 'OK';
+                                this.modalShowCancel = false;
+                            }
+                        } catch (error) {
+                            console.error('Delete account error:', error);
+                            this.modalMessage = 'An error occurred. Please try again.';
+                            this.modalTemplate = '';
+                            this.modalConfirmText = 'OK';
+                            this.modalShowCancel = false;
+                        }
+                    };
+                    this.isModalOpen = true;
+                },
+
+                closeModal() {
+                    this.isModalOpen = false;
+                    this.modalMessage = '';
+                    this.modalTemplate = '';
+                    this.modalCallback = null;
+                    this.modalConfirmText = 'Confirm';
+                    this.modalCancelText = 'Cancel';
+                    this.modalShowCancel = true;
+                },
+
+                confirmModal() {
+                    if (this.modalCallback) {
+                        this.modalCallback();
+                    } else {
+                        this.closeModal();
+                    }
+                },
+
+                async updateUsername() {
+                    if (!this.newUsername) {
+                        this.openModal('Please enter a new username');
+                        return;
+                    }
+
                     try {
                         const response = await fetch('/update-username', {
                             method: 'POST',
@@ -273,123 +451,20 @@
                     } catch (error) {
                         this.openModal('An error occurred. Please try again.');
                     }
-                });
-            },
-            initTheme() {
-                const savedTheme = ThemeManager.getCurrentTheme();
-                document.documentElement.classList.remove('light', 'dark');
-                document.documentElement.classList.add(savedTheme);
-            },
+                },
 
-            // Use ThemeManager for setting theme
-            setTheme(theme) {
-                ThemeManager.setTheme(theme);
-            },
-            // Обновление email
-            async updateEmail() {
-                if (!this.emailData.newEmail) {
-                    this.openModal('Please enter a new email address');
-                    return;
+                // Theme methods
+                initTheme() {
+                    const savedTheme = ThemeManager.getCurrentTheme();
+                    document.documentElement.classList.remove('light', 'dark');
+                    document.documentElement.classList.add(savedTheme);
+                },
+
+                setTheme(theme) {
+                    ThemeManager.setTheme(theme);
                 }
-
-                this.openModal('Are you sure you want to change your email?', async () => {
-                    try {
-                        const response = await fetch('/update-email', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                            },
-                            body: JSON.stringify(this.emailData)
-                        });
-
-                        const data = await response.json();
-
-                        if (data.success) {
-                            this.openModal('Email updated successfully', () => {
-                                window.location.reload();
-                            });
-                        } else {
-                            this.openModal(data.error || 'Failed to update email');
-                        }
-                    } catch (error) {
-                        this.openModal('An error occurred. Please try again.');
-                    }
-                });
-            },
-
-            // Обновление пароля
-            async updatePassword() {
-                if (this.passwordData.newPassword !== this.passwordData.confirmPassword) {
-                    this.openModal('New passwords do not match');
-                    return;
-                }
-
-                this.openModal('Are you sure you want to change your password?', async () => {
-                    try {
-                        const response = await fetch('/update-password', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                            },
-                            body: JSON.stringify(this.passwordData)
-                        });
-
-                        const data = await response.json();
-
-                        if (data.success) {
-                            this.openModal('Password updated successfully', () => {
-                                this.passwordData = {
-                                    currentPassword: '',
-                                    newPassword: '',
-                                    confirmPassword: ''
-                                };
-                            });
-                        } else {
-                            this.openModal(data.error || 'Failed to update password');
-                        }
-                    } catch (error) {
-                        this.openModal('An error occurred. Please try again.');
-                    }
-                });
-            },
-
-            // Удаление аккаунта
-            async confirmDelete() {
-                this.openModal('Are you sure you want to delete your account? This action cannot be undone.', async () => {
-                    this.openModal('Please enter your password to confirm deletion:', async () => {
-                        const password = document.querySelector('#deleteAccountPassword').value;
-                        if (!password) return;
-
-                        try {
-                            const response = await fetch('/delete-account', {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                },
-                                body: JSON.stringify({ password })
-                            });
-
-                            const data = await response.json();
-
-                            if (data.success) {
-                                this.openModal('Account deleted successfully', () => {
-                                    window.location.href = '/';
-                                });
-                            } else {
-                                this.openModal(data.error || 'Failed to delete account');
-                            }
-                        } catch (error) {
-                            this.openModal('An error occurred. Please try again.');
-                        }
-                    }, true);
-                });
-            }
+            };
         }
-    }
-    // Ensure theme is set on initial page load
-    document.addEventListener('DOMContentLoaded', () => {
-        ThemeManager.init();
-    });
-</script>
+    </script>
 
-{% endblock %}
+    {% endblock %}
