@@ -24,6 +24,22 @@ app.secret_key = 'mega-secret-key-yeah'
 app.config['LOGO_SVG_PATH'] = 'jinaq_logo.svg'
 firebase_creds_str = os.getenv('FIREBASE_PRIVATE_KEY')
 ADMIN_IDS = os.getenv("ADMIN_IDS")
+
+try:
+    firebase_creds_str = os.getenv('FIREBASE_PRIVATE_KEY')
+    firebase_credentials = json.loads(firebase_creds_str)
+    
+
+    required_fields = ['type', 'project_id', 'private_key', 'client_email']
+    for field in required_fields:
+        if field not in firebase_credentials:
+            raise ValueError(f"Missing required field: {field}")
+    
+    print("Firebase credentials fully validated")
+except json.JSONDecodeError:
+    print("ERROR: Invalid JSON in Firebase credentials")
+except ValueError as e:
+    print(f"Credentials validation error: {e}")
 if not firebase_creds_str:
     raise ValueError("FIREBASE_PRIVATE_KEY не найден в .env файле")
 firebase_credentials = json.loads(firebase_creds_str)
@@ -114,6 +130,76 @@ VERIFICATION_TYPES = {
 
 db = firestore.client()
 bucket = storage.bucket()
+import firebase_admin
+from firebase_admin import credentials, initialize_app, auth, firestore, storage
+import os
+import json
+@app.route('/debug/firebase_status')
+def firebase_status():
+    try:
+        # Проверка основных сервисов
+        firestore_client = firestore.client()
+        auth_client = auth
+        storage_client = storage.bucket()
+        
+        return jsonify({
+            'firestore': 'Connected' if firestore_client else 'Not Connected',
+            'auth': 'Initialized' if auth_client else 'Not Initialized',
+            'storage': 'Connected' if storage_client else 'Not Connected'
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+def initialize_firebase():
+    try:
+        # Проверка существующих приложений
+        if not firebase_admin._apps:
+            firebase_creds_str = os.getenv('FIREBASE_PRIVATE_KEY')
+            if not firebase_creds_str:
+                raise ValueError("Firebase credentials not found in environment")
+            
+            firebase_credentials = json.loads(firebase_creds_str)
+            
+            # Создание credentials объекта
+            cred = credentials.Certificate(firebase_credentials)
+            
+            # Инициализация с явным указанием параметров
+            firebase_admin.initialize_app(cred, {
+                'projectId': firebase_credentials['project_id'],
+                'storageBucket': 'jinaq-1b755.firebasestorage.app'
+            })
+            
+            print("Firebase successfully initialized")
+        else:
+            print("Firebase already initialized")
+    except Exception as e:
+        print(f"Firebase initialization error: {e}")
+        raise
+
+# Вызов функции инициализации
+initialize_firebase()
+@app.route('/debug/firebase_config')
+def debug_firebase_config():
+    try:
+        firebase_creds_str = os.getenv('FIREBASE_PRIVATE_KEY')
+        credentials_dict = json.loads(firebase_creds_str)
+        
+        # Маскировка чувствительных данных
+        safe_credentials = {
+            'type': credentials_dict.get('type'),
+            'project_id': credentials_dict.get('project_id'),
+            'client_email': credentials_dict.get('client_email'),
+            'private_key_exists': bool(credentials_dict.get('private_key'))
+        }
+        
+        return jsonify({
+            'status': 'success',
+            'credentials': safe_credentials
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
 def get_current_user_avatar():
     """Helper function to get current user's avatar"""
     if 'user_id' not in session:
@@ -1271,95 +1357,41 @@ def update_password():
 @app.route('/delete-account', methods=['POST'])
 @login_required
 def delete_account():
+    user_id = session['user_id']
+    password = request.json.get('password')
+    
     try:
-        user_id = session['user_id']
-        password = request.json.get('password')
-        
-        if not password:
-            return jsonify({'error': 'Password is required'}), 400
 
-        # Get user data from Firestore
         user_doc = db.collection('users').document(user_id).get()
-        if not user_doc.exists:
-            return jsonify({'error': 'User not found'}), 404
-            
         user_data = user_doc.to_dict()
         
-        try:
-            # Get Firebase Auth user
-            user = auth.get_user(user_id)
+        user = auth.get_user_by_email(user_data['email'])
+        
+        certificates_ref = db.collection('users').document(user_id).collection('certificates')
+        comments_ref = db.collection('users').document(user_id).collection('comments')
+        
+
+        certs = certificates_ref.stream()
+        for cert in certs:
+            cert.reference.delete()
+
+        comments = comments_ref.stream()
+        for comment in comments:
+            comment.reference.delete()
             
-            # Clean up user data
-            # 1. Delete user's certificates
-            certificates_ref = db.collection('users').document(user_id).collection('certificates')
-            certs = certificates_ref.stream()
-            for cert in certs:
-                # Delete certificate file from storage if exists
-                cert_data = cert.to_dict()
-                if cert_data.get('file_url'):
-                    try:
-                        file_path = cert_data['file_url'].split('/')[-1]
-                        blob = bucket.blob(f'certificates/{user_id}/{file_path}')
-                        blob.delete()
-                    except Exception as e:
-                        print(f"Error deleting certificate file: {e}")
-                cert.reference.delete()
 
-            # 2. Delete user's comments
-            comments_ref = db.collection('users').document(user_id).collection('comments')
-            comments = comments_ref.stream()
-            for comment in comments:
-                comment.reference.delete()
+        db.collection('users').document(user_id).delete()
+        
 
-            # 3. Delete user's notifications
-            notifications_ref = db.collection('users').document(user_id).collection('notifications')
-            notifications = notifications_ref.stream()
-            for notification in notifications:
-                notification.reference.delete()
+        auth.delete_user(user_id)
+        
 
-            # 4. Delete user's avatar if exists
-            if user_data.get('avatar_url'):
-                try:
-                    avatar_path = user_data['avatar_url'].split('/')[-1]
-                    avatar_blob = bucket.blob(f'avatars/{user_id}/{avatar_path}')
-                    avatar_blob.delete()
-                except Exception as e:
-                    print(f"Error deleting avatar: {e}")
-
-            # 5. Delete user's header image if exists
-            if user_data.get('header_image', {}).get('url'):
-                try:
-                    header_path = user_data['header_image']['url'].split('/')[-1]
-                    header_blob = bucket.blob(f'headers/{user_id}/{header_path}')
-                    header_blob.delete()
-                except Exception as e:
-                    print(f"Error deleting header image: {e}")
-
-            # 6. Delete user document from Firestore
-            db.collection('users').document(user_id).delete()
-
-            # 7. Delete user from Firebase Auth
-            auth.delete_user(user_id)
-
-            # 8. Clear session
-            session.clear()
-            
-            return jsonify({
-                'success': True, 
-                'message': 'Account deleted successfully'
-            })
-
-        except auth.AuthError as auth_error:
-            print(f"Auth error during account deletion: {auth_error}")
-            return jsonify({
-                'error': 'Authentication failed. Please check your password.'
-            }), 401
-
+        session.clear()
+        
+        return jsonify({'success': True, 'message': 'Account deleted successfully'})
     except Exception as e:
-        print(f"Error during account deletion: {e}")
-        return jsonify({
-            'error': 'An error occurred while deleting your account. Please try again.'
-        }), 500
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/reset-password', methods=['POST'])
 def reset_password():
     try:
@@ -2027,21 +2059,9 @@ def update_header():
 
         file = request.files['header_image']
         position = request.form.get('position', '50% 50%')
-        focal_point = request.form.get('focal_point', 'center') # New parameter for focal point
 
         if not file or not file.filename:
             return jsonify({'success': False, 'error': 'No file selected'}), 400
-
-        # Validate file type
-        allowed_extensions = {'png', 'jpg', 'jpeg', 'webp'}
-        if '.' not in file.filename or \
-           file.filename.rsplit('.', 1)[1].lower() not in allowed_extensions:
-            return jsonify({'success': False, 'error': 'Invalid file type'}), 400
-
-        # Validate file size (max 5MB)
-        if len(file.read()) > 5 * 1024 * 1024:  # 5MB in bytes
-            return jsonify({'success': False, 'error': 'File too large (max 5MB)'}), 400
-        file.seek(0)  # Reset file pointer after reading
 
         # Get user doc to check for existing header
         user_doc = db.collection('users').document(user_id).get()
@@ -2056,31 +2076,15 @@ def update_header():
             except Exception as e:
                 print(f"Error deleting old header: {e}")
 
-        # Upload new header to Firebase Storage
+        # Upload new header
         file_extension = file.filename.rsplit('.', 1)[1].lower()
         filename = f"{str(uuid.uuid4())}.{file_extension}"
         full_path = f"headers/{user_id}/{filename}"
 
         blob = bucket.blob(full_path)
-        
-        # Set content type and cache control
-        content_type = f'image/{file_extension}'
-        if file_extension == 'jpg':
-            content_type = 'image/jpeg'
-            
-        blob.content_type = content_type
-        blob.cache_control = 'public, max-age=31536000'  # Cache for 1 year
-
-        # Upload with metadata
-        blob.metadata = {
-            'uploaded_by': user_id,
-            'original_filename': file.filename,
-            'focal_point': focal_point
-        }
-
         blob.upload_from_string(
             file.read(),
-            content_type=content_type
+            content_type=file.content_type
         )
 
         blob.make_public()
@@ -2090,8 +2094,6 @@ def update_header():
             'header_image': {
                 'url': blob.public_url,
                 'position': position,
-                'focal_point': focal_point,
-                'original_filename': file.filename,
                 'updated_at': datetime.datetime.now(tz=datetime.timezone.utc)
             }
         }
@@ -2106,6 +2108,8 @@ def update_header():
     except Exception as e:
         print(f"Error updating header: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/internships/create', methods=['GET', 'POST'])
 @login_required
 def create_internship():
