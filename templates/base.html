@@ -36,6 +36,25 @@
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
 
     <style>
+        @keyframes gradient-flow {
+            0% {
+                background-position: 0% 50%;
+            }
+
+            50% {
+                background-position: 100% 50%;
+            }
+
+            100% {
+                background-position: 0% 50%;
+            }
+        }
+
+        .animate-gradient-flow {
+            background-size: 200% 200%;
+            animation: gradient-flow 10s ease infinite;
+        }
+
         html.dark .logo-text {
             fill: white !important;
         }

@@ -686,6 +686,7 @@ def delete_certificate(cert_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 @app.route('/<username>/comments', methods=['GET', 'POST'])
+
 def comments(username):
     if request.method == 'POST':
 
@@ -1657,7 +1658,7 @@ def logout():
     return redirect(url_for('index'))
 def create_notification(user_id, type, content, sender_id=None, related_id=None):
     try:
-
+        # Get sender info if sender_id is provided
         if sender_id:
             try:
                 sender_doc = db.collection('users').document(sender_id).get()
@@ -1672,7 +1673,7 @@ def create_notification(user_id, type, content, sender_id=None, related_id=None)
                 print(f"Error fetching sender info: {e}")
                 sender_info = None
         else:
-
+            # For system notifications, use default sender info
             type_config = ENHANCED_NOTIFICATION_TYPES.get(type, {})
             sender_info = type_config.get('sender', {
                 'username': 'Jinaq',
@@ -1681,7 +1682,7 @@ def create_notification(user_id, type, content, sender_id=None, related_id=None)
                 'verification_type': 'system'
             })
 
-
+        # Get notification type configuration
         notification_config = ENHANCED_NOTIFICATION_TYPES.get(type, {})
         enriched_content = {
             'type_label': notification_config.get('label', 'Notification'),
@@ -1690,6 +1691,7 @@ def create_notification(user_id, type, content, sender_id=None, related_id=None)
             **content
         }
 
+        # Special handling for account_change notifications
         if type == 'account_change':
             action = content.get('action')
             if action == 'email_updated':
@@ -1699,6 +1701,7 @@ def create_notification(user_id, type, content, sender_id=None, related_id=None)
             elif not enriched_content.get('message'):
                 enriched_content['message'] = "Account settings have been updated"
 
+        # Create notification data structure
         notification_data = {
             'type': type,
             'content': enriched_content,
@@ -1715,11 +1718,11 @@ def create_notification(user_id, type, content, sender_id=None, related_id=None)
             }
         }
 
-
+        # Set pinned status for critical notifications
         if notification_config.get('priority') == 'critical':
             notification_data['is_pinned'] = True
 
-
+        # Create the notification in Firestore
         notification_ref = db.collection('users').document(user_id).collection('notifications').document()
         notification_ref.set(notification_data)
 
@@ -1728,7 +1731,6 @@ def create_notification(user_id, type, content, sender_id=None, related_id=None)
     except Exception as e:
         print(f"Comprehensive Notification Creation Error: {e}")
         return None
-
 @app.route('/notifications/<notification_id>/details', methods=['GET'])
 @login_required
 def get_notification_details(notification_id):
