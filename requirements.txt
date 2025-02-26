@@ -6,3 +6,5 @@ gunicorn
 geocoder
 requests
 geopy
+google-search-results
+google.generativeai
