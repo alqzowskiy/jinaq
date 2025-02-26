@@ -28,7 +28,7 @@ app.config['LOGO_SVG_PATH'] = 'jinaq_logo.svg'
 firebase_creds_str = os.getenv('FIREBASE_PRIVATE_KEY')
 ADMIN_IDS = os.getenv("ADMIN_IDS")
 
-
+load_dotenv()
 
 
 try:
@@ -137,6 +137,7 @@ GOOGLE_API_KEY = os.getenv('GOOGLE_API_KEY')
 genai.configure(api_key=GOOGLE_API_KEY)
 
 
+
 db = firestore.client()
 bucket = storage.bucket()
 import firebase_admin
@@ -147,8 +148,8 @@ import json
 
 @app.route('/debug/firebase_status')
 def firebase_status():
-    try:
-        # Проверка основных сервисов
+    try: 
+
         firestore_client = firestore.client()
         auth_client = auth
         storage_client = storage.bucket()
@@ -162,7 +163,7 @@ def firebase_status():
         return jsonify({'error': str(e)}), 500
 def initialize_firebase():
     try:
-        # Проверка существующих приложений
+
         if not firebase_admin._apps:
             firebase_creds_str = os.getenv('FIREBASE_PRIVATE_KEY')
             if not firebase_creds_str:
@@ -2820,60 +2821,65 @@ def get_university_recommendations():
         # Create prompt for Gemini model
         model = genai.GenerativeModel('gemini-1.5-pro-latest')
         
-        prompt = f"""As a university admissions expert, recommend 5 universities in {country} that would be best for this student based on their profile:
+        prompt = f"""As a university admissions specialist with comprehensive knowledge of global higher education, provide DETAILED and SPECIFIC recommendations for 5 universities in {country} that perfectly match this student's profile:
 
-Academic Profile:
+STUDENT PROFILE:
 - GPA: {profile['gpa'] or 'Not specified'}
 - SAT Score: {profile['sat_score'] or 'Not specified'}
 - TOEFL Score: {profile['toefl_score'] or 'Not specified'}
 - IELTS Score: {profile['ielts_score'] or 'Not specified'}
+- Skills: {', '.join(profile['skills']) if profile['skills'] else 'Not specified'}
+- Languages: {', '.join(profile['languages']) if profile['languages'] else 'Not specified'}
+- Achievements: {', '.join(profile['achievements']) if profile['achievements'] else 'Not specified'}
+- Certificates: {', '.join(profile['certificates']) if profile['certificates'] else 'Not specified'}
+- Areas of Interest: {', '.join(profile['interests']) if profile['interests'] else 'Not specified'}
+- Education Background: {profile['education'] or 'Not specified'}
+- Academic Goals: {profile['goals'] or 'Not specified'}
 
-Skills: {', '.join(profile['skills']) if profile['skills'] else 'Not specified'}
+IMPORTANT RULES - READ CAREFULLY:
+- NEVER say "similar to [other university]" or "as mentioned above" - each university must have 100% original content
+- NEVER write "check the university website" or "contact admissions" - provide the actual information
+- ALWAYS include EXACT figures for tuition, costs, deadlines, and requirements (specific numbers, not ranges)
+- PROVIDE unique, detailed information for EACH category - no skipping sections
+- ALL information must be specific to EACH university (do not copy/paste between recommendations)
+- Focus on providing ACTIONABLE details students can use immediately
+- Include EXACT program names, not just general fields of study
+- For rankings, provide SPECIFIC numbers (e.g., "ranked #25 globally, #12 for Computer Science")
 
-Languages: {', '.join(profile['languages']) if profile['languages'] else 'Not specified'}
-
-Achievements: {', '.join(profile['achievements']) if profile['achievements'] else 'Not specified'}
-
-Certificates: {', '.join(profile['certificates']) if profile['certificates'] else 'Not specified'}
-
-Areas of Interest: {', '.join(profile['interests']) if profile['interests'] else 'Not specified'}
-
-Education Background: {profile['education'] or 'Not specified'}
-
-Academic Goals: {profile['goals'] or 'Not specified'}
-
-For each university, provide detailed information in this format:
-
+FORMAT FOR EACH UNIVERSITY:
 **University: [Name]**
 **Location:** [Exact city, region and country]
 **Relevant Programs:**
-* [List of specific programs matching student's profile and interests]
+* [List at least 4-5 specific degree programs with their exact names]
+* [Include specializations and unique features of each program]
 
 **Admission Requirements:**
-* GPA requirements
-* Language requirements (TOEFL/IELTS)
-* Additional program-specific requirements
+* GPA: [Exact minimum with scale, e.g., "3.5/4.0"]
+* TOEFL/IELTS: [Exact score requirements]
+* [Any additional requirements like portfolios, interviews, prerequisites]
+* [Application fees and processes]
 
 **Application Deadlines:**
-* [All relevant deadlines for upcoming academic year]
+* [Exact calendar dates for each admission round]
+* [Scholarship application deadlines]
+* [Priority vs. regular deadlines]
 
 **Estimated Costs:**
-* Detailed breakdown of tuition
-* Living expenses
-* Additional fees
+* Tuition: [Exact annual cost in local currency AND USD]
+* Housing: [Range of options with specific prices]
+* Living Expenses: [Detailed breakdown by category]
+* Financial Aid: [Available scholarships with award amounts]
 
 **Notable Strengths:**
-* [Focus on strengths related to student's interests]
-* [Mention specific facilities/opportunities]
-* [Include industry connections if relevant]
+* [List 4-5 unique advantages specifically relevant to this student]
+* [Research facilities, special programs, internship opportunities]
+* [Industry connections and employment statistics]
+* [Student services and academic support]
 
-**QS World Ranking:** [Include overall and subject rankings where relevant]
+**QS World Ranking:** [Specific overall ranking AND subject-specific rankings]
 
-Ensure recommendations are highly specific to the student's profile, especially considering their certificates, skills, and demonstrated interests.
-Be as detailed as possible for EACH university - include multiple programs, detailed requirements, and costs. 
-WRITE ALL INFORMATION IN ENGLISH!!!
+Remember: Each university recommendation MUST be COMPLETELY UNIQUE with SPECIFIC, DETAILED information in EVERY section. Your response will be used directly for university applications, so ensure all information is comprehensive, accurate, and immediately useful.
 """
-
         # Get recommendations
         response = model.generate_content(prompt)
         recommendations = response.text
@@ -2886,64 +2892,14 @@ WRITE ALL INFORMATION IN ENGLISH!!!
         
         # Reliable fallback for university images
         images = {}
-        university_images = {
-            # Top US universities
-            'Harvard University': 'https://images.unsplash.com/photo-1610816732435-69c37d5498d6',
-            'Stanford University': 'https://images.unsplash.com/photo-1455582916367-25f75bfc6710',
-            'MIT': 'https://images.unsplash.com/photo-1508231101580-eed9c8913fb4',
-            'Princeton University': 'https://images.unsplash.com/photo-1598495037740-1af255e9c636',
-            'Yale University': 'https://images.unsplash.com/photo-1582739393721-64c987dc884c',
-            
-            # Top UK universities
-            'University of Oxford': 'https://images.unsplash.com/photo-1580734257768-11fc581f0a9f',
-            'University of Cambridge': 'https://images.unsplash.com/photo-1579547945413-497e1b99dac0',
-            'Imperial College London': 'https://images.unsplash.com/photo-1607237138185-eedd9c632b0b',
-            'UCL': 'https://images.unsplash.com/photo-1549366021-9f761d450615',
-            
-            # Top Canadian universities
-            'University of Toronto': 'https://images.unsplash.com/photo-1615313859706-a4cf6110e039',
-            'McGill University': 'https://images.unsplash.com/photo-1604256246088-ac15e250c7c5',
-            'University of British Columbia': 'https://images.unsplash.com/photo-1633472606731-d078a367d89c',
-            
-            # Top Australian universities
-            'University of Melbourne': 'https://images.unsplash.com/photo-1591123120675-6f7f1aae0e5b',
-            'University of Sydney': 'https://images.unsplash.com/photo-1506973035872-a4ec16b8e8d9',
-            
-            # Top Asian universities
-            'National University of Singapore': 'https://images.unsplash.com/photo-1516979187457-637abb4f9353',
-            'Tsinghua University': 'https://images.unsplash.com/photo-1547995026-04f8cd800c41',
-            
-            # Top European universities
-            'ETH Zurich': 'https://images.unsplash.com/photo-1550044774-5b859a5b8492',
-            'LMU Munich': 'https://images.unsplash.com/photo-1593693721671-c2af87b73773'
-        }
-        
-        # Generic images by country for fallback
-        generic_country_images = {
-            'USA': 'https://images.unsplash.com/photo-1498243691581-b145c3f54a5a',
-            'UK': 'https://images.unsplash.com/photo-1607237138185-eedd9c632b0b',
-            'Canada': 'https://images.unsplash.com/photo-1614624532983-4ce03382d63d',
-            'Australia': 'https://images.unsplash.com/photo-1591123120675-6f7f1aae0e5b',
-            'Germany': 'https://images.unsplash.com/photo-1560969184-10fe8719e047',
-            'France': 'https://images.unsplash.com/photo-1549877452-9c7be324e8f7',
-            'Switzerland': 'https://images.unsplash.com/photo-1603145725502-0209f4a65e28',
-            'Japan': 'https://images.unsplash.com/photo-1492571350019-22de08371fd3',
-            'Netherlands': 'https://images.unsplash.com/photo-1534351590666-13e3e96b5017',
-            'China': 'https://images.unsplash.com/photo-1547981609-4b6bfe67ca0b'
-        }
-        
-        # Pick image for each university
         for university in universities:
-            # Try to find specific university image
-            if university in university_images:
-                images[university] = university_images[university]
+            # Get image using the direct Google API call
+            image_url = get_university_image(university, country)
+            if image_url:
+                images[university] = image_url
             else:
-                # Try to find a generic country image
-                if country in generic_country_images:
-                    images[university] = generic_country_images[country]
-                else:
-                    # Default generic university image
-                    images[university] = 'https://images.unsplash.com/photo-1541339907198-e08756dedf3f'
+                # If the API call failed, use a generic image based on the university name
+                images[university] = f"https://ui-avatars.com/api/?name={university.replace(' ', '+')}&size=256&background=random"
         
         # Save recommendation to database
         recommendation_data = {
@@ -2957,6 +2913,7 @@ WRITE ALL INFORMATION IN ENGLISH!!!
             'universities': universities
         }
         
+        db.collection('university_recommendations').add(recommendation_data)
         db.collection('university_recommendations').add(recommendation_data)
         
         # Update last recommendation in user profile
@@ -3142,54 +3099,140 @@ def calculate_admission_chances(universities, profile):
         chances[university] = final_chance
     
     return chances
-# Улучшенная функция для получения изображения университета
-def get_university_image(university_name, country):
-    """Получение надежного изображения для университета с использованием нескольких методов резервного копирования"""
+def use_fallback_image(university_name, country):
+    """Improved fallback mechanism for university images"""
+    # First try university-specific images
+    university_images = {
+        'Harvard University': 'https://images.unsplash.com/photo-1610816732435-69c37d5498d6',
+        'Stanford University': 'https://images.unsplash.com/photo-1455582916367-25f75bfc6710',
+        'MIT': 'https://images.unsplash.com/photo-1508231101580-eed9c8913fb4',
+        # Your existing university mappings...
+    }
+    
+    if university_name in university_images:
+        return university_images[university_name]
+    
+    # Next try country-specific images
+    country_images = {
+        'USA': 'https://images.unsplash.com/photo-1498243691581-b145c3f54a5a',
+        'UK': 'https://images.unsplash.com/photo-1607237138185-eedd9c632b0b',
+        # Your existing country mappings...
+    }
+    
+    if country in country_images:
+        return country_images[country]
+    
+    # Use deterministic fallback based on university name
+    generic_images = [
+        'https://images.unsplash.com/photo-1541339907198-e08756dedf3f',
+        'https://images.unsplash.com/photo-1607237138185-eedd9c632b0b',
+        'https://images.unsplash.com/photo-1598826867442-11c9a9221cfa',
+        'https://images.unsplash.com/photo-1523050854058-8df90110c9f1',
+        'https://images.unsplash.com/photo-1592280771190-3e2e4d571952',
+        'https://images.unsplash.com/photo-1544531585-9847b68c8c86',
+        'https://images.unsplash.com/photo-1519452575417-564c1401ecc0',
+        'https://images.unsplash.com/photo-1580332449505-682ff38a8b45'
+    ]
+    
+    # Use first character of university name to deterministically select an image
+    if university_name:
+        index = ord(university_name[0].lower()) % len(generic_images)
+        return generic_images[index]
+    
+    return generic_images[0]
+
+def cache_university_image(university_name, image_url):
+    """Cache university image URLs to reduce API calls"""
     try:
-        # Метод 1: Использовать Unsplash API для общих изображений университетов
-        fallback_images = {
-            'USA': 'https://images.unsplash.com/photo-1498243691581-b145c3f54a5a',
-            'UK': 'https://images.unsplash.com/photo-1607237138185-eedd9c632b0b',
-            'Canada': 'https://images.unsplash.com/photo-1614624532983-4ce03382d63d',
-            'Australia': 'https://images.unsplash.com/photo-1591123120675-6f7f1aae0e5b',
-            'Germany': 'https://images.unsplash.com/photo-1560969184-10fe8719e047',
-            'France': 'https://images.unsplash.com/photo-1549877452-9c7be324e8f7',
-            'Switzerland': 'https://images.unsplash.com/photo-1603145725502-0209f4a65e28',
-            'Japan': 'https://images.unsplash.com/photo-1492571350019-22de08371fd3',
-            'Netherlands': 'https://images.unsplash.com/photo-1534351590666-13e3e96b5017',
-            'Italy': 'https://images.unsplash.com/photo-1534470507898-334b3a3d22b5',
-            'China': 'https://images.unsplash.com/photo-1547981609-4b6bfe67ca0b',
-            'South Korea': 'https://images.unsplash.com/photo-1566606763741-04342137c1eb'
+        # Get existing cache or create new one
+        cache_ref = db.collection('image_cache').document('universities')
+        cache_doc = cache_ref.get()
+        
+        if cache_doc.exists:
+            cache_data = cache_doc.to_dict()
+        else:
+            cache_data = {}
+        
+        # Update with new image
+        cache_data[university_name] = {
+            'url': image_url,
+            'timestamp': datetime.datetime.now(tz=datetime.timezone.utc)
         }
         
-        # Попытка получить изображение для конкретной страны
-        if country in fallback_images:
-            return fallback_images[country]
-        
-        # Создаем детерминированный выбор изображения на основе названия университета
-        # Общие изображения университетов
-        generic_images = [
-            'https://images.unsplash.com/photo-1541339907198-e08756dedf3f',
-            'https://images.unsplash.com/photo-1607237138185-eedd9c632b0b',
-            'https://images.unsplash.com/photo-1598826867442-11c9a9221cfa',
-            'https://images.unsplash.com/photo-1523050854058-8df90110c9f1',
-            'https://images.unsplash.com/photo-1592280771190-3e2e4d571952',
-            'https://images.unsplash.com/photo-1544531585-9847b68c8c86',
-            'https://images.unsplash.com/photo-1519452575417-564c1401ecc0',
-            'https://images.unsplash.com/photo-1580332449505-682ff38a8b45',
-            'https://images.unsplash.com/photo-1498243691581-b145c3f54a5a',
-            'https://images.unsplash.com/photo-1613896640137-bb5b31496578'
-        ]
-        
-        # Используем первую букву названия университета для выбора согласованного изображения
-        if university_name:
-            index = ord(university_name[0].lower()) % len(generic_images)
-            return generic_images[index]
-        
-        return generic_images[0]
+        # Save cache
+        cache_ref.set(cache_data)
     except Exception as e:
-        print(f"Ошибка получения изображения для {university_name}: {e}")
-        return 'https://images.unsplash.com/photo-1541339907198-e08756dedf3f'
+        print(f"Error caching image: {e}")
+# Улучшенная функция для получения изображения университета
+def get_university_image(university_name, country):
+    """Get university image using specific Google Custom Search API URL"""
+    try:
+        # Format the university name for the query
+        formatted_name = ""
+        for char in university_name:
+            if char == ' ' or char == '+':
+                formatted_name += '+'
+            else:
+                formatted_name += char
+        
+        # Create the search query with additional terms for better results
+        search_query = f"{formatted_name}+university+campus"
+        
+        # Use the exact URL provided with hardcoded credentials
+        search_url = f"https://www.googleapis.com/customsearch/v1?key=AIzaSyDptyzxGJg-aR5IldozvISzjNgF2_TISJo&cx=e1cac863f07bf4f8b&q={search_query}&searchType=image"
+        
+        # Make the request
+        print(f"Searching for image: {university_name}")
+        response = requests.get(search_url)
+        
+        # Check if we got a valid response
+        if response.status_code != 200:
+            print(f"Error response from Google API: {response.status_code} - {response.text}")
+            return None
+        
+        # Parse the response JSON
+        image_data = response.json()
+        
+        # Check if we have image results
+        if 'items' in image_data and len(image_data['items']) > 0:
+            # Get the first image URL
+            image_url = image_data['items'][0]['link']
+            print(f"Found image for {university_name}: {image_url}")
+            return image_url
+        else:
+            print(f"No image results found for {university_name}")
+            return None
+            
+    except Exception as e:
+        print(f"Error getting image for {university_name}: {e}")
+        return None
+
+def get_cached_university_image(university_name):
+    """Get cached image URL if available"""
+    try:
+        cache_ref = db.collection('image_cache').document('universities')
+        cache_doc = cache_ref.get()
+        
+        if not cache_doc.exists:
+            return None
+        
+        cache_data = cache_doc.to_dict()
+        if university_name not in cache_data:
+            return None
+        
+        # Check if cache is still valid (less than 7 days old)
+        cache_entry = cache_data[university_name]
+        timestamp = cache_entry.get('timestamp')
+        
+        if isinstance(timestamp, datetime.datetime):
+            age = datetime.datetime.now(tz=datetime.timezone.utc) - timestamp
+            if age.days < 7:
+                return cache_entry.get('url')
+        
+        return None
+    except Exception as e:
+        print(f"Error retrieving cached image: {e}")
+        return None
 
 def extract_universities(text):
     """Extract university names from recommendation text"""
