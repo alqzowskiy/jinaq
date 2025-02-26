@@ -2,6 +2,16 @@
 <html lang="en" data-theme="light">
 
 <head>
+    <!-- Favicons -->
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.ico/favicon-96x96.png') }}"
+        sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.ico/favicon.svg') }}" />
+    <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico/favicon.ico') }}" />
+    <link rel="apple-touch-icon" sizes="180x180"
+        href="{{ url_for('static', filename='favicon.ico/apple-touch-icon.png') }}" />
+    <link rel="manifest" href="{{ url_for('static', filename='favicon.ico/site.webmanifest') }}" />
+
+    <!-- Rest of the existing head content continues -->
     <script>
         (function () {
             // Retrieve the saved theme immediately
@@ -36,6 +46,269 @@
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
 
     <style>
+        /* Enhanced University Recommendation System Styles */
+
+        /* Sidebar transitions */
+        #universityRecommendationsModal {
+            transition: transform 0.4s cubic-bezier(0.19, 1, 0.22, 1);
+            box-shadow: -10px 0 40px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Loading state animation */
+        #loadingState .animate-spin {
+            animation: spin 1.2s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Admission chance progression indicators */
+        .university-card .bg-green-500,
+        .university-card .bg-blue-500,
+        .university-card .bg-yellow-500,
+        .university-card .bg-red-500 {
+            transition: width 1.5s cubic-bezier(0.19, 1, 0.22, 1);
+        }
+
+        /* Card hover effects */
+        .university-card {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .university-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+        }
+
+        /* Profile toggle transition */
+        #profileToggleIcon {
+            transition: transform 0.3s ease;
+        }
+
+        /* University card image zoom on hover */
+        .university-card img {
+            transition: transform 1s ease;
+        }
+
+        .university-card:hover img {
+            transform: scale(1.05);
+        }
+
+        /* Toast notifications */
+        .notification-toast {
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+
+        /* Animate card appearance */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .university-card {
+            animation: fadeIn 0.6s forwards;
+            animation-delay: calc(var(--index) * 0.1s);
+            opacity: 0;
+        }
+
+        /* Improved sliders and inputs */
+        #countrySelect {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23374151'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+            background-position: right 0.5rem center;
+            background-repeat: no-repeat;
+            background-size: 1.5em 1.5em;
+            padding-right: 2.5rem;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+        }
+
+        /* Custom scrollbar for the sidebar */
+        #universityRecommendationsModal {
+            scrollbar-width: thin;
+            scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+        }
+
+        #universityRecommendationsModal::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        #universityRecommendationsModal::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        #universityRecommendationsModal::-webkit-scrollbar-thumb {
+            background-color: rgba(0, 0, 0, 0.2);
+            border-radius: 3px;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            #universityRecommendationsModal {
+                width: 100% !important;
+            }
+
+            .university-card h2 {
+                font-size: 1.1rem;
+            }
+        }
+
+        /* Enhanced focus states for accessibility */
+        button:focus,
+        select:focus,
+        a:focus {
+            outline: 2px solid rgba(0, 0, 0, 0.2);
+            outline-offset: 2px;
+        }
+
+        #countrySelect:focus {
+            border-color: black;
+            box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Improved disabled state */
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Progress bar animation */
+        @keyframes progressFill {
+            from {
+                width: 0;
+            }
+
+            to {
+                width: 100%;
+            }
+        }
+
+        .animated-progress {
+            animation: progressFill 20s ease-out forwards;
+        }
+
+        /* Pulse effect for save button */
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.15);
+            }
+
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        .pulse-animation {
+            animation: pulse 0.5s ease-in-out;
+        }
+
+        /* Add ripple effect for buttons */
+        .ripple {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .ripple:after {
+            content: "";
+            background: rgba(255, 255, 255, 0.3);
+            display: block;
+            position: absolute;
+            border-radius: 50%;
+            padding-top: 240%;
+            padding-left: 240%;
+            margin-top: -120%;
+            margin-left: -120%;
+            opacity: 0;
+            transition: all 0.8s;
+        }
+
+        .ripple:active:after {
+            padding-top: 0;
+            padding-left: 0;
+            margin-top: 0;
+            margin-left: 0;
+            opacity: 1;
+            transition: 0s;
+        }
+
+        @keyframes cardAppear {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Optimization for mobile */
+        @media (max-width: 768px) {
+            #universityRecommendationsModal {
+                width: 100%;
+            }
+
+            .university-card {
+                margin-bottom: 1rem;
+            }
+        }
+
+        /* Дополнительные стили для улучшенного модального окна */
+        .university-card:hover {
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.07);
+        }
+
+        .notification-toast {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+
+        @keyframes slideInRight {
+            from {
+                transform: translateX(100%);
+            }
+
+            to {
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        .animate-slide-in-right {
+            animation: slideInRight 0.3s ease-out forwards;
+        }
+
+        .animate-fade-in {
+            animation: fadeIn 0.3s ease-out forwards;
+        }
+
         @keyframes gradient-flow {
             0% {
                 background-position: 0% 50%;
