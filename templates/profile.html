@@ -803,6 +803,16 @@
                     <option value="Norway">Norway</option>
                     <option value="Spain">Spain</option>
                 </select>
+                <script>
+                    // Simple direct function to enable the button
+                    function enableFindButton() {
+                        const btn = document.querySelector('button[onclick="getRecommendations()"]');
+                        if (btn) {
+                            btn.disabled = false;
+                            btn.classList.remove('opacity-50', 'disabled', 'cursor-not-allowed');
+                        }
+                    }
+                </script>
                 <button onclick="getRecommendations()"
                     class="btn bg-black hover:bg-gray-800 text-white text-base py-2 px-4 rounded ripple disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0 flex items-center gap-2"
                     disabled>
@@ -2323,20 +2333,20 @@
     // Функция для получения рекомендаций университетов
     function getUniversityRecommendations() {
         try {
-            // Проверяем, что страна выбрана
+            // Check if country is selected
             const countrySelect = document.getElementById('countrySelect');
             if (!countrySelect || !countrySelect.value) {
                 showNotification('Please select a country', 'error');
                 return;
             }
 
-            // Собираем актуальные данные профиля
+            // Collect current profile data
             const profileData = collectProfileData();
 
-            // Обновляем сайдбар с текущими данными
+            // Update sidebar with current data
             updateRecommendationSidebar(profileData);
 
-            // Показываем состояние загрузки
+            // Show loading state
             const loadingState = document.getElementById('loadingState');
             const emptyState = document.getElementById('emptyState');
             const recommendationsContainer = document.getElementById('recommendationsContainer');
@@ -2345,7 +2355,7 @@
             if (emptyState) emptyState.style.display = 'none';
             if (recommendationsContainer) recommendationsContainer.style.display = 'none';
 
-            // Отправляем запрос на сервер
+            // Send request to server
             fetch('/get-university-recommendations', {
                 method: 'POST',
                 headers: {
@@ -2370,74 +2380,34 @@
                 .then(data => {
                     console.log('Recommendations received:', data);
 
-                    // Скрываем загрузку, показываем результаты
+                    // Hide loading, show results
                     if (loadingState) loadingState.style.display = 'none';
                     if (recommendationsContainer) recommendationsContainer.style.display = 'block';
 
-                    // Отображаем результаты
-                    const recommendationsList = document.getElementById('recommendationsList');
-                    if (recommendationsList) {
-                        // Очищаем список
-                        recommendationsList.innerHTML = '';
-
-                        // Получаем университеты из ответа
-                        const universities = data.universities || [];
-
-                        if (universities.length === 0) {
-                            recommendationsList.innerHTML = `
-            <div class="bg-white rounded-lg shadow-sm p-6 text-center">
-              <h3 class="text-lg font-medium text-gray-700 mb-2">No Universities Found</h3>
-              <p class="text-gray-500 mb-4">Try selecting a different country or updating your profile</p>
-            </div>
-          `;
-                            return;
-                        }
-
-                        // Создаем карточки для каждого университета
-                        universities.forEach((universityName, index) => {
-                            try {
-                                // Получаем детали университета
-                                const details = extractUniversityDetails(data.recommendations, universityName);
-                                const admissionChance = data.admission_chances?.[universityName] || 50;
-                                const imageUrl = data.images?.[universityName];
-
-                                // Создаем карточку
-                                const card = createUniversityCard(universityName, details, imageUrl, admissionChance, index);
-                                recommendationsList.appendChild(card);
-
-                                // Анимируем индикатор шансов поступления
-                                setTimeout(() => {
-                                    const progressBar = card.querySelector('.progress-bar');
-                                    if (progressBar) progressBar.style.width = `${admissionChance}%`;
-                                }, (index * 100) + 300);
-                            } catch (error) {
-                                console.error(`Error rendering university ${universityName}:`, error);
-                                // Запасной вариант - простая карточка
-                                recommendationsList.appendChild(createSimpleUniversityCard(universityName, data.admission_chances?.[universityName] || '?'));
-                            }
-                        });
-                    }
+                    // Render the results
+                    renderRecommendations(data);
                 })
                 .catch(error => {
                     console.error('Error fetching recommendations:', error);
+                    currentRecommendationResults = null; // Clear stored recommendations on error
 
                     if (loadingState) loadingState.style.display = 'none';
                     if (emptyState) {
                         emptyState.style.display = 'block';
                         emptyState.innerHTML = `
-          <div class="p-8 text-center">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto text-red-500 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <h3 class="text-xl font-semibold mb-2">Error Getting Recommendations</h3>
-            <p class="text-gray-600 mb-4">${error.message || 'Unknown error occurred'}</p>
-            <button id="retryButton" class="px-4 py-2 bg-black text-white rounded-md hover:bg-gray-800 transition-colors">
-              Try Again
-            </button>
-          </div>
-        `;
+                    <div class="p-8 text-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto text-red-500 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <h3 class="text-xl font-semibold mb-2">Error Getting Recommendations</h3>
+                        <p class="text-gray-600 mb-4">${error.message || 'Unknown error occurred'}</p>
+                        <button id="retryButton" class="px-4 py-2 bg-black text-white rounded-md hover:bg-gray-800 transition-colors">
+                            Try Again
+                        </button>
+                    </div>
+                `;
 
-                        // Добавляем обработчик для кнопки повтора
+                        // Add retry button handler
                         document.getElementById('retryButton')?.addEventListener('click', getUniversityRecommendations);
                     }
                 });
@@ -3234,7 +3204,11 @@
         return universities;
     }
 
-    // Переключение между рекомендациями и избранным
+    // Store the current recommendation results
+    // Store the current recommendation results
+    let currentRecommendationResults = null;
+
+    // Modified switchToRecommendationsTab function
     function switchToRecommendationsTab() {
         const recommendationsTabBtn = document.getElementById('recommendationsTabBtn');
         const favoritesTabBtn = document.getElementById('favoritesTabBtn');
@@ -3243,13 +3217,72 @@
             recommendationsTabBtn.className = 'px-4 py-2 font-medium text-black border-b-2 border-black';
             favoritesTabBtn.className = 'px-4 py-2 font-medium text-gray-500 hover:text-black';
 
-            // Если есть текущие рекомендации - отобразим их, иначе запросим новые
-            if (document.querySelector('#recommendationsList .bg-white')) {
+            // If we have stored recommendation results, show them without making a new API call
+            if (currentRecommendationResults) {
                 showRecommendationsContainer();
+                renderRecommendations(currentRecommendationResults);
             } else {
-                getUniversityRecommendations();
+                // Only if we don't have existing recommendations, check if there are any rendered already
+                const existingRecommendations = document.querySelector('#recommendationsList .bg-white');
+                if (existingRecommendations) {
+                    showRecommendationsContainer();
+                } else {
+                    // Only make a new request if we have nothing to show
+                    getUniversityRecommendations();
+                }
             }
         }
+    }
+
+    // Store recommendations when they're received
+    function renderRecommendations(data) {
+        console.log('Rendering recommendations:', data);
+
+        // Store the data for future tab switches
+        currentRecommendationResults = data;
+
+        const recommendationsList = document.getElementById('recommendationsList');
+        if (!recommendationsList) return;
+
+        // Clear existing list
+        recommendationsList.innerHTML = '';
+
+        // Get universities from response
+        const universities = data.universities || [];
+
+        if (universities.length === 0) {
+            recommendationsList.innerHTML = `
+            <div class="bg-white rounded-lg shadow-sm p-6 text-center">
+                <h3 class="text-lg font-medium text-gray-700 mb-2">No Universities Found</h3>
+                <p class="text-gray-500 mb-4">Try selecting a different country or updating your profile</p>
+            </div>
+        `;
+            return;
+        }
+
+        // Create cards for each university
+        universities.forEach((universityName, index) => {
+            try {
+                // Get university details
+                const details = extractUniversityDetails(data.recommendations, universityName);
+                const admissionChance = data.admission_chances?.[universityName] || 50;
+                const imageUrl = data.images?.[universityName];
+
+                // Create card
+                const card = createUniversityCard(universityName, details, imageUrl, admissionChance, index);
+                recommendationsList.appendChild(card);
+
+                // Animate admission chance progress bar
+                setTimeout(() => {
+                    const progressBar = card.querySelector('.progress-bar');
+                    if (progressBar) progressBar.style.width = `${admissionChance}%`;
+                }, (index * 100) + 300);
+            } catch (error) {
+                console.error(`Error rendering university ${universityName}:`, error);
+                // Fallback - simple card
+                recommendationsList.appendChild(createSimpleUniversityCard(universityName, data.admission_chances?.[universityName] || '?'));
+            }
+        });
     }
 
     function switchToFavoritesTab() {
@@ -3369,24 +3402,52 @@
         }
     }
 
-    // Обновление кнопки поиска университетов
+    // Function to update button state based on country selection
     function updateFindButton() {
         const countrySelect = document.getElementById('countrySelect');
         const findButton = document.querySelector('button[onclick="getRecommendations()"]') ||
-            document.querySelector('.ripple') ||
-            document.querySelector('button:contains("Find Universities")');
+            document.querySelector('button:contains("Find Universities")') ||
+            document.querySelector('.ripple');
 
         if (countrySelect && findButton) {
-            // Enable the button if a country is selected
-            const isDisabled = !countrySelect.value;
-            findButton.disabled = isDisabled;
-
-            // Update classes for visual feedback
-            if (isDisabled) {
-                findButton.classList.add('opacity-50', 'cursor-not-allowed');
+            // If country has a value, enable the button
+            if (countrySelect.value) {
+                findButton.disabled = false;
+                findButton.classList.remove('opacity-50', 'disabled', 'cursor-not-allowed');
+                findButton.classList.add('bg-black', 'hover:bg-gray-800');
             } else {
-                findButton.classList.remove('opacity-50', 'cursor-not-allowed');
+                findButton.disabled = true;
+                findButton.classList.add('opacity-50', 'cursor-not-allowed');
+                findButton.classList.remove('bg-black', 'hover:bg-gray-800');
             }
+        }
+    }
+
+    // Modified country change handler
+    function handleCountryChange() {
+        // Clear stored recommendations
+        currentRecommendationResults = null;
+
+        // Update button state
+        updateFindButton();
+    }
+
+
+    // Modify the setupRecommendationTabs function to use our improved tab switching
+    function setupRecommendationTabs() {
+        const recommendationsTabBtn = document.getElementById('recommendationsTabBtn');
+        const favoritesTabBtn = document.getElementById('favoritesTabBtn');
+
+        if (recommendationsTabBtn && favoritesTabBtn) {
+            // Show recommendations
+            recommendationsTabBtn.addEventListener('click', function () {
+                switchToRecommendationsTab();
+            });
+
+            // Show favorites
+            favoritesTabBtn.addEventListener('click', function () {
+                switchToFavoritesTab();
+            });
         }
     }
 
@@ -3500,15 +3561,21 @@
         if (profileToggle) {
             profileToggle.parentElement.addEventListener('click', toggleProfileSection);
         }
-
-        // Initialize country select change event
         const countrySelect = document.getElementById('countrySelect');
         if (countrySelect) {
-            countrySelect.addEventListener('change', updateFindButton);
-            // Set initial state
+            // Add event listener for country changes
+            countrySelect.addEventListener('change', handleCountryChange);
+
+            // Call immediately to set initial button state
             updateFindButton();
         }
 
+        // Setup recommendation tabs
+        setupRecommendationTabs();
+
+
+        // Setup recommendation tabs
+        setupRecommendationTabs();
         // Override global functions if they exist
         if (window.getRecommendations) {
             window.getRecommendations = getUniversityRecommendations;
@@ -3590,6 +3657,46 @@
             updateRecommendationSidebar(profileData);
         }
     });
+
+
+
+
+
+
+
+
+    // 2. Then add this script at the end of your JavaScript section:
+    document.addEventListener('DOMContentLoaded', function () {
+        // Get the country select element
+        const countrySelect = document.getElementById('countrySelect');
+        // Get the find universities button
+        const findButton = document.querySelector('button[onclick="getRecommendations()"]') ||
+            document.querySelector('.ripple') ||
+            document.querySelector('button:has(svg)');
+
+        if (countrySelect && findButton) {
+            // Update button state on page load
+            findButton.disabled = !countrySelect.value;
+            if (countrySelect.value) {
+                findButton.classList.remove('opacity-50', 'disabled', 'cursor-not-allowed');
+            } else {
+                findButton.classList.add('opacity-50', 'disabled', 'cursor-not-allowed');
+            }
+
+            // Add change event listener
+            countrySelect.addEventListener('change', function () {
+                if (this.value) {
+                    findButton.disabled = false;
+                    findButton.classList.remove('opacity-50', 'disabled', 'cursor-not-allowed');
+                } else {
+                    findButton.disabled = true;
+                    findButton.classList.add('opacity-50', 'disabled', 'cursor-not-allowed');
+                }
+            });
+        }
+    });
+
+
 </script>
 
 
