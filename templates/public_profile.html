@@ -64,6 +64,7 @@
                                                 </svg>
                                             </div>
                                             {% endif %}
+
                                         </div>
                                         <div class="mt-1 text-gray-500">@{{ user_data.username }}</div>
                                     </div>
@@ -85,6 +86,22 @@
                                             </svg>
                                             Share
                                         </button>
+                                        {% if session.get('user_id') and session['user_id'] != user_data.uid %}
+                                        <div class="ml-3">
+                                            <button id="profile-like-btn" onclick="toggleProfileLike()"
+                                                class="group relative">
+                                                <svg class="h-6 w-6 transition-all duration-300 ease-in-out {{ 'text-red-500 fill-current' if user_data.likes and session['user_id'] in user_data.likes else 'text-gray-400 fill-none' }}"
+                                                    stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                        d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                                                </svg>
+                                                <span id="profile-likes-count"
+                                                    class="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full px-1 py-0 transition-all">
+                                                    {{ user_data.likes|length if user_data.likes else 0 }}
+                                                </span>
+                                            </button>
+                                        </div>
+                                        {% endif %}
                                     </div>
                                 </div>
 
@@ -947,6 +964,66 @@
             .toUpperCase()
             .slice(0, 2);
         return `https://ui-avatars.com/api/?name=${initials}&background=random&color=fff&size=128`;
+    }
+    // Add this function before the toggleProfileLike function
+    function showNotification(message, type = 'success') {
+        const notification = document.createElement('div');
+        notification.className = `fixed bottom-4 right-4 px-6 py-3 rounded-xl shadow-lg transform transition-all duration-300 
+        ${type === 'success' ? 'bg-green-600' : 'bg-red-600'} text-white`;
+        notification.textContent = message;
+        document.body.appendChild(notification);
+
+        setTimeout(() => {
+            notification.style.opacity = '0';
+            setTimeout(() => notification.remove(), 300);
+        }, 3000);
+    }
+
+    // Modify the toggleProfileLike function to use the profile username
+    function toggleProfileLike() {
+        const likeBtn = document.getElementById('profile-like-btn');
+        const likeCountSpan = document.getElementById('profile-likes-count');
+        const svg = likeBtn.querySelector('svg');
+
+        // Get username from the page context
+        const profileUsername = '{{ user_data.username }}';
+
+        try {
+            fetch(`/${profileUsername}/like`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Animate button
+                        svg.classList.toggle('text-red-500');
+                        svg.classList.toggle('fill-current');
+                        svg.classList.toggle('text-gray-400');
+                        svg.classList.toggle('fill-none');
+
+                        // Pulse animation
+                        svg.classList.add('animate-pulse');
+                        setTimeout(() => {
+                            svg.classList.remove('animate-pulse');
+                        }, 300);
+
+                        // Update likes count
+                        likeCountSpan.textContent = data.likes_count;
+                    } else {
+                        throw new Error(data.error || 'Failed to like profile');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error toggling profile like:', error);
+                    showNotification(error.message, 'error');
+                });
+        } catch (error) {
+            console.error('Error toggling profile like:', error);
+            showNotification('Failed to like profile', 'error');
+        }
     }
 </script>
 {% endblock %}

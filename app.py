@@ -18,7 +18,8 @@ import requests
 from flask import jsonify
 from geopy.geocoders import Nominatim
 import google.generativeai as genai
-
+from firebase_admin import firestore
+import traceback
 import requests
 import os
 
@@ -904,19 +905,55 @@ def delete_comment(username, comment_id):
     
 
 def generate_avatar_url(user_data):
-    """Генерирует URL аватарки для пользователя"""
+    """Generate avatar URL for user"""
     if not user_data:
         return "https://ui-avatars.com/api/?name=U&background=random&color=fff&size=128"
     
-  
+    # If avatar_url exists in user data, use it
     if user_data.get('avatar_url'):
         return user_data['avatar_url']
     
-  
+    # Generate avatar from username
     display_name = user_data.get('display_username', user_data.get('username', 'U'))
     initials = ''.join(word[0].upper() for word in display_name.split()[:2])
     
     return f"https://ui-avatars.com/api/?name={initials}&background=random&color=fff&size=128"
+
+@app.route('/admin/dashboard')
+@login_required
+def admin_dashboard():
+    # Ensure only admin can access
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('admin_login'))
+
+    # Fetch users with registration date
+    users_ref = db.collection('users')
+    users = users_ref.stream()
+    
+    user_list = []
+    for user_doc in users:
+        user_data = user_doc.to_dict()
+        user_data['id'] = user_doc.id
+        user_list.append(user_data)
+    
+    # Calculate metrics
+    total_users = len(user_list)
+    verified_users = len([u for u in user_list if u.get('verified')])
+    blocked_users = len([u for u in user_list if u.get('blocked')])
+    
+    return render_template('admin_dashboard.html', 
+        users=user_list,
+        total_users=total_users,
+        verified_users=verified_users,
+        blocked_users=blocked_users,
+        user_growth_percentage=10,  # You can calculate this dynamically
+        verified_percentage=(verified_users / total_users * 100) if total_users > 0 else 0,
+        blocked_percentage=(blocked_users / total_users * 100) if total_users > 0 else 0,
+        active_users=total_users - blocked_users,
+        active_user_percentage=((total_users - blocked_users) / total_users * 100) if total_users > 0 else 0,
+        generate_avatar_url=generate_avatar_url
+    )
+
 def get_user_location():
     try:
         # Try to get IP address
@@ -1644,21 +1681,6 @@ def verify_user():
             'error': 'An error occurred while verifying the user.',
             'details': str(e)
         }), 500
-@app.route('/admin/dashboard')
-def admin_dashboard():
-    if not session.get('admin_logged_in'):
-        return redirect(url_for('admin_login'))
-
-    users_ref = db.collection('users')
-    users = users_ref.stream()
-    
-    user_list = []
-    for user_doc in users:
-        user_data = user_doc.to_dict()
-        user_data['id'] = user_doc.id
-        user_list.append(user_data)
-    
-    return render_template('admin_dashboard.html', users=user_list)
 
 @app.route('/admin/logout')
 def admin_logout():
@@ -3206,6 +3228,89 @@ def get_university_image(university_name, country):
     except Exception as e:
         print(f"Error getting image for {university_name}: {e}")
         return None
+
+
+@app.route('/<username>/like', methods=['POST'])
+@login_required
+def like_profile(username):
+    try:
+        # Find the target user
+        users_ref = db.collection('users')
+        query = users_ref.where('username', '==', username.lower()).limit(1).stream()
+        user_doc = next(query, None)
+
+        if user_doc is None:
+            return jsonify({'success': False, 'error': 'User not found'}), 404
+
+        target_user_id = user_doc.id
+        current_user_id = session['user_id']
+
+        # Prevent self-liking
+        if target_user_id == current_user_id:
+            return jsonify({'success': False, 'error': 'Cannot like your own profile'}), 400
+
+        # Reference to target user document
+        user_ref = db.collection('users').document(target_user_id)
+        
+        # Create a transaction
+        transaction = db.transaction()
+
+        # Firestore transaction to safely update likes
+        @firestore.transactional
+        def update_likes(transaction):
+            snapshot = user_ref.get(transaction=transaction)
+            
+            # Retrieve likes directly from snapshot dictionary
+            current_likes = snapshot.to_dict().get('likes', [])
+            
+            # Ensure current_likes is a list
+            if not isinstance(current_likes, list):
+                current_likes = []
+            
+            # Check if user has already liked
+            if current_user_id in current_likes:
+                # Unlike
+                current_likes.remove(current_user_id)
+            else:
+                # Like
+                current_likes.append(current_user_id)
+            
+            # Update document with new likes
+            transaction.update(user_ref, {
+                'likes': current_likes,
+                'likes_count': len(current_likes)
+            })
+            
+            return len(current_likes)
+
+        # Execute the transaction
+        likes_count = update_likes(transaction)
+
+        # Create notification if profile is newly liked
+        user_data = user_doc.to_dict()
+        likes = user_data.get('likes', [])
+        
+        if current_user_id not in likes:
+            create_notification(
+                target_user_id, 
+                'like_profile', 
+                {
+                    'message': 'Your profile was liked'
+                },
+                sender_id=current_user_id
+            )
+
+        return jsonify({
+            'success': True, 
+            'likes_count': likes_count
+        })
+
+    except Exception as e:
+        print(f"Error in like_profile: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 
 def get_cached_university_image(university_name):
     """Get cached image URL if available"""
