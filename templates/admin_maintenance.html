@@ -1,0 +1,262 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="mb-6 flex justify-between items-center">
+        <h1 class="text-2xl font-bold">Maintenance Mode Settings</h1>
+        <a href="{{ url_for('admin_dashboard') }}"
+            class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600">
+            Back to Dashboard
+        </a>
+    </div>
+
+    <div class="bg-white shadow-md rounded-lg p-6">
+        <div class="mb-6">
+            <div class="flex items-center">
+                <div class="mr-4">
+                    <span class="font-bold">Current Status:</span>
+                </div>
+                <div>
+                    {% if enabled %}
+                    <span class="bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm font-medium">
+                        Maintenance Active
+                    </span>
+                    {% else %}
+                    <span class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
+                        Site Online
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if last_updated %}
+            <div class="mt-2 text-sm text-gray-600">
+                Last updated: {{ last_updated | datetime('%d.%m.%Y %H:%M:%S') }}
+                {% if updated_by %}
+                by {{ updated_by.get('username', 'Admin') }}
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+
+        <form id="maintenanceForm">
+            <div class="mb-4">
+                <label class="flex items-center">
+                    <input type="checkbox" id="maintenance-enabled" class="mr-2 h-5 w-5 text-blue-600" {% if enabled
+                        %}checked{% endif %}>
+                    <span class="text-lg font-medium">Enable Maintenance Mode</span>
+                </label>
+                <p class="text-sm text-gray-600 mt-1">When enabled, users will be redirected to a maintenance page.</p>
+            </div>
+
+            <div class="mb-4">
+                <label class="block text-sm font-medium mb-2">Message for Users</label>
+                <input type="text" id="maintenance-message" class="w-full px-3 py-2 border rounded-lg"
+                    value="{{ message or 'The site is currently under maintenance. Please try again later.' }}">
+                <p class="text-sm text-gray-600 mt-1">Main message shown to users</p>
+            </div>
+
+            <div class="mb-4">
+                <label class="block text-sm font-medium mb-2">Additional Details (optional)</label>
+                <textarea id="maintenance-details" class="w-full px-3 py-2 border rounded-lg"
+                    rows="3">{{ details }}</textarea>
+                <p class="text-sm text-gray-600 mt-1">Detailed explanation of maintenance (optional)</p>
+            </div>
+
+            <div class="mb-6">
+                <label class="block text-sm font-medium mb-2">Maintenance End Time</label>
+                <div class="flex space-x-4">
+                    <div class="w-1/2">
+                        <input type="text" id="maintenance-eta-date" class="w-full px-3 py-2 border rounded-lg"
+                            placeholder="Date (MM/DD/YYYY)">
+                    </div>
+                    <div class="w-1/2">
+                        <input type="text" id="maintenance-eta-time" class="w-full px-3 py-2 border rounded-lg"
+                            placeholder="Time (HH:MM)">
+                    </div>
+                </div>
+                <input type="hidden" id="maintenance-eta" value="{{ eta }}">
+                <p class="text-sm text-gray-600 mt-1">When do you expect maintenance to be completed? (e.g., mm/dd/yyyy
+                    14:30)</p>
+            </div>
+
+
+            <div class="flex space-x-4">
+                <button type="submit" id="save-button"
+                    class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600">
+                    Save Settings
+                </button>
+                <button type="button" id="preview-button"
+                    class="bg-gray-200 text-gray-800 px-6 py-2 rounded-lg hover:bg-gray-300">
+                    Preview Maintenance Page
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <div class="bg-white shadow-md rounded-lg p-6 mt-8">
+        <h2 class="text-xl font-bold mb-4">Maintenance Mode Information</h2>
+
+        <div class="mb-4">
+            <h3 class="font-semibold mb-2">Impact on Users:</h3>
+            <ul class="list-disc pl-6 text-gray-700">
+                <li>All regular users will be redirected to the maintenance page</li>
+                <li>Administrators can still access all pages</li>
+                <li>Static resources (CSS, JavaScript, images) will remain accessible</li>
+                <li>Active users will be automatically redirected to the home page when maintenance is complete</li>
+            </ul>
+        </div>
+
+        <div>
+            <h3 class="font-semibold mb-2">Best Practices:</h3>
+            <ul class="list-disc pl-6 text-gray-700">
+                <li>Set a clear expected completion time when possible</li>
+                <li>Provide details about what maintenance is being performed</li>
+                <li>Test maintenance mode before performing actual maintenance</li>
+                <li>Remember to disable maintenance mode when work is complete</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<!-- In the JavaScript section of admin_maintenance.html -->
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const form = document.getElementById('maintenanceForm');
+        const saveButton = document.getElementById('save-button');
+        const previewButton = document.getElementById('preview-button');
+        const etaDateInput = document.getElementById('maintenance-eta-date');
+        const etaTimeInput = document.getElementById('maintenance-eta-time');
+        const etaHiddenInput = document.getElementById('maintenance-eta');
+
+        // Parse and populate date/time fields if ETA exists
+        if (etaHiddenInput.value) {
+            try {
+                // Try different date formats
+                let etaDate;
+                const etaString = etaHiddenInput.value;
+
+                // Try MM/DD/YYYY HH:MM format first
+                let match = etaString.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{1,2})/);
+                if (match) {
+                    etaDateInput.value = `${match[1]}/${match[2]}/${match[3]}`;
+                    etaTimeInput.value = `${match[4]}:${match[5]}`;
+                } else {
+                    // Try DD.MM.YYYY HH:MM format (for backward compatibility)
+                    match = etaString.match(/(\d{1,2})\.(\d{1,2})\.(\d{4})\s+(\d{1,2}):(\d{1,2})/);
+                    if (match) {
+                        // Convert to MM/DD/YYYY format
+                        etaDateInput.value = `${match[2]}/${match[1]}/${match[3]}`;
+                        etaTimeInput.value = `${match[4]}:${match[5]}`;
+                    } else {
+                        // Try YYYY-MM-DD HH:MM format
+                        match = etaString.match(/(\d{4})-(\d{1,2})-(\d{1,2})\s+(\d{1,2}):(\d{1,2})/);
+                        if (match) {
+                            // Convert to MM/DD/YYYY format
+                            etaDateInput.value = `${match[2]}/${match[3]}/${match[1]}`;
+                            etaTimeInput.value = `${match[4]}:${match[5]}`;
+                        } else {
+                            // Try to parse as ISO date
+                            try {
+                                const dateObj = new Date(etaString);
+                                if (!isNaN(dateObj)) {
+                                    const month = (dateObj.getMonth() + 1).toString().padStart(2, '0');
+                                    const day = dateObj.getDate().toString().padStart(2, '0');
+                                    const year = dateObj.getFullYear();
+                                    etaDateInput.value = `${month}/${day}/${year}`;
+
+                                    const hours = dateObj.getHours().toString().padStart(2, '0');
+                                    const minutes = dateObj.getMinutes().toString().padStart(2, '0');
+                                    etaTimeInput.value = `${hours}:${minutes}`;
+                                }
+                            } catch (e) {
+                                console.log("Could not parse date:", e);
+                            }
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error("Error parsing ETA:", e);
+            }
+        }
+
+        // Add a note about the timezone
+        const etaTimeLabel = document.querySelector('label[for="maintenance-eta-time"]');
+        if (etaTimeLabel) {
+            etaTimeLabel.innerHTML += ' <span class="text-xs text-blue-500">(Kazakhstan Time, UTC+6)</span>';
+        }
+
+        // Handle form submission
+        form.addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            // Combine date and time into ETA
+            let eta = '';
+            if (etaDateInput.value && etaTimeInput.value) {
+                eta = `${etaDateInput.value} ${etaTimeInput.value}`;
+            }
+
+            const data = {
+                enabled: document.getElementById('maintenance-enabled').checked,
+                message: document.getElementById('maintenance-message').value,
+                details: document.getElementById('maintenance-details').value,
+                eta: eta
+            };
+
+            console.log("Sending maintenance data:", data);
+
+            // Validate date format
+            if (data.enabled && data.eta) {
+                const datePattern = /^\d{1,2}\/\d{1,2}\/\d{4} \d{1,2}:\d{1,2}$/;
+                if (!datePattern.test(data.eta)) {
+                    alert('Please enter the date in MM/DD/YYYY HH:MM format (e.g., 05/25/2025 14:30)');
+                    return;
+                }
+            }
+
+            // Disable button to prevent multiple submissions
+            saveButton.disabled = true;
+            saveButton.innerHTML = 'Saving...';
+
+            fetch('/admin/maintenance/toggle', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            })
+                .then(response => {
+                    console.log("Server response status:", response.status);
+                    return response.json();
+                })
+                .then(result => {
+                    console.log("Server response:", result);
+                    if (result.success) {
+                        // Show success message
+                        alert(data.enabled ?
+                            'Maintenance mode activated. Users will be redirected to the maintenance page.' :
+                            'Maintenance mode deactivated. The site is now accessible to all users.');
+
+                        // Reload the page to show updated status
+                        location.reload();
+                    } else {
+                        alert(result.error || 'Failed to update maintenance settings');
+                        saveButton.disabled = false;
+                        saveButton.innerHTML = 'Save Settings';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred. Please try again.');
+                    saveButton.disabled = false;
+                    saveButton.innerHTML = 'Save Settings';
+                });
+        });
+
+        // Handle preview button
+        previewButton.addEventListener('click', function () {
+            // Open the maintenance page in a new window
+            window.open('/maintenance', '_blank');
+        });
+    });
+</script>
+{% endblock %}
