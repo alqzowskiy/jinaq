@@ -918,7 +918,26 @@ def generate_avatar_url(user_data):
     initials = ''.join(word[0].upper() for word in display_name.split()[:2])
     
     return f"https://ui-avatars.com/api/?name={initials}&background=random&color=fff&size=128"
-
+@app.route('/debug/my-user-id')
+def debug_user_id():
+    if 'user_id' not in session:
+        return "Not logged in"
+    return session['user_id']
+@app.route('/test-maintenance')
+def test_maintenance_mode():
+    try:
+        # Check if maintenance document exists and is properly set
+        settings_ref = db.collection('system_settings').document('maintenance')
+        settings_doc = settings_ref.get()
+        
+        maintenance_data = {
+            'exists': settings_doc.exists,
+            'data': settings_doc.to_dict() if settings_doc.exists else None
+        }
+        
+        return jsonify(maintenance_data)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 @app.route('/admin/dashboard')
 @login_required
 def admin_dashboard():
@@ -941,6 +960,18 @@ def admin_dashboard():
     verified_users = len([u for u in user_list if u.get('verified')])
     blocked_users = len([u for u in user_list if u.get('blocked')])
     
+    # Check maintenance mode status
+    maintenance_enabled = False
+    try:
+        settings_ref = db.collection('system_settings').document('maintenance')
+        settings_doc = settings_ref.get()
+        
+        if settings_doc.exists:
+            maintenance_data = settings_doc.to_dict()
+            maintenance_enabled = maintenance_data.get('enabled', False)
+    except Exception as e:
+        print(f"Error getting maintenance status: {e}")
+    
     return render_template('admin_dashboard.html', 
         users=user_list,
         total_users=total_users,
@@ -951,9 +982,9 @@ def admin_dashboard():
         blocked_percentage=(blocked_users / total_users * 100) if total_users > 0 else 0,
         active_users=total_users - blocked_users,
         active_user_percentage=((total_users - blocked_users) / total_users * 100) if total_users > 0 else 0,
-        generate_avatar_url=generate_avatar_url
+        generate_avatar_url=generate_avatar_url,
+        maintenance_enabled=maintenance_enabled
     )
-
 def get_user_location():
     try:
         # Try to get IP address
@@ -1313,7 +1344,10 @@ def admin_login():
             return redirect(url_for('admin_dashboard'))
         else:
             flash('Incorrect admin password', 'error')
-    return render_template('admin_login.html')
+    
+    # Add current date to be used in template
+    from datetime import datetime
+    return render_template('admin_login.html', current_date=datetime.now())
 
 
 @app.route('/update-username', methods=['POST'])
@@ -3454,7 +3488,289 @@ def format_datetime(value, format='%b %d, %Y'):
 app.jinja_env.filters['datetime'] = format_datetime
 
 
+# Add this to app.py after other imports
+from functools import wraps
+from flask import g, render_template, redirect, url_for
 
+# Create a maintenance mode middleware function
+def check_maintenance_mode():
+    """Middleware to check if site is in maintenance mode"""
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            # Skip maintenance check for admin routes and the maintenance page itself
+            if (request.path.startswith('/admin') or 
+                request.path == '/maintenance' or 
+                request.path.startswith('/static')):
+                return f(*args, **kwargs)
+            
+            try:
+                # Get maintenance status from Firebase
+                settings_ref = db.collection('system_settings').document('maintenance')
+                settings_doc = settings_ref.get()
+                
+                if settings_doc.exists:
+                    maintenance_data = settings_doc.to_dict()
+                    if maintenance_data.get('enabled', False):
+                        # Store maintenance message for template
+                        g.maintenance_message = maintenance_data.get('message', 'The site is currently under maintenance. Please try again later.')
+                        g.maintenance_details = maintenance_data.get('details', '')
+                        g.maintenance_eta = maintenance_data.get('eta', '')
+                        # Redirect to maintenance page
+                        return redirect(url_for('maintenance_page'))
+            except Exception as e:
+                print(f"Error checking maintenance mode: {e}")
+                
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
+
+# Apply the decorator to Flask's before_request
+@app.before_request
+def check_site_maintenance():
+    # Skip maintenance check for specific paths
+    if (request.path.startswith('/admin') or 
+        request.path == '/maintenance' or 
+        request.path == '/maintenance-status' or
+        request.path.startswith('/static')):
+        return
+    
+    try:
+        # Get maintenance status from Firebase
+        settings_ref = db.collection('system_settings').document('maintenance')
+        settings_doc = settings_ref.get()
+        
+        if settings_doc.exists:
+            maintenance_data = settings_doc.to_dict()
+            if maintenance_data.get('enabled', False):
+                # Store maintenance message for template
+                g.maintenance_message = maintenance_data.get('message', 'The site is currently under maintenance. Please try again later.')
+                g.maintenance_details = maintenance_data.get('details', '')
+                g.maintenance_eta = maintenance_data.get('eta', '')
+                
+                # Only redirect if not already on maintenance page
+                if request.path != '/maintenance':
+                    return redirect(url_for('maintenance_page'))
+    except Exception as e:
+        print(f"Error checking maintenance mode: {e}")
+
+@app.route('/maintenance-status', methods=['GET'])
+def maintenance_status():
+    try:
+        # Get maintenance status from Firebase
+        settings_ref = db.collection('system_settings').document('maintenance')
+        settings_doc = settings_ref.get()
+        
+        maintenance_active = False
+        if settings_doc.exists:
+            maintenance_data = settings_doc.to_dict()
+            maintenance_active = maintenance_data.get('enabled', False)
+            eta = maintenance_data.get('eta', '')
+            
+            # Check if ETA has passed and maintenance is still enabled
+            if maintenance_active and eta:
+                try:
+                    # Parse MM/DD/YYYY HH:MM format
+                    parts = eta.split(' ')
+                    if len(parts) == 2:
+                        date_parts = parts[0].split('/')
+                        time_parts = parts[1].split(':')
+                        
+                        if len(date_parts) == 3 and len(time_parts) == 2:
+                            month = int(date_parts[0])
+                            day = int(date_parts[1])
+                            year = int(date_parts[2])
+                            hour = int(time_parts[0])
+                            minute = int(time_parts[1])
+                            
+                            # Create Kazakhstan time (UTC+5)
+                            kz_tz = datetime.timezone(datetime.timedelta(hours=5))
+                            eta_date = datetime.datetime(year, month, day, hour, minute, tzinfo=kz_tz)
+                            
+                            # Get current time in Kazakhstan timezone
+                            now = datetime.datetime.now(tz=kz_tz)
+                            
+                            print(f"Current time (KZ): {now}, ETA (KZ): {eta_date}")
+                            
+                            # If the ETA has passed, disable maintenance mode
+                            if now >= eta_date:
+                                print("ETA has passed, auto-disabling maintenance mode")
+                                settings_ref.update({
+                                    'enabled': False,
+                                    'auto_disabled_at': datetime.datetime.now(tz=datetime.timezone.utc),
+                                    'auto_disabled_reason': 'Scheduled maintenance time ended'
+                                })
+                                maintenance_active = False
+                    else:
+                        print(f"Invalid ETA format: {eta}")
+                except Exception as date_error:
+                    print(f"Error parsing ETA date: {date_error}")
+        
+        return jsonify({
+            'maintenance_active': maintenance_active,
+            'timestamp': datetime.datetime.now(tz=datetime.timezone.utc).isoformat()
+        })
+    except Exception as e:
+        print(f"Error checking maintenance status: {e}")
+        # Default to maintenance active in case of error to be safe
+        return jsonify({'maintenance_active': True, 'error': str(e)})
+@app.route('/maintenance')
+def maintenance_page():
+    try:
+        # Directly fetch the maintenance data from the database
+        settings_ref = db.collection('system_settings').document('maintenance')
+        settings_doc = settings_ref.get()
+        
+        message = 'The site is currently under maintenance. Please try again later.'
+        details = ''
+        eta = ''
+        
+        if settings_doc.exists:
+            maintenance_data = settings_doc.to_dict()
+            message = maintenance_data.get('message', message)
+            details = maintenance_data.get('details', details)
+            eta = maintenance_data.get('eta', eta)
+            
+            # Print for debugging
+            print(f"Maintenance data for page: message={message}, details={details}, eta={eta}")
+        
+        # Use the values directly, not from g
+        return render_template('maintenance.html', 
+                            message=message,
+                            details=details,
+                            eta=eta)
+    except Exception as e:
+        print(f"Error rendering maintenance page: {e}")
+        # Fallback content
+        return render_template('maintenance.html',
+                            message='The site is currently under maintenance.',
+                            details='',
+                            eta='')
+
+# Add admin routes to manage maintenance mode
+@app.route('/admin/maintenance', methods=['GET'])
+@login_required
+def admin_maintenance():
+    print(f"User trying to access maintenance: {session.get('user_id')}")
+    print(f"ADMIN_IDS: {ADMIN_IDS}")
+    
+    # For testing, let's use direct comparison
+    if session.get('user_id') != 'vVbXL4LKGidXtrKnvqa21gWRY3V2':
+        print(f"Admin authentication failed - user:{session.get('user_id')}, required: {ADMIN_IDS}")
+        return redirect(url_for('admin_login'))
+    
+    try:
+        # Get current maintenance settings
+        settings_ref = db.collection('system_settings').document('maintenance')
+        settings_doc = settings_ref.get()
+        
+        maintenance_data = {}
+        if settings_doc.exists:
+            maintenance_data = settings_doc.to_dict()
+        
+        return render_template('admin_maintenance.html',
+                             enabled=maintenance_data.get('enabled', False),
+                             message=maintenance_data.get('message', ''),
+                             details=maintenance_data.get('details', ''),
+                             eta=maintenance_data.get('eta', ''),
+                             last_updated=maintenance_data.get('last_updated'),
+                             updated_by=maintenance_data.get('updated_by'))
+    
+    except Exception as e:
+        print(f"Error in admin maintenance view: {e}")
+        flash('Error loading maintenance settings')
+        return redirect(url_for('admin_dashboard'))
+@app.route('/admin/maintenance/toggle', methods=['POST'])
+@login_required
+def toggle_maintenance():
+    # Ensure only admin can access
+    if session.get('user_id') != 'vVbXL4LKGidXtrKnvqa21gWRY3V2':
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    try:
+        data = request.json
+        enabled = data.get('enabled', False)
+        message = data.get('message', 'The site is currently under maintenance. Please try again later.')
+        details = data.get('details', '')
+        eta = data.get('eta', '')
+        
+        # Print the received data for debugging
+        print(f"Received maintenance data: enabled={enabled}, message={message}, details={details}, eta={eta}")
+        
+        # Validate eta format if provided
+        if eta:
+            try:
+                # Handle MM/DD/YYYY HH:MM format
+                month, day, year = eta.split(' ')[0].split('/')
+                hour, minute = eta.split(' ')[1].split(':')
+                
+                # Create date object to validate (already in Kazakhstan time)
+                valid_date = datetime.datetime(int(year), int(month), int(day), int(hour), int(minute))
+                
+                # Format eta consistently for storage, using MM/DD/YYYY format
+                eta = valid_date.strftime('%m/%d/%Y %H:%M')
+                
+                print(f"Maintenance ETA set to: {eta} (Kazakhstan time, UTC+5)")
+            except Exception as e:
+                print(f"Error validating eta format: {e}")
+                return jsonify({'success': False, 'error': 'Invalid time format. Use MM/DD/YYYY HH:MM'}), 400
+        
+        # Get admin user info
+        admin_doc = db.collection('users').document(session['user_id']).get()
+        admin_data = admin_doc.to_dict()
+        admin_username = admin_data.get('display_username', admin_data.get('username', 'Admin'))
+        
+        # Create maintenance settings document data
+        maintenance_data = {
+            'enabled': enabled,
+            'message': message,
+            'details': details,
+            'eta': eta,
+            'last_updated': datetime.datetime.now(tz=datetime.timezone.utc),
+            'updated_by': {
+                'user_id': session['user_id'],
+                'username': admin_username
+            }
+        }
+        
+        # Update maintenance settings
+        settings_ref = db.collection('system_settings').document('maintenance')
+        settings_ref.set(maintenance_data)
+        
+        # Verify the data was saved correctly
+        updated_doc = settings_ref.get()
+        if updated_doc.exists:
+            updated_data = updated_doc.to_dict()
+            print(f"Saved maintenance data: {updated_data}")
+        
+        # Log the action
+        log_admin_action('maintenance_mode', {
+            'action': 'enabled' if enabled else 'disabled',
+            'message': message,
+            'details': details,
+            'eta': eta
+        })
+        
+        return jsonify({'success': True})
+    
+    except Exception as e:
+        print(f"Error toggling maintenance mode: {e}")
+        import traceback
+        traceback.print_exc()  # Print full stack trace for debugging
+        return jsonify({'success': False, 'error': str(e)}), 500
+def log_admin_action(action_type, details):
+    try:
+        log_data = {
+            'action_type': action_type,
+            'details': details,
+            'admin_id': session['user_id'],
+            'timestamp': datetime.datetime.now(tz=datetime.timezone.utc),
+            'ip_address': request.remote_addr
+        }
+        
+        db.collection('admin_logs').add(log_data)
+    except Exception as e:
+        print(f"Error logging admin action: {e}")
 
 
 @app.errorhandler(404)

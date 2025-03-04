@@ -141,12 +141,148 @@
                     Send Notification
                 </button>
             </form>
+            <div class="md:col-span-12 bg-white shadow-md rounded-lg p-6 mt-6">
+                <div class="mb-4 flex justify-between items-center">
+                    <h2 class="text-xl font-bold">System Management</h2>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-1 gap-4">
+                    <!-- Maintenance Mode Card -->
+                    <div class="bg-white border rounded-lg p-4 shadow-sm">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <h3 class="text-lg font-semibold mb-2">Maintenance Mode</h3>
+                                <p class="text-sm text-gray-600 mb-4">Put the site in maintenance mode to perform
+                                    updates</p>
+                            </div>
+                            <div class="maintenance-status">
+                                {% if maintenance_enabled %}
+                                <span class="bg-red-100 text-red-800 px-3 py-1 rounded-full text-xs font-medium">
+                                    Active
+                                </span>
+                                {% else %}
+                                <span class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs font-medium">
+                                    Inactive
+                                </span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <a href="{{ url_for('admin_maintenance') }}"
+                            class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 inline-block">
+                            Manage Maintenance
+                        </a>
+                    </div>
+
+                    <!-- You can add more system management cards here -->
+                </div>
+
+            </div>
         </div>
     </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
+<!-- Add this at the end of your admin_dashboard.html file, just before the closing </body> tag -->
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Check if maintenance form exists on this page
+        const maintenanceForm = document.getElementById('maintenanceForm');
+
+        if (maintenanceForm) {
+            maintenanceForm.addEventListener('submit', function (e) {
+                e.preventDefault();
+
+                const data = {
+                    enabled: document.getElementById('maintenance-enabled').checked,
+                    message: document.getElementById('maintenance-message').value,
+                    details: document.getElementById('maintenance-details').value,
+                    eta: document.getElementById('maintenance-eta').value
+                };
+
+                // Disable button to prevent multiple submissions
+                const saveButton = document.getElementById('save-button');
+                if (saveButton) {
+                    saveButton.disabled = true;
+                    saveButton.innerHTML = 'Saving...';
+                }
+
+                fetch('/admin/maintenance/toggle', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                })
+                    .then(response => response.json())
+                    .then(result => {
+                        if (result.success) {
+                            // Reload the page to show updated status
+                            location.reload();
+                        } else {
+                            alert(result.error || 'Failed to update maintenance settings');
+                            if (saveButton) {
+                                saveButton.disabled = false;
+                                saveButton.innerHTML = 'Save Changes';
+                            }
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('An error occurred. Please try again.');
+                        if (saveButton) {
+                            saveButton.disabled = false;
+                            saveButton.innerHTML = 'Save Changes';
+                        }
+                    });
+            });
+
+            // Handle preview button if it exists
+            const previewButton = document.getElementById('preview-button');
+            if (previewButton) {
+                previewButton.addEventListener('click', function () {
+                    // Open the maintenance page in a new window
+                    window.open('/maintenance', '_blank');
+                });
+            }
+        }
+
+        // Quick maintenance toggle if it exists on the dashboard
+        const quickToggle = document.getElementById('quick-maintenance-toggle');
+        if (quickToggle) {
+            quickToggle.addEventListener('click', function (e) {
+                e.preventDefault();
+
+                const enabled = this.getAttribute('data-enabled') === 'true';
+                const newState = !enabled;
+
+                fetch('/admin/maintenance/toggle', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        enabled: newState,
+                        message: 'The site is currently under maintenance. Please try again later.',
+                        details: '',
+                        eta: ''
+                    })
+                })
+                    .then(response => response.json())
+                    .then(result => {
+                        if (result.success) {
+                            location.reload();
+                        } else {
+                            alert(result.error || 'Failed to toggle maintenance mode');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('An error occurred. Please try again.');
+                    });
+            });
+        }
+    });
+</script>
 <script>
     function manageUser(userId, action) {
         fetch(`/admin/user/${action}`, {
