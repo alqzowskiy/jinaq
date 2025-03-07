@@ -22,6 +22,9 @@ from firebase_admin import firestore
 import traceback
 import requests
 import os
+import datetime
+import uuid
+from flask import request, jsonify, url_for, redirect, flash, session, render_template, abort
 
 app = Flask(__name__)
 app.secret_key = 'mega-secret-key-yeah'  
@@ -51,6 +54,7 @@ if not firebase_creds_str:
     raise ValueError("FIREBASE_PRIVATE_KEY не найден в .env файле")
 firebase_credentials = json.loads(firebase_creds_str)
 NOTIFICATION_TYPES = {
+    
     'like_comment': {
         'icon': '❤️',
         'label': 'Comment Liked'
@@ -74,6 +78,18 @@ NOTIFICATION_TYPES = {
     'system': {
         'icon': '🌐',
         'label': 'System Notification'
+    },
+    'project_collaboration': {
+        'icon': '👥',
+        'label': 'Project Collaboration'
+    },
+    'project_update': {
+        'icon': '🔄',
+        'label': 'Project Update'
+    },
+    'project_invitation': {
+        'icon': '📩',
+        'label': 'Project Invitation'
     }
 }
 
@@ -1046,6 +1062,37 @@ def profile():
         # POST request handling
         if request.method == 'POST':
             try:
+                projects = []
+        
+                # Step 1: Get projects created by the user
+                created_projects_refs = list(db.collection('projects').where('created_by', '==', user_id).stream())
+                for project_doc in created_projects_refs:
+                    project_data = project_doc.to_dict()
+                    project_data['id'] = project_doc.id
+                    project_data['role'] = 'creator'  # Add role for UI distinction
+                    projects.append(project_data)
+                
+                # Step 2: Get projects where user is a collaborator
+                # This requires a different approach since Firestore doesn't support direct querying of array elements
+                # We'll query all projects and filter in Python
+                potential_collab_projects = db.collection('projects').stream()
+                
+                for project_doc in potential_collab_projects:
+                    project_data = project_doc.to_dict()
+                    
+                    # Skip if user is the creator (already added above)
+                    if project_data.get('created_by') == user_id:
+                        continue
+                        
+                    # Check if user is in collaborators
+                    collaborators = project_data.get('collaborators', [])
+                    is_collaborator = any(c.get('user_id') == user_id for c in collaborators)
+                    
+                    if is_collaborator:
+                        project_data['id'] = project_doc.id
+                        project_data['role'] = 'collaborator'  # Add role for UI distinction
+                        projects.append(project_data)
+                
                 # Handle JSON updates (AJAX requests)
                 if request.headers.get('Content-Type') == 'application/json':
                     data = request.get_json()
@@ -1201,15 +1248,53 @@ def profile():
         unread_notifications = notifications_ref.where('is_read', '==', False).get()
         notifications_count = len(list(unread_notifications))
 
+        projects = []
+        projects_refs = list(db.collection('projects').where('created_by', '==', user_id).stream())
+        
+        # Also get projects where user is a collaborator
+        collab_projects_refs = list(db.collection('projects')
+                                .where('collaborators', 'array_contains', {'user_id': user_id}).stream())
+        
+        # Combine both lists
+        all_projects_refs = projects_refs + collab_projects_refs
+        
+        for project_doc in all_projects_refs:
+            project_data = project_doc.to_dict()
+            project_data['id'] = project_doc.id
+            projects.append(project_data)
+
+        
+        # Sort projects by last updated time
+        projects.sort(key=lambda x: x.get('last_updated', x.get('created_at', datetime.datetime.min)), reverse=True)
+        
+        # Get certificates for display
+        certificates = list(db.collection('users').document(user_id).collection('certificates').stream())
+        
+        # Get notifications count
+        notifications_ref = db.collection('users').document(user_id).collection('notifications')
+        unread_notifications = notifications_ref.where('is_read', '==', False).get()
+        notifications_count = len(list(unread_notifications))
+        
+        # Add current username to context for JavaScript use
+        username = user_data.get('display_username', user_data.get('username', ''))
+
         # Render template with all necessary data
         return render_template('profile.html',
-                            user_data=user_data,
-                            avatar_url=avatar_url,
-                            current_user_avatar=current_user_avatar,
-                            certificates=certificates,
-                            notifications_count=notifications_count,
-                            social_media=user_data.get('social_media', {}),
-                            academic_info=user_data.get('academic_info', {}))
+                              user_data=user_data,
+                              avatar_url=avatar_url,
+                              current_user_avatar=current_user_avatar,
+                              certificates=certificates,
+                              notifications_count=notifications_count,
+                              social_media=user_data.get('social_media', {}),
+                              academic_info=user_data.get('academic_info', {}),
+                              projects=projects,
+                              current_username=username)
+
+    except Exception as e:
+        print(f"Error in profile route: {e}")
+        flash('An error occurred while loading your profile.')
+        return redirect(url_for('index'))
+
 
     except Exception as e:
         print(f"Error in profile route: {e}")
@@ -1252,16 +1337,63 @@ def public_profile(username):
         
         certificates = list(db.collection('users').document(user_doc.id).collection('certificates').stream())
         certificates_count = len(certificates)
-
+        user_id = user_doc.id
+        projects = []
+        projects_refs = list(db.collection('projects').where('created_by', '==', user_id).stream())
+        
+        for project_doc in projects_refs:
+            project_data = project_doc.to_dict()
+            project_data['id'] = project_doc.id
+            projects.append(project_data)
+        
+        # Sort projects by last updated time
+        projects.sort(key=lambda x: x.get('last_updated', x.get('created_at')), reverse=True)
+        
+        user_id = user_doc.id
+        
+        # Get projects (both created and collaborative)
+        projects = []
+        
+        # Step 1: Get projects created by the user
+        created_projects_refs = list(db.collection('projects').where('created_by', '==', user_id).stream())
+        for project_doc in created_projects_refs:
+            project_data = project_doc.to_dict()
+            project_data['id'] = project_doc.id
+            project_data['role'] = 'creator'
+            projects.append(project_data)
+        
+        # Step 2: Get projects where user is a collaborator
+        potential_collab_projects = db.collection('projects').stream()
+        
+        for project_doc in potential_collab_projects:
+            project_data = project_doc.to_dict()
+            
+            # Skip if user is the creator (already added above)
+            if project_data.get('created_by') == user_id:
+                continue
+                
+            # Check if user is in collaborators
+            collaborators = project_data.get('collaborators', [])
+            is_collaborator = any(c.get('user_id') == user_id for c in collaborators)
+            
+            if is_collaborator:
+                project_data['id'] = project_doc.id
+                project_data['role'] = 'collaborator'
+                projects.append(project_data)
+        
+        # Sort projects by last updated time
+        projects.sort(key=lambda x: x.get('last_updated', x.get('created_at', datetime.datetime.min)), reverse=True)
+        
         return render_template('public_profile.html',
                              user_data=viewed_user_data, 
                              avatar_url=viewed_user_avatar,
                              current_user_avatar=current_user_avatar,
                              current_username=session.get('username'),
                              certificates=certificates,
-                             certificates_count=certificates_count)
+                             certificates_count=certificates_count,
+                             projects=projects)
+                             
     except Exception as e:
-
         print(f"Comprehensive error in public_profile: {e}")
         import traceback
         traceback.print_exc()
@@ -1514,56 +1646,65 @@ def reset_password():
             'error': 'An error occurred. Please try again later.'
         }), 500
 
-@app.route('/search_users')
+@app.route('/search_users', methods=['GET'])
+@login_required
 def search_users():
     query = request.args.get('query', '').lower()
     
     try:
         users_ref = db.collection('users')
-        results = {} 
+        results = []
         
-
-        all_users = users_ref.stream()
+        # First try to match by username
+        username_query = users_ref.where('username', '>=', query).where('username', '<=', query + '\uf8ff').limit(10).stream()
         
-        for user_doc in all_users:
+        for user_doc in username_query:
             user_data = user_doc.to_dict()
             
-            if not user_data or 'username' not in user_data:
+            # Skip if user is blocked or if it's the current user
+            if user_data.get('blocked', False) or user_doc.id == session['user_id']:
                 continue
                 
-
-            username = user_data.get('username', '').lower()
-            display_username = user_data.get('display_username', '').lower()
-            full_name = user_data.get('full_name', '').lower()
+            results.append({
+                'user_id': user_doc.id,  # Make sure to include the user_id
+                'username': user_data.get('display_username', user_data.get('username', '')),
+                'full_name': user_data.get('full_name', ''),
+                'avatar': generate_avatar_url(user_data),
+                'verified': user_data.get('verified', False)
+            })
             
-
-            if (query in username or 
-                query in display_username or 
-                query in full_name or 
-                any(query in word.lower() for word in full_name.split())):
+        # If we didn't find enough results, try by full name
+        if len(results) < 5:
+            fullname_query = users_ref.where('full_name_lower', '>=', query).where('full_name_lower', '<=', query + '\uf8ff').limit(10).stream()
+            
+            for user_doc in fullname_query:
+                user_data = user_doc.to_dict()
                 
-
-                results[user_doc.id] = {
-                    'username': user_data.get('display_username', user_data['username']),
+                # Skip if user is blocked, it's the current user, or already in results
+                if (user_data.get('blocked', False) or 
+                    user_doc.id == session['user_id'] or
+                    any(r['user_id'] == user_doc.id for r in results)):
+                    continue
+                    
+                results.append({
+                    'user_id': user_doc.id,
+                    'username': user_data.get('display_username', user_data.get('username', '')),
                     'full_name': user_data.get('full_name', ''),
                     'avatar': generate_avatar_url(user_data),
-                    'verified': user_data.get('verified', False),
-                    'verification_type': user_data.get('verification_type', None)
-                }
+                    'verified': user_data.get('verified', False)
+                })
         
-
-        results_list = list(results.values())[:10]
-        
-
-        results_list.sort(key=lambda x: (
-            not x['username'].lower().startswith(query), 
-            not (x['full_name'] and x['full_name'].lower().startswith(query)),  
-            x['username'].lower(), 
+        # Sort results by relevance
+        results.sort(key=lambda x: (
+            0 if x['username'].lower().startswith(query) else 1,
+            0 if x.get('full_name', '').lower().startswith(query) else 1,
+            x['username'].lower()
         ))
         
-        return jsonify(results_list)
+        return jsonify(results[:10])  # Limit to top 10 results
+        
     except Exception as e:
-        print(f"Search error: {e}")
+        print(f"Error searching users: {e}")
         return jsonify([]), 500
 
 
@@ -3771,6 +3912,457 @@ def log_admin_action(action_type, details):
         db.collection('admin_logs').add(log_data)
     except Exception as e:
         print(f"Error logging admin action: {e}")
+
+@app.route('/projects/create', methods=['POST'])
+@login_required
+def create_project():
+    user_id = session['user_id']
+    
+    try:
+        # Get form data
+        title = request.form.get('title')
+        description = request.form.get('description')
+        github_url = request.form.get('github_url', '')
+        project_url = request.form.get('project_url', '')
+        
+        # Parse tags and collaborators
+        tags = json.loads(request.form.get('tags', '[]'))
+        
+        # Debug info for collaborators
+        collaborators_json = request.form.get('collaborators', '[]')
+        print(f"Received collaborators JSON: {collaborators_json}")
+        
+        try:
+            collaborators_data = json.loads(collaborators_json)
+            # Verify it's a list
+            if not isinstance(collaborators_data, list):
+                print(f"WARNING: collaborators_data is not a list: {type(collaborators_data)}")
+                collaborators_data = []
+        except Exception as json_error:
+            print(f"Error parsing collaborators JSON: {json_error}")
+            collaborators_data = []
+        
+        # Validate required fields
+        if not title or not description:
+            return jsonify({'success': False, 'error': 'Title and description are required'}), 400
+        
+        # Get user info for creator
+        user_doc = db.collection('users').document(user_id).get()
+        user_data = user_doc.to_dict()
+        
+        creator_info = {
+            'user_id': user_id,
+            'username': user_data.get('username', ''),
+            'full_name': user_data.get('full_name', ''),
+            'avatar': generate_avatar_url(user_data)
+        }
+        
+        # Process collaborators
+        collaborators = []
+        for collab in collaborators_data:
+            # Verify each collaborator has the required fields
+            if not collab.get('user_id') or not collab.get('username'):
+                print(f"WARNING: Skipping invalid collaborator: {collab}")
+                continue
+                
+            collaborator = {
+                'user_id': collab.get('user_id', ''),
+                'username': collab.get('username', ''),
+                'full_name': collab.get('full_name', ''),
+                'avatar': collab.get('avatar', '')
+            }
+            collaborators.append(collaborator)
+        
+        # Process images
+        image_urls = []
+        
+        # Get existing images if present
+        existing_images = request.form.getlist('existing_images')
+        if existing_images:
+            image_urls.extend(existing_images)
+        
+        # Upload new images
+        for key in request.files:
+            if key.startswith('image_'):
+                image_file = request.files[key]
+                
+                if image_file and image_file.filename:
+                    # Create a unique filename
+                    file_extension = image_file.filename.rsplit('.', 1)[1].lower()
+                    filename = f"projects/{user_id}/{str(uuid.uuid4())}.{file_extension}"
+                    
+                    # Upload to Firebase Storage
+                    blob = bucket.blob(filename)
+                    blob.upload_from_string(
+                        image_file.read(),
+                        content_type=image_file.content_type
+                    )
+                    
+                    # Make public and get URL
+                    blob.make_public()
+                    image_urls.append(blob.public_url)
+        
+        # Create project document
+        project_data = {
+            'title': title,
+            'description': description,
+            'github_url': github_url,
+            'project_url': project_url,
+            'tags': tags,
+            'images': image_urls,
+            'creator': creator_info,
+            'collaborators': collaborators,
+            'created_at': datetime.datetime.now(tz=datetime.timezone.utc),
+            'created_by': user_id,
+            'updates': [],
+            'last_updated': datetime.datetime.now(tz=datetime.timezone.utc)
+        }
+        
+        # Debug log before saving
+        print(f"Saving project with {len(collaborators)} collaborators")
+        
+        # Save to Firestore
+        project_ref = db.collection('projects').document()
+        project_ref.set(project_data)
+        
+        # Add project reference to user document
+        user_projects_ref = db.collection('users').document(user_id).collection('projects').document(project_ref.id)
+        user_projects_ref.set({
+            'project_id': project_ref.id,
+            'created_at': datetime.datetime.now(tz=datetime.timezone.utc)
+        })
+        
+        # Create notifications for collaborators
+        for collaborator in collaborators:
+            create_notification(
+                collaborator['user_id'],
+                'project_collaboration',
+                {
+                    'project_id': project_ref.id,
+                    'project_title': title,
+                    'message': f"{user_data.get('display_username', user_data.get('username', ''))} added you as a collaborator on {title}"
+                },
+                sender_id=user_id
+            )
+        
+        return jsonify({
+            'success': True,
+            'project_id': project_ref.id,
+            'message': 'Project created successfully'
+        })
+        
+    except Exception as e:
+        print(f"Error creating project: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+@app.route('/projects/<project_id>')
+def get_project(project_id):
+    try:
+        # Get project document
+        project_ref = db.collection('projects').document(project_id)
+        project_doc = project_ref.get()
+        
+        if not project_doc.exists:
+            return jsonify({'success': False, 'error': 'Project not found'}), 404
+            
+        project_data = project_doc.to_dict()
+        project_data['id'] = project_id
+        
+        return jsonify(project_data)
+        
+    except Exception as e:
+        print(f"Error retrieving project: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/projects/<project_id>/update', methods=['POST'])
+@login_required
+def update_project(project_id):
+    user_id = session['user_id']
+    
+    try:
+        # Get project document
+        project_ref = db.collection('projects').document(project_id)
+        project_doc = project_ref.get()
+        
+        if not project_doc.exists:
+            return jsonify({'success': False, 'error': 'Project not found'}), 404
+            
+        project_data = project_doc.to_dict()
+        
+        # Check if user is creator or collaborator
+        if user_id != project_data['created_by'] and not any(c['user_id'] == user_id for c in project_data.get('collaborators', [])):
+            return jsonify({'success': False, 'error': 'Not authorized to update this project'}), 403
+        
+        # Check if the user is the creator (only creators can modify collaborators)
+        is_creator = user_id == project_data['created_by']
+        
+        # Get form data
+        title = request.form.get('title')
+        description = request.form.get('description')
+        github_url = request.form.get('github_url', '')
+        project_url = request.form.get('project_url', '')
+        
+        # Parse tags and collaborators
+        tags = json.loads(request.form.get('tags', '[]'))
+        
+        # Only process collaborators if the user is the creator
+        if is_creator:
+            collaborators_data = json.loads(request.form.get('collaborators', '[]'))
+            
+            # Process collaborators with validation
+            collaborators = []
+            for collab in collaborators_data:
+                # Skip invalid collaborators missing user_id
+                if not collab.get('user_id'):
+                    print(f"Warning: Skipping collaborator with missing user_id: {collab}")
+                    continue
+                    
+                collaborator = {
+                    'user_id': collab.get('user_id', ''),
+                    'username': collab.get('username', ''),
+                    'full_name': collab.get('full_name', ''),
+                    'avatar': collab.get('avatar', '')
+                }
+                collaborators.append(collaborator)
+            
+            # Check for removed collaborators to notify them
+            old_collaborators = {c.get('user_id') for c in project_data.get('collaborators', []) if c.get('user_id')}
+            new_collaborators = {c.get('user_id') for c in collaborators if c.get('user_id')}
+            
+            removed_collaborators = old_collaborators - new_collaborators
+            added_collaborators = new_collaborators - old_collaborators
+            
+            # Notify removed collaborators
+            for collab_id in removed_collaborators:
+                if not collab_id:  # Skip empty IDs
+                    continue
+                    
+                create_notification(
+                    collab_id,
+                    'project_collaboration',
+                    {
+                        'project_id': project_id,
+                        'project_title': title,
+                        'message': f"You were removed as a collaborator from {title}"
+                    },
+                    sender_id=user_id
+                )
+                
+                # Also remove project reference from their document
+                try:
+                    collab_ref = db.collection('users').document(collab_id).collection('project_collaborations').document(project_id)
+                    collab_ref.delete()
+                except Exception as e:
+                    print(f"Error removing project reference for user {collab_id}: {e}")
+            
+            # Notify added collaborators
+            for collab_id in added_collaborators:
+                if not collab_id:  # Skip empty IDs
+                    continue
+                    
+                # Find the collaborator's username
+                collab_data = next((c for c in collaborators if c.get('user_id') == collab_id), None)
+                
+                create_notification(
+                    collab_id,
+                    'project_collaboration',
+                    {
+                        'project_id': project_id,
+                        'project_title': title,
+                        'message': f"You were added as a collaborator to {title}"
+                    },
+                    sender_id=user_id
+                )
+                
+                # Add project reference to collaborator's user document
+                try:
+                    # Validate collab_id is not empty before creating the reference
+                    if collab_id and collab_id.strip():
+                        user_projects_ref = db.collection('users').document(collab_id).collection('project_collaborations').document(project_id)
+                        user_projects_ref.set({
+                            'project_id': project_id,
+                            'project_title': title,
+                            'added_at': datetime.datetime.now(tz=datetime.timezone.utc),
+                            'added_by': {
+                                'user_id': user_id,
+                                'username': session.get('username', '')
+                            }
+                        })
+                except Exception as e:
+                    print(f"Error adding project reference for user {collab_id}: {e}")
+        else:
+            # If not creator, keep existing collaborators
+            collaborators = project_data.get('collaborators', [])
+        
+        # Validate required fields
+        if not title or not description:
+            return jsonify({'success': False, 'error': 'Title and description are required'}), 400
+        
+        # Process images
+        image_urls = []
+        
+        # Get existing images if present
+        existing_images = request.form.getlist('existing_images')
+        if existing_images:
+            image_urls.extend(existing_images)
+        
+        # Upload new images
+        for key in request.files:
+            if key.startswith('image_'):
+                image_file = request.files[key]
+                
+                if image_file and image_file.filename:
+                    # Create a unique filename
+                    file_extension = image_file.filename.rsplit('.', 1)[1].lower()
+                    filename = f"projects/{user_id}/{str(uuid.uuid4())}.{file_extension}"
+                    
+                    # Upload to Firebase Storage
+                    blob = bucket.blob(filename)
+                    blob.upload_from_string(
+                        image_file.read(),
+                        content_type=image_file.content_type
+                    )
+                    
+                    # Make public and get URL
+                    blob.make_public()
+                    image_urls.append(blob.public_url)
+        
+        # Update project document
+        update_data = {
+            'title': title,
+            'description': description,
+            'github_url': github_url,
+            'project_url': project_url,
+            'tags': tags,
+            'images': image_urls,
+            'collaborators': collaborators,
+            'last_updated': datetime.datetime.now(tz=datetime.timezone.utc)
+        }
+        
+        project_ref.update(update_data)
+        
+        # Notify all collaborators about project update
+        all_collaborators = [c.get('user_id') for c in collaborators 
+                            if c.get('user_id') and c.get('user_id') != user_id]
+        
+        # Also notify the creator if update was made by collaborator
+        if not is_creator:
+            all_collaborators.append(project_data['created_by'])
+        
+        # Send notifications
+        for collab_id in all_collaborators:
+            create_notification(
+                collab_id,
+                'project_update',
+                {
+                    'project_id': project_id,
+                    'project_title': title,
+                    'message': f"Project {title} has been updated"
+                },
+                sender_id=user_id
+            )
+        
+        return jsonify({
+            'success': True,
+            'message': 'Project updated successfully'
+        })
+        
+    except Exception as e:
+        print(f"Error updating project: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+      
+@app.route('/projects/<project_id>/delete', methods=['DELETE'])
+@login_required
+def delete_project(project_id):
+    user_id = session['user_id']
+    
+    try:
+        # Get project document
+        project_ref = db.collection('projects').document(project_id)
+        project_doc = project_ref.get()
+        
+        if not project_doc.exists:
+            return jsonify({'success': False, 'error': 'Project not found'}), 404
+            
+        project_data = project_doc.to_dict()
+        
+        # Check if user is creator
+        if user_id != project_data['created_by']:
+            return jsonify({'success': False, 'error': 'Not authorized to delete this project'}), 403
+        
+        # Delete project images from storage
+        for image_url in project_data.get('images', []):
+            try:
+                path = image_url.split('/')[-1]
+                blob = bucket.blob(f"projects/{user_id}/{path}")
+                blob.delete()
+            except Exception as e:
+                print(f"Error deleting project image: {e}")
+        
+        # Delete project reference from user document
+        user_projects_ref = db.collection('users').document(user_id).collection('projects').document(project_id)
+        user_projects_ref.delete()
+        
+        # Delete project document
+        project_ref.delete()
+        
+        # Notify collaborators
+        for collaborator in project_data.get('collaborators', []):
+            create_notification(
+                collaborator['user_id'],
+                'project_collaboration',
+                {
+                    'project_title': project_data['title'],
+                    'message': f"Project {project_data['title']} has been deleted by the creator"
+                },
+                sender_id=user_id
+            )
+        
+        return jsonify({
+            'success': True,
+            'message': 'Project deleted successfully'
+        })
+        
+    except Exception as e:
+        print(f"Error deleting project: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/view_project/<project_id>')
+def view_project(project_id):
+    try:
+        # Get project document
+        project_ref = db.collection('projects').document(project_id)
+        project_doc = project_ref.get()
+        
+        if not project_doc.exists:
+            flash('Project not found')
+            return redirect(url_for('index'))
+            
+        project_data = project_doc.to_dict()
+        project_data['id'] = project_id
+        
+        # Check if current user is a collaborator
+        is_collaborator = False
+        if 'user_id' in session:
+            current_user_id = session['user_id']
+            
+            # User is collaborator if they are the creator or listed as a collaborator
+            is_collaborator = (current_user_id == project_data['created_by']) or \
+                             any(c['user_id'] == current_user_id for c in project_data.get('collaborators', []))
+        
+        return render_template('project_view.html',
+                             project=project_data,
+                             is_collaborator=is_collaborator,
+                             current_user_id=session.get('user_id'))
+        
+    except Exception as e:
+        print(f"Error viewing project: {e}")
+        flash('Error loading project')
+        return redirect(url_for('index'))
+
 
 
 @app.errorhandler(404)

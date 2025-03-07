@@ -9,6 +9,7 @@
         (certificates | map(attribute = 'to_dict()') | list | tojson) if certificates else '[]' | safe
     }};
 </script>
+<meta name="current-username" content="{{ current_username }}">
 <style>
     /* Enhanced profile display styles */
     .profile-info-card {
@@ -107,16 +108,70 @@
             order: 4;
         }
     }
+
+    /* Styles for the floating save button */
+    .floating-save-btn {
+        position: fixed;
+        bottom: 2rem;
+        right: 2rem;
+        z-index: 100;
+        display: none;
+    }
+
+    .save-btn-content {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    /* Styles for the header editor */
+    .header-container {
+        position: relative;
+        width: 100%;
+        height: 300px;
+        overflow: hidden;
+        border-radius: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    /* Toast notification styles */
+    .toast-notification {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background-color: #000;
+        color: white;
+        padding: 12px 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        z-index: 1000;
+        opacity: 0;
+        transform: translateY(20px);
+        transition: all 0.3s ease;
+    }
+
+    .toast-notification.show {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    .toast-notification.success {
+        background-color: #10b981;
+    }
+
+    .toast-notification.error {
+        background-color: #ef4444;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="min-h-screen bg-gray-50">
     <div class="container mx-auto px-4 py-8">
-        <!-- Header Container -->
-        <div class="relative w-full mb-8">
+        <!-- Header Container - Hidden by default -->
+        <div id="headerContainer" class="relative w-full mb-8 hidden">
             <div
-                class="relative w-full h-[400px] overflow-hidden rounded-3xl bg-gradient-to-r from-gray-100 to-gray-200 shadow-lg">
+                class="relative w-full h-[300px] overflow-hidden rounded-3xl bg-gradient-to-r from-gray-100 to-gray-200 shadow-lg">
                 {% if user_data.header_image %}
                 <div class="absolute inset-0 bg-black/10"></div>
                 <img src="{{ user_data.header_image.url }}"
@@ -128,7 +183,8 @@
                 {% endif %}
 
                 {% if session.get('user_id') == user_data.uid %}
-                <div class="absolute inset-0 opacity-0 hover:opacity-100 transition-all duration-300">
+                <div
+                    class="absolute inset-0 opacity-0 hover:opacity-100 transition-all duration-300 profile-editable-section">
                     <div class="absolute inset-0 bg-black/30 backdrop-blur-sm"></div>
                     <div class="absolute inset-0 flex items-center justify-center">
                         <label class="cursor-pointer group">
@@ -161,12 +217,12 @@
                 </button>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div id="profileContent" class="grid grid-cols-1 md:grid-cols-3 gap-8">
                 <!-- Left Column -->
                 <div class="md:col-span-1 space-y-6">
                     <!-- Profile Card - Always Visible -->
                     <div
-                        class="bg-white rounded-2xl shadow-sm p-8 relative transform hover:scale-[1.02] transition-transform duration-300">
+                        class="bg-white rounded-2xl shadow-sm p-8 relative transform hover:scale-[1.01] transition-transform duration-300">
                         <div class="relative group w-40 h-40 mx-auto mb-6">
                             <img id="avatarPreview" src="{{ avatar_url }}"
                                 class="w-full h-full object-cover rounded-2xl shadow-md" alt="Profile picture">
@@ -235,7 +291,7 @@
                             {% if user_data.specialty %}
                             <div>
                                 <h3 class="font-medium text-gray-700">Specialty</h3>
-                                <p class=" text-gray-900">{{ user_data.specialty }}</p>
+                                <p class="text-gray-900">{{ user_data.specialty }}</p>
                             </div>
                             {% endif %}
 
@@ -299,8 +355,9 @@
                         </div>
                     </div>
 
-                    <!-- Profile Information Form - Hidden by default -->
-                    <div class="bg-white rounded-2xl shadow-sm p-8 space-y-6 profile-editable-section">
+                    <!-- Unified Profile Form - Hidden by default -->
+                    <div id="unifiedProfileForm"
+                        class="bg-white rounded-2xl shadow-sm p-8 space-y-6 profile-editable-section">
                         <h2 class="text-2xl font-bold mb-6">Profile Information</h2>
                         <form method="POST" enctype="multipart/form-data" id="profileForm" class="space-y-6">
                             <!-- Form Fields -->
@@ -387,82 +444,74 @@
                                         class="textarea textarea-bordered bg-gray-50 w-full focus:ring-2 focus:ring-black transition-all">{{ user_data.education if user_data else '' }}</textarea>
                                 </div>
 
-                                <button type="submit"
-                                    class="btn bg-black hover:bg-gray-800 text-white w-full transform hover:scale-[1.02] transition-all duration-200">
-                                    Save Changes
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-
-                    <!-- Links & Contacts -->
-                    <div class="bg-white rounded-2xl shadow-sm p-8 space-y-6 profile-editable-section">
-                        <h2 class="text-2xl font-bold mb-6">Your Links & Contacts</h2>
-                        <form id="linksForm" class="space-y-6">
-                            <div id="linksContainer" class="space-y-4">
-                                {% if user_data.links %}
-                                {% for link in user_data.links %}
-                                <div
-                                    class="link-entry group p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-all duration-200">
-                                    <div class="flex items-start gap-4">
-                                        <div class="link-icon flex-shrink-0 mt-2">
-                                            {% if 'linkedin.com' in link.url %}
-                                            <svg class="h-8 w-8 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
-                                                <path
-                                                    d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.5867-2.777 7 2.476v6.759z" />
-                                            </svg>
-                                            {% elif 'github.com' in link.url %}
-                                            <svg class="h-8 w-8 text-gray-900" fill="currentColor" viewBox="0 0 24 24">
-                                                <path
-                                                    d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
-                                            </svg>
-                                            {% elif 'youtube.com' in link.url or 'youtu.be' in link.url %}
-                                            <svg class="h-8 w-8 text-red-600" fill="currentColor" viewBox="0 0 24 24">
-                                                <path
-                                                    d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z" />
-                                            </svg>
-                                            {% else %}
-                                            <svg class="h-8 w-8 text-gray-500" fill="none" viewBox="0 0 24 24"
-                                                stroke="currentColor">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                    d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                                            </svg>
-                                            {% endif %}
-                                        </div>
-                                        <div class="flex-grow space-y-3">
-                                            <input type="text" name="link_titles[]" placeholder="Link Title"
-                                                class="input input-bordered w-full bg-white focus:ring-2 focus:ring-black transition-all"
-                                                value="{{ link.title }}">
-                                            <input type="text" name="link_urls[]" placeholder="URL"
-                                                class="input input-bordered w-full bg-white focus:ring-2 focus:ring-black transition-all"
-                                                value="{{ link.url }}">
-                                        </div>
-                                        <div class="flex-shrink-0 flex items-start space-x-2">
-                                            <a href="{{ link.url }}" target="_blank"
-                                                class="btn btn-ghost btn-sm p-2 hover:bg-purple-50 text-purple-600 transition-colors rounded-lg">
-                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
-                                                    viewBox="0 0 24 24" stroke="currentColor">
+                                <h2 class="text-2xl font-bold mt-8 mb-4">Links & Contacts</h2>
+                                <div id="linksContainer" class="space-y-4">
+                                    {% if user_data.links %}
+                                    {% for link in user_data.links %}
+                                    <div
+                                        class="link-entry group p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-all duration-200">
+                                        <div class="flex items-start gap-4">
+                                            <div class="link-icon flex-shrink-0 mt-2">
+                                                {% if 'linkedin.com' in link.url %}
+                                                <svg class="h-8 w-8 text-blue-600" fill="currentColor"
+                                                    viewBox="0 0 24 24">
+                                                    <path
+                                                        d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.5867-2.777 7 2.476v6.759z" />
+                                                </svg>
+                                                {% elif 'github.com' in link.url %}
+                                                <svg class="h-8 w-8 text-gray-900" fill="currentColor"
+                                                    viewBox="0 0 24 24">
+                                                    <path
+                                                        d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
+                                                </svg>
+                                                {% elif 'youtube.com' in link.url or 'youtu.be' in link.url %}
+                                                <svg class="h-8 w-8 text-red-600" fill="currentColor"
+                                                    viewBox="0 0 24 24">
+                                                    <path
+                                                        d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z" />
+                                                </svg>
+                                                {% else %}
+                                                <svg class="h-8 w-8 text-gray-500" fill="none" viewBox="0 0 24 24"
+                                                    stroke="currentColor">
                                                     <path stroke-linecap="round" stroke-linejoin="round"
                                                         stroke-width="2"
-                                                        d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                                        d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
                                                 </svg>
-                                            </a>
-                                            <button type="button" onclick="removeLink(this)"
-                                                class="btn btn-ghost btn-sm p-2 hover:bg-red-50 text-red-500 transition-colors rounded-lg">
-                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
-                                                    viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path stroke-linecap="round" stroke-linejoin="round"
-                                                        stroke-width="2"
-                                                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                </svg>
-                                            </button>
+                                                {% endif %}
+                                            </div>
+                                            <div class="flex-grow space-y-3">
+                                                <input type="text" name="link_titles[]" placeholder="Link Title"
+                                                    class="input input-bordered w-full bg-white focus:ring-2 focus:ring-black transition-all"
+                                                    value="{{ link.title }}">
+                                                <input type="text" name="link_urls[]" placeholder="URL"
+                                                    class="input input-bordered w-full bg-white focus:ring-2 focus:ring-black transition-all"
+                                                    value="{{ link.url }}">
+                                            </div>
+                                            <div class="flex-shrink-0 flex items-start space-x-2">
+                                                <a href="{{ link.url }}" target="_blank"
+                                                    class="btn btn-ghost btn-sm p-2 hover:bg-purple-50 text-purple-600 transition-colors rounded-lg">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
+                                                        viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                                            stroke-width="2"
+                                                            d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                                    </svg>
+                                                </a>
+                                                <button type="button" onclick="removeLink(this)"
+                                                    class="btn btn-ghost btn-sm p-2 hover:bg-red-50 text-red-500 transition-colors rounded-lg">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
+                                                        viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                                            stroke-width="2"
+                                                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                    </svg>
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
+                                    {% endfor %}
+                                    {% endif %}
                                 </div>
-                                {% endfor %}
-                                {% endif %}
-                            </div>
-                            <div class="flex justify-end space-x-4">
                                 <button type="button" onclick="addLink()"
                                     class="btn btn-ghost text-purple-600 hover:bg-purple-50 transition-colors px-6">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none"
@@ -471,10 +520,6 @@
                                             d="M12 4v16m8-8H4" />
                                     </svg>
                                     Add Link
-                                </button>
-                                <button type="submit"
-                                    class="btn bg-black text-white hover:bg-gray-800 transition-colors px-6 transform hover:scale-[1.02] duration-200">
-                                    Save Changes
                                 </button>
                             </div>
                         </form>
@@ -558,14 +603,157 @@
                             <h3 class="mt-4 text-lg font-medium text-gray-900">No certificates yet</h3>
                             <p class="mt-2 text-sm text-gray-500">Add your first certificate to showcase your
                                 achievements</p>
-                            <button onclick="showUploadModal()"
-                                class="mt-6 btn bg-black hover:bg-gray-800 text-white transform hover:scale-[1.02] transition-all duration-200 profile-editable-section">
-                                Add Certificate
-                            </button>
+
                         </div>
                         {% endif %}
                     </div>
+                    <!-- Add this after the Certificates Section in profile.html -->
+                    <!-- Inside the div with class "lg:col-span-2 space-y-6" after the certificates div -->
 
+                    <!-- Projects Section -->
+                    <div class="bg-white rounded-xl shadow-sm p-6">
+                        <div class="flex justify-between items-center mb-6">
+                            <h2 class="text-2xl font-bold">Projects</h2>
+                            <button onclick="showCreateProjectModal()"
+                                class="btn bg-black hover:bg-gray-800 text-white transform hover:scale-[1.02] transition-all duration-200 profile-editable-section">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none"
+                                    viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M12 4v16m8-8H4" />
+                                </svg>
+                                Add Project
+                            </button>
+                        </div>
+
+                        {% if projects %}
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                            {% for project in projects %}
+                            <div
+                                class="group relative bg-white border border-gray-200 rounded-xl overflow-hidden hover:shadow-md transition-all duration-300">
+                                {% if project.images and project.images|length > 0 %}
+                                <div class="relative h-48">
+                                    <img src="{{ project.images[0] }}" alt="{{ project.title }}"
+                                        class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105">
+                                    <div
+                                        class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                    </div>
+
+                                    <!-- Add role badge -->
+                                    {% if project.role == 'collaborator' %}
+                                    <div
+                                        class="absolute top-2 right-2 px-2 py-1 bg-purple-500 text-white text-xs font-medium rounded-full">
+                                        Collaborator
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                {% else %}
+                                <div
+                                    class="h-48 flex items-center justify-center bg-gray-100 group-hover:bg-gray-200 transition-colors duration-300 relative">
+                                    <svg class="h-16 w-16 text-gray-400" fill="none" viewBox="0 0 24 24"
+                                        stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z" />
+                                    </svg>
+
+                                    <!-- Add role badge for collaborator -->
+                                    {% if project.role == 'collaborator' %}
+                                    <div
+                                        class="absolute top-2 right-2 px-2 py-1 bg-purple-500 text-white text-xs font-medium rounded-full">
+                                        Collaborator
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                {% endif %}
+
+                                <div class="p-6">
+                                    <div class="flex justify-between items-start mb-2">
+                                        <h3
+                                            class="text-lg font-semibold text-gray-900 group-hover:text-black transition-colors">
+                                            {{ project.title }}
+                                        </h3>
+                                        {% if project.github_url %}
+                                        <a href="{{ project.github_url }}" target="_blank"
+                                            class="text-gray-500 hover:text-gray-800">
+                                            <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
+                                                <path
+                                                    d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
+                                            </svg>
+                                        </a>
+                                        {% endif %}
+                                    </div>
+                                    <p class="text-sm text-gray-600 line-clamp-2 mb-3">{{ project.description }}</p>
+
+                                    {% if project.tags and project.tags|length > 0 %}
+                                    <div class="flex flex-wrap gap-2 mb-3">
+                                        {% for tag in project.tags %}
+                                        <span
+                                            class="px-2 py-1 text-xs font-medium bg-gray-100 text-gray-800 rounded-full">{{
+                                            tag }}</span>
+                                        {% endfor %}
+                                    </div>
+                                    {% endif %}
+
+                                    <!-- Show collaborators -->
+                                    {% if project.collaborators and project.collaborators|length > 0 %}
+                                    <div class="flex items-center gap-2 mb-3">
+                                        <span class="text-xs text-gray-500">With:</span>
+                                        <div class="flex -space-x-2">
+                                            {% for collaborator in project.collaborators %}
+                                            <div class="tooltip" data-tip="{{ collaborator.username }}">
+                                                <img src="{{ collaborator.avatar }}" alt="{{ collaborator.username }}"
+                                                    class="h-6 w-6 rounded-full ring-2 ring-white">
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                    {% endif %}
+
+                                    <div class="flex justify-between items-center mt-4">
+                                        <a href="{{ url_for('view_project', project_id=project.id) }}"
+                                            class="text-sm font-medium text-purple-600 hover:text-purple-800 transition-colors">
+                                            View Project
+                                        </a>
+                                        <div class="flex items-center space-x-2">
+                                            <!-- Only show edit/delete if user is creator -->
+                                            {% if project.role != 'collaborator' %}
+                                            <button onclick="editProject('{{ project.id }}')"
+                                                class="text-gray-500 hover:text-gray-700 profile-editable-section">
+                                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24"
+                                                    stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                        stroke-width="2"
+                                                        d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                                </svg>
+                                            </button>
+                                            <button onclick="deleteProject('{{ project.id }}')"
+                                                class="text-gray-500 hover:text-red-500 profile-editable-section">
+                                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24"
+                                                    stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                        stroke-width="2"
+                                                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                </svg>
+                                            </button>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="text-center py-12 bg-gray-50 rounded-xl">
+                            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z" />
+                            </svg>
+                            <h3 class="mt-4 text-lg font-medium text-gray-900">No projects yet</h3>
+                            <p class="mt-2 text-sm text-gray-500">Showcase your work by adding your first project</p>
+
+                        </div>
+                        {% endif %}
+                    </div>
                     <!-- Academic Portfolio -->
                     <div class="bg-white rounded-2xl shadow-sm p-8 profile-editable-section">
                         <h2 class="text-2xl font-bold mb-8">Academic Portfolio</h2>
@@ -626,7 +814,7 @@
                                             <option value="C2" {% if language.level=='C2' %}selected{% endif %}>C2 -
                                                 Mastery</option>
                                         </select>
-                                        <button type="button"
+                                        <button type="button" onclick="removeLanguage(this)"
                                             class="btn btn-ghost text-red-500 hover:bg-red-50 transition-colors">
                                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
                                                 viewBox="0 0 24 24" stroke="currentColor">
@@ -637,7 +825,7 @@
                                     </div>
                                     {% endfor %}
                                 </div>
-                                <button type="button" id="addLanguageBtn"
+                                <button type="button" id="addLanguageBtn" onclick="addLanguage()"
                                     class="btn bg-black hover:bg-gray-800 text-white transform hover:scale-[1.02] transition-all duration-200">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none"
                                         viewBox="0 0 24 24" stroke="currentColor">
@@ -665,7 +853,7 @@
                                                 <input type="date" name="achievement_date"
                                                     class="input input-bordered bg-white focus:ring-2 focus:ring-black transition-all"
                                                     value="{{ achievement.date }}">
-                                                <button type="button"
+                                                <button type="button" onclick="removeAchievement(this)"
                                                     class="btn btn-ghost text-red-500 hover:bg-red-50 transition-colors">
                                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
                                                         viewBox="0 0 24 24" stroke="currentColor">
@@ -679,7 +867,7 @@
                                     </div>
                                     {% endfor %}
                                 </div>
-                                <button type="button" id="addAchievementBtn"
+                                <button type="button" id="addAchievementBtn" onclick="addAchievement()"
                                     class="btn bg-black hover:bg-gray-800 text-white transform hover:scale-[1.02] transition-all duration-200">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none"
                                         viewBox="0 0 24 24" stroke="currentColor">
@@ -690,21 +878,106 @@
                                 </button>
                             </div>
 
-                            <button type="submit"
+                            <!-- Floating Save Button - Unified -->
+                            <button id="floatingSaveBtn"
                                 class="btn bg-black hover:bg-gray-800 text-white w-full transform hover:scale-[1.02] transition-all duration-200">
-                                Save Academic Portfolio
+                                <div class="save-btn-content">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
+                                        viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M5 13l4 4L19 7" />
+                                    </svg>
+                                    <span>Save All Changes</span>
+                                </div>
                             </button>
 
                         </form>
+
                     </div>
                 </div>
             </div>
         </div>
     </div>
+
 </div>
+
 
 <!-- Modals -->
 <!-- Upload Certificate Modal -->
+<!-- Add this section to your profile.html right before the </body> tag -->
+<!-- This will help you debug collaborator issues -->
+
+<div id="debugOutput"
+    class="fixed bottom-0 right-0 bg-black bg-opacity-80 text-white p-4 max-w-lg max-h-64 overflow-auto hidden">
+    <div class="flex justify-between items-center mb-2">
+        <h3 class="text-sm font-bold">Debug Information</h3>
+        <button onclick="document.getElementById('debugOutput').classList.add('hidden')" class="text-white">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+        </button>
+    </div>
+    <pre id="debugContent" class="text-xs whitespace-pre-wrap"></pre>
+</div>
+
+<script>
+    // Add this to your JavaScript code
+    function debugLog(message, data) {
+        const debug = document.getElementById('debugOutput');
+        const content = document.getElementById('debugContent');
+
+        if (!debug || !content) return;
+
+        let output = message + "\n";
+        if (data !== undefined) {
+            if (typeof data === 'object') {
+                output += JSON.stringify(data, null, 2);
+            } else {
+                output += data;
+            }
+        }
+
+        content.textContent = output;
+        debug.classList.remove('hidden');
+
+        console.log(message, data);
+    }
+
+    // Add debug logging to key functions
+    const originalAddCollaborator = addCollaborator;
+    addCollaborator = function (user) {
+        debugLog("Adding collaborator:", user);
+        originalAddCollaborator(user);
+    }
+
+    // Make a debug button for the collaborator section
+    function addDebugButton() {
+        const container = document.getElementById('collaboratorsContainer');
+        if (!container) return;
+
+        const debugButton = document.createElement('button');
+        debugButton.className = "text-xs text-gray-400 hover:text-gray-600 mt-2";
+        debugButton.textContent = "Debug Collaborators";
+        debugButton.onclick = function () {
+            debugLog("Current collaborators:", projectCollaborators);
+        }
+
+        container.appendChild(debugButton);
+    }
+
+    // Run after page load
+    document.addEventListener('DOMContentLoaded', function () {
+        // Add debug button when project modal is opened
+        const editProjectBtn = document.querySelector('button[onclick="showCreateProjectModal()"]');
+        if (editProjectBtn) {
+            const originalShowModal = showCreateProjectModal;
+            showCreateProjectModal = function () {
+                originalShowModal();
+                setTimeout(addDebugButton, 100);
+            }
+        }
+    });
+</script>
 <div id="uploadModal" class="modal">
     <div class="modal-box max-w-2xl p-8 relative">
         <h3 class="text-2xl font-bold mb-6">Upload Certificate</h3>
@@ -739,8 +1012,123 @@
             </div>
         </form>
     </div>
+
+</div>
+<!-- Add this at the end of the body in profile.html (before closing body tag) -->
+
+<!-- Project Create/Edit Modal -->
+<div id="projectModal" class="modal">
+    <div class="modal-box max-w-4xl p-8 relative">
+        <h3 id="projectModalTitle" class="text-2xl font-bold mb-6">Create New Project</h3>
+        <form id="projectForm" class="space-y-6">
+            <input type="hidden" id="projectId" name="project_id" value="">
+
+            <!-- Basic Information -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="form-control md:col-span-2">
+                    <label class="label font-bold text-gray-700">Project Title*</label>
+                    <input type="text" id="projectTitle" name="title" required
+                        class="input input-bordered bg-gray-50 w-full focus:ring-2 focus:ring-black transition-all">
+                </div>
+
+                <div class="form-control md:col-span-2">
+                    <label class="label font-bold text-gray-700">Description*</label>
+                    <textarea id="projectDescription" name="description" required
+                        class="textarea textarea-bordered bg-gray-50 w-full min-h-[120px] focus:ring-2 focus:ring-black transition-all"
+                        placeholder="Describe your project..."></textarea>
+                </div>
+
+                <div class="form-control">
+                    <label class="label font-bold text-gray-700">GitHub URL</label>
+                    <input type="url" id="projectGithub" name="github_url"
+                        class="input input-bordered bg-gray-50 w-full focus:ring-2 focus:ring-black transition-all"
+                        placeholder="https://github.com/yourusername/repository">
+                </div>
+
+                <div class="form-control">
+                    <label class="label font-bold text-gray-700">Project URL</label>
+                    <input type="url" id="projectUrl" name="project_url"
+                        class="input input-bordered bg-gray-50 w-full focus:ring-2 focus:ring-black transition-all"
+                        placeholder="https://yourproject.com">
+                </div>
+            </div>
+
+            <!-- Project Tags -->
+            <div class="form-control">
+                <label class="label font-bold text-gray-700">Tags</label>
+                <div class="flex flex-wrap gap-2" id="tagsContainer">
+                    <!-- Tags will be added here -->
+                </div>
+                <div class="flex mt-2">
+                    <input type="text" id="tagInput" placeholder="Add a tag..."
+                        class="input input-bordered bg-gray-50 flex-grow focus:ring-2 focus:ring-black transition-all">
+                    <button type="button" onclick="addTag()"
+                        class="ml-2 px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors">
+                        Add
+                    </button>
+                </div>
+            </div>
+
+            <!-- Project Images -->
+            <div class="form-control">
+                <label class="label font-bold text-gray-700">Project Images</label>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-2" id="imagesContainer">
+                    <!-- Image previews will be added here -->
+                </div>
+                <div class="relative mt-2">
+                    <input type="file" id="projectImages" multiple accept="image/*"
+                        class="file-input file-input-bordered w-full bg-gray-50 focus:ring-2 focus:ring-black transition-all"
+                        onchange="previewProjectImages(this)">
+                </div>
+            </div>
+
+            <!-- Collaborators Section -->
+            <div class="form-control">
+                <label class="label font-bold text-gray-700">Collaborators</label>
+                <div class="space-y-4" id="collaboratorsContainer">
+                    <!-- Collaborators will be added here -->
+                </div>
+                <div class="flex mt-2">
+                    <input type="text" id="collaboratorInput" placeholder="Search username..."
+                        class="input input-bordered bg-gray-50 flex-grow focus:ring-2 focus:ring-black transition-all">
+                    <button type="button" onclick="searchUsers()"
+                        class="ml-2 px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors">
+                        Search
+                    </button>
+                </div>
+                <!-- Search results will appear here -->
+                <div id="userSearchResults"
+                    class="mt-2 bg-white border border-gray-200 rounded-lg max-h-40 overflow-y-auto hidden">
+                    <!-- User search results will appear here -->
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-4 mt-8">
+                <button type="button" onclick="closeProjectModal()"
+                    class="btn btn-ghost hover:bg-gray-100 transition-colors">
+                    Cancel
+                </button>
+                <button type="submit"
+                    class="btn bg-black hover:bg-gray-800 text-white transform hover:scale-[1.02] transition-all duration-200">
+                    Save Project
+                </button>
+            </div>
+        </form>
+    </div>
 </div>
 
+<!-- Delete Project Confirmation Modal -->
+<div id="deleteProjectModal" class="modal">
+    <div class="modal-box p-6">
+        <h3 class="font-bold text-lg mb-4">Confirm Deletion</h3>
+        <p>Are you sure you want to delete this project? This action cannot be undone.</p>
+        <input type="hidden" id="projectToDelete" value="">
+        <div class="modal-action mt-6">
+            <button class="btn btn-ghost" onclick="closeDeleteProjectModal()">Cancel</button>
+            <button id="confirmDeleteProjectBtn" class="btn bg-red-500 hover:bg-red-600 text-white">Delete</button>
+        </div>
+    </div>
+</div>
 <!-- Skills Editor Modal -->
 <div id="skillsModal" class="modal">
     <div class="modal-box max-w-2xl p-8">
@@ -769,18 +1157,36 @@
     </div>
 </div>
 
+<!-- Delete Certificate Confirmation Modal -->
+<div id="deleteCertificateModal" class="modal">
+    <div class="modal-box p-6">
+        <h3 class="font-bold text-lg mb-4">Confirm Deletion</h3>
+        <p>Are you sure you want to delete this certificate? This action cannot be undone.</p>
+        <input type="hidden" id="certificateToDelete" value="">
+        <div class="modal-action mt-6">
+            <button class="btn btn-ghost" onclick="closeDeleteCertificateModal()">Cancel</button>
+            <button id="confirmDeleteBtn" class="btn bg-red-500 hover:bg-red-600 text-white">Delete</button>
+        </div>
+    </div>
+</div>
+
 <!-- Add the toggle edit mode script -->
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         // Set default state - hide editable sections
         const editableSections = document.querySelectorAll('.profile-editable-section');
         const displaySections = document.querySelectorAll('.profile-display-section');
+        const headerContainer = document.getElementById('headerContainer');
+        const floatingSaveBtn = document.getElementById('floatingSaveBtn');
         let isEditMode = false;
 
-        // Hide editable sections by default
+        // Hide editable sections and floating save button by default
         editableSections.forEach(section => {
             section.style.display = 'none';
         });
+        if (floatingSaveBtn) {
+            floatingSaveBtn.style.display = 'none';
+        }
 
         // Show display sections by default
         displaySections.forEach(section => {
@@ -804,6 +1210,14 @@
                         section.style.display = 'none';
                     });
 
+                    // Show header container and floating save button
+                    if (headerContainer) {
+                        headerContainer.style.display = 'block';
+                    }
+                    if (floatingSaveBtn) {
+                        floatingSaveBtn.style.display = 'flex';
+                    }
+
                     // Update button text
                     editBtn.textContent = 'Cancel Editing';
                     editBtn.classList.add('bg-gray-600');
@@ -819,10 +1233,620 @@
                         section.style.display = 'block';
                     });
 
+                    // Hide header container and floating save button
+                    if (headerContainer) {
+                        headerContainer.style.display = 'none';
+                    }
+                    if (floatingSaveBtn) {
+                        floatingSaveBtn.style.display = 'none';
+                    }
+
                     // Update button text
                     editBtn.textContent = 'Edit Profile';
                     editBtn.classList.remove('bg-gray-600');
                     editBtn.classList.add('bg-black');
+                }
+            });
+        }
+
+        // Setup the unified save button
+        if (floatingSaveBtn) {
+            floatingSaveBtn.addEventListener('click', async function () {
+                try {
+                    // Show loading state
+                    this.disabled = true;
+                    this.innerHTML = `
+                        <div class="save-btn-content">
+                            <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <span>Saving...</span>
+                        </div>
+                    `;
+
+                    // Save profile information
+                    const profileForm = document.getElementById('profileForm');
+                    const profileFormData = new FormData(profileForm);
+
+                    // Save links
+                    const linkTitles = Array.from(document.querySelectorAll('input[name="link_titles[]"]')).map(input => input.value.trim());
+                    const linkUrls = Array.from(document.querySelectorAll('input[name="link_urls[]"]')).map(input => input.value.trim());
+                    const links = linkTitles.map((title, index) => ({
+                        title: title,
+                        url: linkUrls[index]
+                    })).filter(link => link.title && link.url);
+
+                    profileFormData.append('links', JSON.stringify(links));
+
+                    // Save academic portfolio
+                    const academicPortfolioForm = document.getElementById('academicPortfolioForm');
+                    const academicData = {
+                        gpa: academicPortfolioForm.querySelector('input[name="gpa"]').value,
+                        sat_score: academicPortfolioForm.querySelector('input[name="sat_score"]').value,
+                        toefl_score: academicPortfolioForm.querySelector('input[name="toefl_score"]').value,
+                        ielts_score: academicPortfolioForm.querySelector('input[name="ielts_score"]').value,
+                        languages: collectLanguages(),
+                        achievements: collectAchievements()
+                    };
+
+                    // Save everything with a single request
+                    const profileResponse = await fetch('{{ url_for("profile") }}', {
+                        method: 'POST',
+                        body: profileFormData,
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    });
+
+                    const academicResponse = await fetch('/update_academic_portfolio', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify(academicData)
+                    });
+
+                    // Check if all saves were successful
+                    const profileResult = await profileResponse.json();
+                    const academicResult = await academicResponse.json();
+
+                    if (profileResult.success && academicResult.success) {
+                        showNotification('All changes saved successfully');
+
+                        // Reset button state
+                        this.disabled = false;
+                        this.innerHTML = `
+                            <div class="save-btn-content">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                </svg>
+                                <span>Save All Changes</span>
+                            </div>
+                        `;
+
+                        // Exit edit mode
+                        if (editBtn) {
+                            editBtn.click();
+                        }
+
+                        // Reload the page to show updated information
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 1000);
+                    } else {
+                        throw new Error('Error saving changes');
+                    }
+                } catch (error) {
+                    console.error('Error saving changes:', error);
+                    showNotification('Error saving changes. Please try again.', 'error');
+
+                    // Reset button state
+                    this.disabled = false;
+                    this.innerHTML = `
+                        <div class="save-btn-content">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                            </svg>
+                            <span>Save All Changes</span>
+                        </div>
+                    `;
+                }
+            });
+        }
+
+        // Helper functions
+        function collectLanguages() {
+            const languages = [];
+            const containers = document.querySelectorAll('#languagesContainer > div');
+
+            containers.forEach(container => {
+                const nameInput = container.querySelector('input[name="language_name"]');
+                const levelSelect = container.querySelector('select[name="language_level"]');
+
+                if (nameInput && nameInput.value.trim()) {
+                    languages.push({
+                        name: nameInput.value.trim(),
+                        level: levelSelect ? levelSelect.value : 'A1'
+                    });
+                }
+            });
+
+            return languages;
+        }
+
+        function collectAchievements() {
+            const achievements = [];
+            const containers = document.querySelectorAll('#achievementsContainer > div');
+
+            containers.forEach(container => {
+                const titleInput = container.querySelector('input[name="achievement_title"]');
+                const descTextarea = container.querySelector('textarea[name="achievement_description"]');
+                const dateInput = container.querySelector('input[name="achievement_date"]');
+
+                if (titleInput && titleInput.value.trim()) {
+                    achievements.push({
+                        title: titleInput.value.trim(),
+                        description: descTextarea ? descTextarea.value : '',
+                        date: dateInput ? dateInput.value : ''
+                    });
+                }
+            });
+
+            return achievements;
+        }
+
+        // Notification function
+        window.showNotification = function (message, type = 'success') {
+            const notification = document.createElement('div');
+            notification.className = `toast-notification ${type}`;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+
+            setTimeout(() => {
+                notification.classList.add('show');
+            }, 10);
+
+            setTimeout(() => {
+                notification.classList.remove('show');
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+        };
+    });
+</script>
+
+<!-- Helper Functions for Profile Management -->
+<script>
+    // Function to preview profile image
+    function previewImage(input) {
+        const preview = document.getElementById('avatarPreview');
+        const file = input.files[0];
+        const reader = new FileReader();
+
+        reader.onloadend = function () {
+            preview.src = reader.result;
+        }
+
+        if (file) {
+            reader.readAsDataURL(file);
+        } else {
+            preview.src = "{{ avatar_url }}";
+        }
+    }
+
+    // Function to copy profile link
+    function copyProfileLink() {
+        const profileLink = `{{ request.host_url }}{{ user_data.username }}`;
+        navigator.clipboard.writeText(profileLink).then(() => {
+            showNotification('Profile link copied to clipboard!');
+        }).catch(err => {
+            showNotification('Failed to copy link', 'error');
+        });
+    }
+
+    // Functions for header management
+    function handleHeaderUpload(input) {
+        if (!input.files || !input.files[0]) return;
+
+        const file = input.files[0];
+
+        // Check file size and type
+        if (file.size > 5 * 1024 * 1024) {
+            showNotification('File must be less than 5MB', 'error');
+            return;
+        }
+
+        if (!file.type.startsWith('image/')) {
+            showNotification('Only images can be uploaded', 'error');
+            return;
+        }
+
+        // Create FormData and update the header
+        const formData = new FormData();
+        formData.append('header_image', file);
+        formData.append('position', '50% 50%'); // Default position
+
+        fetch('/update_header', {
+            method: 'POST',
+            body: formData
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update header image
+                    const headerImage = document.getElementById('headerImage');
+                    headerImage.src = data.header.url;
+                    headerImage.style.objectPosition = data.header.position;
+
+                    showNotification('Header updated successfully');
+                } else {
+                    throw new Error(data.error || 'Failed to update header');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showNotification('Failed to update header image', 'error');
+            });
+    }
+
+    // Functions for certificate management
+    function showUploadModal() {
+        const modal = document.getElementById('uploadModal');
+        if (modal) {
+            modal.classList.add('modal-open');
+        }
+    }
+
+    function closeUploadModal() {
+        const modal = document.getElementById('uploadModal');
+        if (modal) {
+            modal.classList.remove('modal-open');
+        }
+        document.getElementById('certificateForm').reset();
+        document.getElementById('previewContainer').classList.add('hidden');
+    }
+
+    function previewCertificate(input) {
+        const previewContainer = document.getElementById('previewContainer');
+        const imagePreview = document.getElementById('imagePreview');
+
+        if (input.files && input.files[0]) {
+            const file = input.files[0];
+            if (file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    imagePreview.src = e.target.result;
+                    previewContainer.classList.remove('hidden');
+                }
+                reader.readAsDataURL(file);
+            } else {
+                previewContainer.classList.add('hidden');
+            }
+        }
+    }
+
+    function deleteCertificate(certId) {
+        document.getElementById('certificateToDelete').value = certId;
+        const modal = document.getElementById('deleteCertificateModal');
+        if (modal) {
+            modal.classList.add('modal-open');
+        }
+    }
+
+    function closeDeleteCertificateModal() {
+        const modal = document.getElementById('deleteCertificateModal');
+        if (modal) {
+            modal.classList.remove('modal-open');
+        }
+    }
+
+    function performCertificateDelete(certId) {
+        fetch(`/delete-certificate/${certId}`, {
+            method: 'DELETE',
+        })
+            .then(response => {
+                if (response.ok) {
+                    showNotification('Certificate deleted successfully');
+                    window.location.reload();
+                } else {
+                    throw new Error('Failed to delete certificate');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showNotification('Error deleting certificate', 'error');
+            });
+    }
+
+    // Functions for skills management
+    let currentSkills = {{ user_data.skills | tojson | safe if user_data.skills else '[]' }};
+
+    function showSkillsEditor() {
+        const modal = document.getElementById('skillsModal');
+        const skillsList = document.getElementById('skillsList');
+        if (!modal || !skillsList) return;
+
+        skillsList.innerHTML = '';
+        currentSkills.forEach(skill => addSkillInput(skill));
+        modal.classList.add('modal-open');
+    }
+
+    function closeSkillsModal(e) {
+        if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        const modal = document.getElementById('skillsModal');
+        if (modal) {
+            modal.classList.remove('modal-open');
+        }
+    }
+
+    function addSkillInput(value = '') {
+        const skillsList = document.getElementById('skillsList');
+        if (!skillsList) return;
+
+        const skillDiv = document.createElement('div');
+        skillDiv.className = 'flex items-center gap-2 mb-2';
+
+        const input = document.createElement('input');
+        input.className = 'input input-bordered flex-1';
+        input.type = 'text';
+        input.placeholder = 'Enter skill (e.g., Python, C++)';
+        input.maxLength = 20;
+        if (value) {
+            input.value = value;
+        }
+
+        const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.className = 'btn btn-ghost btn-sm text-red-500 hover:bg-red-50';
+        removeBtn.textContent = 'Remove';
+        removeBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            skillDiv.remove();
+        });
+
+        skillDiv.appendChild(input);
+        skillDiv.appendChild(removeBtn);
+        skillsList.appendChild(skillDiv);
+
+        input.focus();
+    }
+
+    function addNewSkill(e) {
+        if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        addSkillInput();
+    }
+
+    async function saveSkills(e) {
+        if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        const inputs = document.querySelectorAll('#skillsList input');
+        const skills = Array.from(inputs)
+            .map(input => input.value.trim())
+            .filter(skill => skill !== '');
+
+        try {
+            const response = await fetch('/update-skills', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ skills })
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                currentSkills = skills;
+                updateSkillsDisplay();
+                closeSkillsModal();
+                showNotification('Skills updated successfully');
+
+                // Update the sidebar if it's visible
+                if (typeof isRecommendationsSidebarVisible === 'function' &&
+                    isRecommendationsSidebarVisible()) {
+                    const profileData = typeof collectProfileData === 'function' ?
+                        collectProfileData() : { personal: { skills: skills } };
+                    typeof updateRecommendationSidebar === 'function' &&
+                        updateRecommendationSidebar(profileData);
+                }
+            } else {
+                throw new Error(data.error);
+            }
+        } catch (error) {
+            showNotification('Failed to update skills', 'error');
+            console.error('Error:', error);
+        }
+    }
+
+    function updateSkillsDisplay() {
+        const container = document.getElementById('skillsContainer');
+        if (!container) return;
+
+        container.innerHTML = currentSkills.map(skill => `
+            <span class="px-3 py-1 text-sm font-medium bg-purple-50 text-purple-700 rounded-full">
+                ${skill}
+            </span>
+        `).join('');
+    }
+
+    // Functions for links management
+    function addLink() {
+        const linksContainer = document.getElementById('linksContainer');
+        if (!linksContainer) return;
+
+        const linkEntry = document.createElement('div');
+        linkEntry.className = 'link-entry group p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-all duration-200';
+        linkEntry.innerHTML = `
+            <div class="flex items-start gap-4">
+                <div class="link-icon flex-shrink-0 mt-2">
+                    <svg class="h-8 w-8 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                    </svg>
+                </div>
+                <div class="flex-grow space-y-3">
+                    <input type="text" name="link_titles[]" placeholder="Link Title"
+                        class="input input-bordered w-full bg-white focus:ring-2 focus:ring-black transition-all">
+                    <input type="text" name="link_urls[]" placeholder="URL"
+                        class="input input-bordered w-full bg-white focus:ring-2 focus:ring-black transition-all">
+                </div>
+                <div class="flex-shrink-0 flex items-start space-x-2">
+                    <button type="button" onclick="removeLink(this)"
+                        class="btn btn-ghost btn-sm p-2 hover:bg-red-50 text-red-500 transition-colors rounded-lg">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
+                            viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        `;
+
+        linksContainer.appendChild(linkEntry);
+    }
+
+    function removeLink(button) {
+        const linkEntry = button.closest('.link-entry');
+        if (linkEntry) {
+            linkEntry.remove();
+        }
+    }
+
+    // Functions for academic portfolio
+    function addLanguage() {
+        const languagesContainer = document.getElementById('languagesContainer');
+        if (!languagesContainer) return;
+
+        const languageRow = document.createElement('div');
+        languageRow.className = 'flex gap-4 p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-all duration-200';
+        languageRow.innerHTML = `
+            <input type="text" name="language_name" placeholder="Language"
+                class="input input-bordered flex-1 bg-white focus:ring-2 focus:ring-black transition-all">
+            <select name="language_level"
+                class="select select-bordered bg-white focus:ring-2 focus:ring-black transition-all">
+                <option value="A1">A1 - Beginner</option>
+                <option value="A2">A2 - Elementary</option>
+                <option value="B1">B1 - Intermediate</option>
+                <option value="B2">B2 - Upper Intermediate</option>
+                <option value="C1">C1 - Advanced</option>
+                <option value="C2">C2 - Mastery</option>
+            </select>
+            <button type="button" onclick="removeLanguage(this)"
+                class="btn btn-ghost text-red-500 hover:bg-red-50 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
+                    viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+            </button>
+        `;
+
+        languagesContainer.appendChild(languageRow);
+    }
+
+    function removeLanguage(button) {
+        const languageRow = button.closest('div');
+        if (languageRow) {
+            languageRow.remove();
+        }
+    }
+
+    function addAchievement() {
+        const achievementsContainer = document.getElementById('achievementsContainer');
+        if (!achievementsContainer) return;
+
+        const achievementRow = document.createElement('div');
+        achievementRow.className = 'p-6 bg-gray-50 rounded-xl hover:bg-gray-100 transition-all duration-200';
+        achievementRow.innerHTML = `
+            <div class="space-y-4">
+                <input type="text" name="achievement_title" placeholder="Achievement Title"
+                    class="input input-bordered w-full bg-white focus:ring-2 focus:ring-black transition-all">
+                <textarea name="achievement_description" placeholder="Description"
+                    class="textarea textarea-bordered w-full bg-white focus:ring-2 focus:ring-black transition-all min-h-[100px]"></textarea>
+                <div class="flex items-center justify-between">
+                    <input type="date" name="achievement_date"
+                        class="input input-bordered bg-white focus:ring-2 focus:ring-black transition-all">
+                    <button type="button" onclick="removeAchievement(this)"
+                        class="btn btn-ghost text-red-500 hover:bg-red-50 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
+                            viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        `;
+
+        achievementsContainer.appendChild(achievementRow);
+    }
+
+    function removeAchievement(button) {
+        const achievementRow = button.closest('.p-6');
+        if (achievementRow) {
+            achievementRow.remove();
+        }
+    }
+
+    // Initialize event listeners
+    document.addEventListener('DOMContentLoaded', function () {
+        // Setup certificate form submission
+        const certificateForm = document.getElementById('certificateForm');
+        if (certificateForm) {
+            certificateForm.addEventListener('submit', function (e) {
+                e.preventDefault();
+
+                const formData = new FormData();
+                const title = document.getElementById('certTitle').value;
+                const fileInput = this.querySelector('input[type="file"]');
+
+                if (!fileInput || !fileInput.files || !fileInput.files[0]) {
+                    showNotification('Please select a file', 'error');
+                    return;
+                }
+
+                formData.append('title', title);
+                formData.append('certificate', fileInput.files[0]);
+
+                fetch(window.location.href, {
+                    method: 'POST',
+                    body: formData,
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            showNotification('Certificate uploaded successfully');
+                            closeUploadModal();
+                            window.location.reload();
+                        } else {
+                            throw new Error(data.error || 'Upload failed');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Upload error:', error);
+                        showNotification('Failed to upload certificate', 'error');
+                    });
+            });
+        }
+
+        // Setup confirmation button in delete certificate modal
+        const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+        if (confirmDeleteBtn) {
+            confirmDeleteBtn.addEventListener('click', function () {
+                const certId = document.getElementById('certificateToDelete').value;
+                if (certId) {
+                    performCertificateDelete(certId);
+                    closeDeleteCertificateModal();
                 }
             });
         }
@@ -4128,6 +5152,1035 @@
         document.head.appendChild(style);
     });
 </script>
+<script>// Function to delete a certificate (should be defined globally)
+    function deleteCertificate(certId) {
+        if (confirm('Are you sure you want to delete this certificate?')) {
+            fetch(`/delete-certificate/${certId}`, {
+                method: 'DELETE',
+            })
+                .then(response => {
+                    if (response.ok) {
+                        showNotification('Certificate deleted successfully');
+                        window.location.reload();
+                    } else {
+                        throw new Error('Failed to delete certificate');
+                    }
+                })
+                .catch(error => {
+                    showNotification('Error deleting certificate', 'error');
+                    console.error('Error:', error);
+                });
+        }
+    }
 
+    // Function to remove a link (should be defined globally)
+    function removeLink(button) {
+        const linkEntry = button.closest('.link-entry');
+        if (linkEntry) {
+            linkEntry.remove();
+        }
+    }
+
+    // Function to add a new link (should be defined globally)
+    function addLink() {
+        const linksContainer = document.getElementById('linksContainer');
+        if (!linksContainer) return;
+
+        const linkEntry = document.createElement('div');
+        linkEntry.className = 'link-entry group p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-all duration-200';
+        linkEntry.innerHTML = `
+            <div class="flex items-start gap-4">
+                <div class="link-icon flex-shrink-0 mt-2">
+                    <svg class="h-8 w-8 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                    </svg>
+                </div>
+                <div class="flex-grow space-y-3">
+                    <input type="text" name="link_titles[]" placeholder="Link Title"
+                        class="input input-bordered w-full bg-white focus:ring-2 focus:ring-black transition-all">
+                    <input type="text" name="link_urls[]" placeholder="URL"
+                        class="input input-bordered w-full bg-white focus:ring-2 focus:ring-black transition-all">
+                </div>
+                <div class="flex-shrink-0 flex items-start space-x-2">
+                    <button type="button" onclick="removeLink(this)"
+                        class="btn btn-ghost btn-sm p-2 hover:bg-red-50 text-red-500 transition-colors rounded-lg">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
+                            viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        `;
+
+        linksContainer.appendChild(linkEntry);
+    }
+
+    // Function to add a new language field
+    function addLanguage() {
+        const languagesContainer = document.getElementById('languagesContainer');
+        if (!languagesContainer) return;
+
+        const languageRow = document.createElement('div');
+        languageRow.className = 'flex gap-4 p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-all duration-200';
+        languageRow.innerHTML = `
+            <input type="text" name="language_name" placeholder="Language"
+                class="input input-bordered flex-1 bg-white focus:ring-2 focus:ring-black transition-all">
+            <select name="language_level"
+                class="select select-bordered bg-white focus:ring-2 focus:ring-black transition-all">
+                <option value="A1">A1 - Beginner</option>
+                <option value="A2">A2 - Elementary</option>
+                <option value="B1">B1 - Intermediate</option>
+                <option value="B2">B2 - Upper Intermediate</option>
+                <option value="C1">C1 - Advanced</option>
+                <option value="C2">C2 - Mastery</option>
+            </select>
+            <button type="button" onclick="removeLanguage(this)"
+                class="btn btn-ghost text-red-500 hover:bg-red-50 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
+                    viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+            </button>
+        `;
+
+        languagesContainer.appendChild(languageRow);
+    }
+
+    // Function to remove a language field
+    function removeLanguage(button) {
+        const languageRow = button.closest('div');
+        if (languageRow) {
+            languageRow.remove();
+        }
+    }
+
+    // Function to add a new achievement
+    function addAchievement() {
+        const achievementsContainer = document.getElementById('achievementsContainer');
+        if (!achievementsContainer) return;
+
+        const achievementRow = document.createElement('div');
+        achievementRow.className = 'p-6 bg-gray-50 rounded-xl hover:bg-gray-100 transition-all duration-200';
+        achievementRow.innerHTML = `
+            <div class="space-y-4">
+                <input type="text" name="achievement_title" placeholder="Achievement Title"
+                    class="input input-bordered w-full bg-white focus:ring-2 focus:ring-black transition-all">
+                <textarea name="achievement_description" placeholder="Description"
+                    class="textarea textarea-bordered w-full bg-white focus:ring-2 focus:ring-black transition-all min-h-[100px]"></textarea>
+                <div class="flex items-center justify-between">
+                    <input type="date" name="achievement_date"
+                        class="input input-bordered bg-white focus:ring-2 focus:ring-black transition-all">
+                    <button type="button" onclick="removeAchievement(this)"
+                        class="btn btn-ghost text-red-500 hover:bg-red-50 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
+                            viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        `;
+
+        achievementsContainer.appendChild(achievementRow);
+    }
+
+    // Function to remove an achievement
+    function removeAchievement(button) {
+        const achievementRow = button.closest('div.p-6');
+        if (achievementRow) {
+            achievementRow.remove();
+        }
+    }
+
+    // Helper function to show notifications
+    function showNotification(message, type = 'success') {
+        const notification = document.createElement('div');
+        notification.className = `fixed top-4 right-4 z-50 px-4 py-2 rounded-lg ${type === 'success' ? 'bg-black text-white' : 'bg-red-500 text-white'} transition-opacity duration-300`;
+        notification.textContent = message;
+        document.body.appendChild(notification);
+
+        setTimeout(() => {
+            notification.style.opacity = '0';
+            setTimeout(() => notification.remove(), 300);
+        }, 3000);
+    }
+
+    // Wait for DOM to be fully loaded
+    document.addEventListener('DOMContentLoaded', function () {
+        // Add event listener for the "Add Language" button
+        const addLanguageBtn = document.getElementById('addLanguageBtn');
+        if (addLanguageBtn) {
+            addLanguageBtn.removeAttribute('onclick');
+            addLanguageBtn.addEventListener('click', addLanguage);
+        }
+
+        // Add event listener for the "Add Achievement" button
+        const addAchievementBtn = document.getElementById('addAchievementBtn');
+        if (addAchievementBtn) {
+            addAchievementBtn.removeAttribute('onclick');
+            addAchievementBtn.addEventListener('click', addAchievement);
+        }
+
+        // Fix existing language and achievement buttons
+        document.querySelectorAll('#languagesContainer button').forEach(button => {
+            button.addEventListener('click', function () {
+                removeLanguage(this);
+            });
+        });
+
+        document.querySelectorAll('#achievementsContainer button').forEach(button => {
+            button.addEventListener('click', function () {
+                removeAchievement(this);
+            });
+        });
+    });
+
+
+    // Add these functions at the top of your script file or in a separate <script> tag
+
+    // Fix 1: Properly handle certificate deletion with confirmation dialog
+    function deleteCertificate(certId) {
+        // Store the certificate ID 
+        document.getElementById('certificateToDelete').value = certId;
+
+        // Show the modal
+        const modal = document.getElementById('deleteCertificateModal');
+        if (modal) {
+            modal.classList.add('modal-open');
+        } else {
+            // Fallback to confirm if modal doesn't exist
+            if (confirm('Are you sure you want to delete this certificate?')) {
+                performCertificateDelete(certId);
+            }
+        }
+    }
+
+    function closeDeleteCertificateModal() {
+        const modal = document.getElementById('deleteCertificateModal');
+        if (modal) {
+            modal.classList.remove('modal-open');
+        }
+    }
+
+    function performCertificateDelete(certId) {
+        fetch(`/delete-certificate/${certId}`, {
+            method: 'DELETE',
+        })
+            .then(response => {
+                if (response.ok) {
+                    showNotification('Certificate deleted successfully');
+                    window.location.reload();
+                } else {
+                    throw new Error('Failed to delete certificate');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showNotification('Error deleting certificate', 'error');
+            });
+    }
+
+    // Fix 2: Functions for link management
+    function addLink() {
+        const linksContainer = document.getElementById('linksContainer');
+        if (!linksContainer) return;
+
+        const linkEntry = document.createElement('div');
+        linkEntry.className = 'link-entry group p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-all duration-200';
+        linkEntry.innerHTML = `
+        <div class="flex items-start gap-4">
+            <div class="link-icon flex-shrink-0 mt-2">
+                <svg class="h-8 w-8 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                </svg>
+            </div>
+            <div class="flex-grow space-y-3">
+                <input type="text" name="link_titles[]" placeholder="Link Title"
+                    class="input input-bordered w-full bg-white focus:ring-2 focus:ring-black transition-all">
+                <input type="text" name="link_urls[]" placeholder="URL"
+                    class="input input-bordered w-full bg-white focus:ring-2 focus:ring-black transition-all">
+            </div>
+            <div class="flex-shrink-0 flex items-start space-x-2">
+                <button type="button" onclick="removeLink(this)"
+                    class="btn btn-ghost btn-sm p-2 hover:bg-red-50 text-red-500 transition-colors rounded-lg">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
+                        viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+    `;
+
+        linksContainer.appendChild(linkEntry);
+    }
+
+    function removeLink(button) {
+        const linkEntry = button.closest('.link-entry');
+        if (linkEntry) {
+            linkEntry.remove();
+        }
+    }
+
+    // Fix 3: Academic portfolio management functions
+    function addLanguage() {
+        const languagesContainer = document.getElementById('languagesContainer');
+        if (!languagesContainer) return;
+
+        const languageRow = document.createElement('div');
+        languageRow.className = 'flex gap-4 p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-all duration-200';
+        languageRow.innerHTML = `
+        <input type="text" name="language_name" placeholder="Language"
+            class="input input-bordered flex-1 bg-white focus:ring-2 focus:ring-black transition-all">
+        <select name="language_level"
+            class="select select-bordered bg-white focus:ring-2 focus:ring-black transition-all">
+            <option value="A1">A1 - Beginner</option>
+            <option value="A2">A2 - Elementary</option>
+            <option value="B1">B1 - Intermediate</option>
+            <option value="B2">B2 - Upper Intermediate</option>
+            <option value="C1">C1 - Advanced</option>
+            <option value="C2">C2 - Mastery</option>
+        </select>
+        <button type="button" onclick="removeLanguage(this)"
+            class="btn btn-ghost text-red-500 hover:bg-red-50 transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
+                viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+        </button>
+    `;
+
+        languagesContainer.appendChild(languageRow);
+    }
+
+    function removeLanguage(button) {
+        const languageRow = button.closest('div');
+        if (languageRow) {
+            languageRow.remove();
+        }
+    }
+
+    function addAchievement() {
+        const achievementsContainer = document.getElementById('achievementsContainer');
+        if (!achievementsContainer) return;
+
+        const achievementRow = document.createElement('div');
+        achievementRow.className = 'p-6 bg-gray-50 rounded-xl hover:bg-gray-100 transition-all duration-200';
+        achievementRow.innerHTML = `
+        <div class="space-y-4">
+            <input type="text" name="achievement_title" placeholder="Achievement Title"
+                class="input input-bordered w-full bg-white focus:ring-2 focus:ring-black transition-all">
+            <textarea name="achievement_description" placeholder="Description"
+                class="textarea textarea-bordered w-full bg-white focus:ring-2 focus:ring-black transition-all min-h-[100px]"></textarea>
+            <div class="flex items-center justify-between">
+                <input type="date" name="achievement_date"
+                    class="input input-bordered bg-white focus:ring-2 focus:ring-black transition-all">
+                <button type="button" onclick="removeAchievement(this)"
+                    class="btn btn-ghost text-red-500 hover:bg-red-50 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
+                        viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+    `;
+
+        achievementsContainer.appendChild(achievementRow);
+    }
+
+    function removeAchievement(button) {
+        const achievementRow = button.closest('.p-6');
+        if (achievementRow) {
+            achievementRow.remove();
+        }
+    }
+
+    // Fix 4: Certificate upload function
+    function showUploadModal() {
+        const modal = document.getElementById('uploadModal');
+        if (modal) {
+            modal.classList.add('modal-open');
+        }
+    }
+
+    function closeUploadModal() {
+        const modal = document.getElementById('uploadModal');
+        if (modal) {
+            modal.classList.remove('modal-open');
+            const form = document.getElementById('certificateForm');
+            if (form) form.reset();
+            const previewContainer = document.getElementById('previewContainer');
+            if (previewContainer) previewContainer.classList.add('hidden');
+        }
+    }
+
+    function previewCertificate(input) {
+        const previewContainer = document.getElementById('previewContainer');
+        const imagePreview = document.getElementById('imagePreview');
+
+        if (!previewContainer || !imagePreview) return;
+
+        if (input.files && input.files[0]) {
+            const file = input.files[0];
+            if (file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    imagePreview.src = e.target.result;
+                    previewContainer.classList.remove('hidden');
+                }
+                reader.readAsDataURL(file);
+            } else {
+                previewContainer.classList.add('hidden');
+            }
+        }
+    }
+
+    // Utility function for notifications
+    function showNotification(message, type = 'success') {
+        const notification = document.createElement('div');
+        notification.className = `fixed top-4 right-4 z-50 px-4 py-2 rounded-lg ${type === 'success' ? 'bg-black text-white' : 'bg-red-500 text-white'} transition-opacity duration-300`;
+        notification.textContent = message;
+        document.body.appendChild(notification);
+
+        // Make notification visible
+        setTimeout(() => {
+            notification.style.opacity = '1';
+        }, 10);
+
+        // Automatically remove after 3 seconds
+        setTimeout(() => {
+            notification.style.opacity = '0';
+            setTimeout(() => notification.remove(), 300);
+        }, 3000);
+    }
+
+    // Fix 5: Initialize all event listeners when the DOM is loaded
+    document.addEventListener('DOMContentLoaded', function () {
+        // Set up the confirmation button in the delete certificate modal
+        const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+        if (confirmDeleteBtn) {
+            confirmDeleteBtn.addEventListener('click', function () {
+                const certId = document.getElementById('certificateToDelete').value;
+                if (certId) {
+                    performCertificateDelete(certId);
+                    closeDeleteCertificateModal();
+                }
+            });
+        }
+
+        // Set up the certificate form submission
+        const certificateForm = document.getElementById('certificateForm');
+        if (certificateForm) {
+            certificateForm.addEventListener('submit', function (e) {
+                e.preventDefault();
+
+                const formData = new FormData();
+                const title = document.getElementById('certTitle').value;
+                const fileInput = this.querySelector('input[type="file"]');
+
+                if (!fileInput || !fileInput.files || !fileInput.files[0]) {
+                    showNotification('Please select a file', 'error');
+                    return;
+                }
+
+                formData.append('title', title);
+                formData.append('certificate', fileInput.files[0]);
+
+                fetch(window.location.href, {
+                    method: 'POST',
+                    body: formData,
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            showNotification('Certificate uploaded successfully');
+                            closeUploadModal();
+                            window.location.reload();
+                        } else {
+                            throw new Error(data.error || 'Upload failed');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Upload error:', error);
+                        showNotification('Failed to upload certificate', 'error');
+                    });
+            });
+        }
+
+        // Add event listeners for other buttons
+        const addLanguageBtn = document.getElementById('addLanguageBtn');
+        if (addLanguageBtn) {
+            addLanguageBtn.addEventListener('click', addLanguage);
+        }
+
+        const addAchievementBtn = document.getElementById('addAchievementBtn');
+        if (addAchievementBtn) {
+            addAchievementBtn.addEventListener('click', addAchievement);
+        }
+
+        // Fix the invalid querySelector in updateFindButton
+        function updateFindButton() {
+            const countrySelect = document.getElementById('countrySelect');
+            const findButton = document.querySelector('button[onclick="getRecommendations()"]') ||
+                document.querySelector('.ripple');
+
+            if (countrySelect && findButton) {
+                findButton.disabled = !countrySelect.value;
+                if (countrySelect.value) {
+                    findButton.classList.remove('opacity-50', 'disabled', 'cursor-not-allowed');
+                } else {
+                    findButton.classList.add('opacity-50', 'cursor-not-allowed');
+                }
+            }
+        }
+
+        // Get the country select element
+        const countrySelect = document.getElementById('countrySelect');
+        if (countrySelect) {
+            // Update button state on page load
+            updateFindButton();
+
+            // Add change event listener
+            countrySelect.addEventListener('change', function () {
+                updateFindButton();
+            });
+        }
+    });
+
+    // Add these JavaScript functions at the end of your profile.html JavaScript section
+
+    // Global variables for project management
+    let currentProjectId = null;
+    let projectImages = [];
+    let projectCollaborators = [];
+    let projectTags = [];
+
+    // Show modal for creating a new project
+    function showCreateProjectModal() {
+        document.getElementById('projectModalTitle').textContent = 'Create New Project';
+        document.getElementById('projectForm').reset();
+        document.getElementById('projectId').value = '';
+
+        // Reset global variables
+        currentProjectId = null;
+        projectImages = [];
+        projectCollaborators = [];
+        projectTags = [];
+
+        // Clear UI elements
+        document.getElementById('imagesContainer').innerHTML = '';
+        document.getElementById('collaboratorsContainer').innerHTML = '';
+        document.getElementById('tagsContainer').innerHTML = '';
+
+        // Show the modal
+        document.getElementById('projectModal').classList.add('modal-open');
+    }
+
+    // Close project modal
+    function closeProjectModal() {
+        document.getElementById('projectModal').classList.remove('modal-open');
+    }
+
+    // Preview project images when selected
+    function previewProjectImages(input) {
+        const imagesContainer = document.getElementById('imagesContainer');
+
+        if (input.files && input.files.length > 0) {
+            for (let i = 0; i < input.files.length; i++) {
+                const file = input.files[i];
+
+                // Create a new reader for each file
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    const imagePreview = document.createElement('div');
+                    imagePreview.className = 'relative group';
+                    imagePreview.innerHTML = `
+                    <img src="${e.target.result}" alt="Project Image" 
+                        class="w-full h-32 object-cover rounded-lg">
+                    <div class="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button type="button" class="p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                            onclick="removeImagePreview(this)">
+                            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+                `;
+
+                    imagesContainer.appendChild(imagePreview);
+
+                    // Store the file for later upload
+                    projectImages.push({
+                        file: file,
+                        preview: e.target.result
+                    });
+                };
+
+                reader.readAsDataURL(file);
+            }
+        }
+    }
+
+    // Remove image preview
+    function removeImagePreview(button) {
+        const previewElement = button.closest('.relative');
+        const index = Array.from(previewElement.parentNode.children).indexOf(previewElement);
+
+        if (index !== -1) {
+            projectImages.splice(index, 1);
+            previewElement.remove();
+        }
+    }
+
+    // Add a tag to the project
+    function addTag() {
+        const tagInput = document.getElementById('tagInput');
+        const tag = tagInput.value.trim();
+
+        if (tag && !projectTags.includes(tag)) {
+            projectTags.push(tag);
+            updateTagsUI();
+        }
+
+        tagInput.value = '';
+        tagInput.focus();
+    }
+
+    // Update tags UI
+    function updateTagsUI() {
+        const tagsContainer = document.getElementById('tagsContainer');
+        tagsContainer.innerHTML = '';
+
+        projectTags.forEach((tag, index) => {
+            const tagElement = document.createElement('div');
+            tagElement.className = 'px-3 py-1 bg-gray-200 text-gray-800 rounded-full flex items-center text-sm';
+            tagElement.innerHTML = `
+            <span>${tag}</span>
+            <button type="button" class="ml-2 text-gray-500 hover:text-red-500"
+                onclick="removeTag(${index})">
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        `;
+
+            tagsContainer.appendChild(tagElement);
+        });
+    }
+
+    // Remove a tag
+    function removeTag(index) {
+        projectTags.splice(index, 1);
+        updateTagsUI();
+    }
+
+    // Enhanced collaborator search and management functions
+
+    // Search for users to add as collaborators
+    // Replace the project form submission code with this updated version
+
+    // Submit project form
+    document.getElementById('projectForm').addEventListener('submit', async function (e) {
+        e.preventDefault();
+
+        const submitBtn = this.querySelector('button[type="submit"]');
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = `<svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span class="ml-2">Saving...</span>`;
+
+        try {
+            // Create form data
+            const formData = new FormData();
+            formData.append('title', document.getElementById('projectTitle').value);
+            formData.append('description', document.getElementById('projectDescription').value);
+            formData.append('github_url', document.getElementById('projectGithub').value);
+            formData.append('project_url', document.getElementById('projectUrl').value);
+
+            // Make sure to stringify the tags and collaborators arrays
+            formData.append('tags', JSON.stringify(projectTags));
+
+            // Log collaborators to verify they're being included - this is for debugging
+            console.log("Submitting collaborators:", projectCollaborators);
+            formData.append('collaborators', JSON.stringify(projectCollaborators));
+
+            // Add project ID if editing
+            if (currentProjectId) {
+                formData.append('project_id', currentProjectId);
+            }
+
+            // Add new images
+            let imageIndex = 0;
+            projectImages.forEach(image => {
+                if (image.file) {
+                    // New file to upload
+                    formData.append(`image_${imageIndex}`, image.file);
+                    imageIndex++;
+                } else if (image.url && image.isExisting) {
+                    // Existing image to keep
+                    formData.append('existing_images', image.url);
+                }
+            });
+
+            // DEBUG: Log form data before submission
+            for (let pair of formData.entries()) {
+                console.log(pair[0], pair[1]);
+            }
+
+            // Upload project
+            const url = currentProjectId ? `/projects/${currentProjectId}/update` : '/projects/create';
+            const response = await fetch(url, {
+                method: 'POST',
+                body: formData
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                showNotification(currentProjectId ? 'Project updated successfully' : 'Project created successfully');
+                closeProjectModal();
+
+                // Reload the page to show the new/updated project
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+            } else {
+                throw new Error(result.error || 'Failed to save project');
+            }
+        } catch (error) {
+            console.error('Error saving project:', error);
+            showNotification('Error saving project. Please try again.', 'error');
+        } finally {
+            // Re-enable the button
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = 'Save Project';
+        }
+    });
+
+    // Fix for the collaborator search function too
+    function searchUsers() {
+        const input = document.getElementById('collaboratorInput');
+        const query = input.value.trim();
+        const resultsContainer = document.getElementById('userSearchResults');
+
+        if (!query) {
+            resultsContainer.classList.add('hidden');
+            return;
+        }
+
+        // Show loading state
+        resultsContainer.innerHTML = `
+        <div class="p-3 text-sm text-gray-500 flex items-center justify-center">
+            <svg class="animate-spin h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            Searching...
+        </div>
+    `;
+        resultsContainer.classList.remove('hidden');
+
+        fetch(`/search_users?query=${encodeURIComponent(query)}`)
+            .then(response => response.json())
+            .then(users => {
+                resultsContainer.innerHTML = '';
+
+                if (users.length === 0) {
+                    resultsContainer.innerHTML = `
+                    <div class="p-3 text-sm text-gray-500">No users found</div>
+                `;
+                } else {
+                    users.forEach(user => {
+                        // Make sure each user has a user_id property
+                        const userId = user.user_id || user.id;
+
+                        // Skip users that are already collaborators
+                        if (projectCollaborators.some(c => c.username === user.username)) {
+                            return;
+                        }
+
+                        const userElement = document.createElement('div');
+                        userElement.className = 'p-3 hover:bg-gray-50 flex items-center cursor-pointer';
+                        userElement.innerHTML = `
+                        <img src="${user.avatar}" alt="${user.username}" class="h-8 w-8 rounded-full mr-3">
+                        <div>
+                            <div class="text-sm font-medium">${user.full_name || user.username}</div>
+                            <div class="text-xs text-gray-500">@${user.username}</div>
+                        </div>
+                    `;
+
+                        userElement.addEventListener('click', () => {
+                            addCollaborator({
+                                username: user.username,
+                                full_name: user.full_name || '',
+                                avatar: user.avatar,
+                                user_id: userId
+                            });
+                            resultsContainer.classList.add('hidden');
+                            input.value = '';
+                        });
+
+                        resultsContainer.appendChild(userElement);
+                    });
+                }
+
+                resultsContainer.classList.remove('hidden');
+            })
+            .catch(error => {
+                console.error('Error searching users:', error);
+                resultsContainer.innerHTML = `
+                <div class="p-3 text-sm text-red-500">Error searching for users</div>
+            `;
+            });
+    }
+    // Add a collaborator to the project
+    function addCollaborator(user) {
+        // Check if user is already a collaborator to avoid duplicates
+        if (!projectCollaborators.some(c => c.username === user.username)) {
+            projectCollaborators.push({
+                username: user.username,
+                full_name: user.full_name,
+                avatar: user.avatar,
+                user_id: user.user_id
+            });
+
+            updateCollaboratorsUI();
+            showNotification(`Added @${user.username} as a collaborator`, 'success');
+        }
+    }
+
+    // Improved collaborators UI update
+    function updateCollaboratorsUI() {
+        const container = document.getElementById('collaboratorsContainer');
+        container.innerHTML = '';
+
+        if (projectCollaborators.length === 0) {
+            container.innerHTML = `
+            <div class="text-sm text-gray-500 py-3">No collaborators added yet</div>
+        `;
+            return;
+        }
+
+        // Create collaborator list with animation
+        projectCollaborators.forEach((collaborator, index) => {
+            const element = document.createElement('div');
+            element.className = 'flex items-center justify-between bg-gray-50 p-3 rounded-lg mb-2 transform transition-all duration-300';
+            element.style.opacity = '0';
+            element.style.transform = 'translateY(10px)';
+
+            element.innerHTML = `
+            <div class="flex items-center">
+                <img src="${collaborator.avatar}" alt="${collaborator.username}" class="h-8 w-8 rounded-full mr-3">
+                <div>
+                    <div class="text-sm font-medium">${collaborator.full_name || collaborator.username}</div>
+                    <div class="text-xs text-gray-500">@${collaborator.username}</div>
+                </div>
+            </div>
+            <button type="button" class="text-gray-500 hover:text-red-500 transition-colors p-2 rounded-full hover:bg-gray-100"
+                onclick="removeCollaborator(${index})">
+                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        `;
+
+            container.appendChild(element);
+
+            // Fade in animation
+            setTimeout(() => {
+                element.style.opacity = '1';
+                element.style.transform = 'translateY(0)';
+            }, index * 100);
+        });
+
+        // Add a small badge showing the count of collaborators
+        const countBadge = document.createElement('div');
+        countBadge.className = 'text-xs text-gray-500 text-right mt-2';
+        countBadge.textContent = `${projectCollaborators.length} collaborator${projectCollaborators.length !== 1 ? 's' : ''}`;
+        container.appendChild(countBadge);
+    }
+
+    // Remove a collaborator with confirmation
+    function removeCollaborator(index) {
+        const collaborator = projectCollaborators[index];
+
+        if (confirm(`Remove ${collaborator.full_name || collaborator.username} as a collaborator?`)) {
+            projectCollaborators.splice(index, 1);
+            updateCollaboratorsUI();
+            showNotification(`Removed @${collaborator.username} from collaborators`, 'success');
+        }
+    }
+
+    // Add to the bottom of your existing project JavaScript to get the current username
+    let currentUsername = '';
+    document.addEventListener('DOMContentLoaded', function () {
+        // Get current username from the session
+        const usernameMeta = document.querySelector('meta[name="current-username"]');
+        if (usernameMeta) {
+            currentUsername = usernameMeta.getAttribute('content');
+        }
+    });
+    // Edit existing project
+    function editProject(projectId) {
+        // Set current project ID
+        currentProjectId = projectId;
+        document.getElementById('projectId').value = projectId;
+        document.getElementById('projectModalTitle').textContent = 'Edit Project';
+
+        // Reset arrays
+        projectImages = [];
+        projectCollaborators = [];
+        projectTags = [];
+
+        // Fetch project data
+        fetch(`/projects/${projectId}`)
+            .then(response => response.json())
+            .then(project => {
+                // Fill form fields
+                document.getElementById('projectTitle').value = project.title || '';
+                document.getElementById('projectDescription').value = project.description || '';
+                document.getElementById('projectGithub').value = project.github_url || '';
+                document.getElementById('projectUrl').value = project.project_url || '';
+
+                // Load tags
+                if (project.tags && project.tags.length > 0) {
+                    projectTags = [...project.tags];
+                    updateTagsUI();
+                }
+
+                // Load images
+                if (project.images && project.images.length > 0) {
+                    const imagesContainer = document.getElementById('imagesContainer');
+                    imagesContainer.innerHTML = '';
+
+                    project.images.forEach(imageUrl => {
+                        const imagePreview = document.createElement('div');
+                        imagePreview.className = 'relative group';
+                        imagePreview.innerHTML = `
+                        <img src="${imageUrl}" alt="Project Image" 
+                            class="w-full h-32 object-cover rounded-lg">
+                        <div class="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button type="button" class="p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                                onclick="removeExistingImage(this, '${imageUrl}')">
+                                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                    `;
+
+                        imagesContainer.appendChild(imagePreview);
+
+                        // Store existing image URL
+                        projectImages.push({
+                            url: imageUrl,
+                            isExisting: true
+                        });
+                    });
+                }
+
+                // Load collaborators
+                if (project.collaborators && project.collaborators.length > 0) {
+                    projectCollaborators = [...project.collaborators];
+                    updateCollaboratorsUI();
+                }
+
+                // Show the modal
+                document.getElementById('projectModal').classList.add('modal-open');
+            })
+            .catch(error => {
+                console.error('Error loading project:', error);
+                showNotification('Error loading project details', 'error');
+            });
+    }
+
+    // Remove an existing image
+    function removeExistingImage(button, imageUrl) {
+        const previewElement = button.closest('.relative');
+        const index = Array.from(previewElement.parentNode.children).indexOf(previewElement);
+
+        if (index !== -1) {
+            projectImages.splice(index, 1);
+            previewElement.remove();
+        }
+    }
+
+    // Submit project form
+
+    // Delete a project
+    function deleteProject(projectId) {
+        document.getElementById('projectToDelete').value = projectId;
+        document.getElementById('deleteProjectModal').classList.add('modal-open');
+    }
+
+    // Close delete project modal
+    function closeDeleteProjectModal() {
+        document.getElementById('deleteProjectModal').classList.remove('modal-open');
+    }
+
+    // Set up the confirm delete button
+    document.getElementById('confirmDeleteProjectBtn').addEventListener('click', async function () {
+        const projectId = document.getElementById('projectToDelete').value;
+
+        if (!projectId) return;
+
+        this.disabled = true;
+        this.innerHTML = `<svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      <span class="ml-2">Deleting...</span>`;
+
+        try {
+            const response = await fetch(`/projects/${projectId}/delete`, {
+                method: 'DELETE'
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                showNotification('Project deleted successfully');
+                closeDeleteProjectModal();
+
+                // Reload the page
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+            } else {
+                throw new Error(result.error || 'Failed to delete project');
+            }
+        } catch (error) {
+            console.error('Error deleting project:', error);
+            showNotification('Error deleting project. Please try again.', 'error');
+        } finally {
+            this.disabled = false;
+            this.innerHTML = 'Delete';
+        }
+    });
+
+    // Outside click handler for search results
+    document.addEventListener('click', function (e) {
+        const searchResults = document.getElementById('userSearchResults');
+        const searchInput = document.getElementById('collaboratorInput');
+
+        if (searchResults && !searchResults.contains(e.target) && e.target !== searchInput) {
+            searchResults.classList.add('hidden');
+        }
+    });
+
+</script>
 
 {% endblock %}
