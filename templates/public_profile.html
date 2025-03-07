@@ -107,39 +107,6 @@
 
                                 <!-- Quick Stats -->
                                 <div class="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-4">
-                                    <!-- Certificates -->
-                                    {% if certificates_count > 0 %}
-                                    <div class="flex items-center gap-3 p-3 rounded-lg bg-gray-50">
-                                        <div class="p-2 rounded-lg bg-purple-100/50">
-                                            <svg class="h-5 w-5 text-purple-500" viewBox="0 0 20 20"
-                                                fill="currentColor">
-                                                <path
-                                                    d="M5.5 2A1.5 1.5 0 004 3.5V4h12v-.5A1.5 1.5 0 0014.5 2h-9zM2 7.5A1.5 1.5 0 013.5 6h13A1.5 1.5 0 0118 7.5V8H2v-.5zm15 3.5H3v6.5A1.5 1.5 0 004.5 19h11a1.5 1.5 0 001.5-1.5V11z" />
-                                            </svg>
-                                        </div>
-                                        <div>
-                                            <div class="text-lg font-semibold">{{ certificates_count }}</div>
-                                            <div class="text-sm text-gray-500">Certificates</div>
-                                        </div>
-                                    </div>
-                                    {% endif %}
-
-                                    <!-- Member Since -->
-                                    <div class="flex items-center gap-3 p-3 rounded-lg bg-gray-50">
-                                        <div class="p-2 rounded-lg bg-blue-100/50">
-                                            <svg class="h-5 w-5 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
-                                                <path fill-rule="evenodd"
-                                                    d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z"
-                                                    clip-rule="evenodd" />
-                                            </svg>
-                                        </div>
-                                        <div>
-                                            <div class="text-sm text-gray-500">Member since</div>
-                                            <div class="text-sm font-medium">{{ user_data.created_at.strftime('%b %Y')
-                                                }}
-                                            </div>
-                                        </div>
-                                    </div>
 
                                     <!-- Age -->
                                     {% if user_data.age %}
@@ -173,6 +140,39 @@
                                             <div class="text-lg font-semibold">{{ user_data.location.city }}, {{
                                                 user_data.location.country }}</div>
                                             <div class="text-sm text-gray-500">Location</div>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                    <!-- Member Since -->
+                                    <div class="flex items-center gap-3 p-3 rounded-lg bg-gray-50">
+                                        <div class="p-2 rounded-lg bg-blue-100/50">
+                                            <svg class="h-5 w-5 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
+                                                <path fill-rule="evenodd"
+                                                    d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z"
+                                                    clip-rule="evenodd" />
+                                            </svg>
+                                        </div>
+                                        <div>
+                                            <div class="text-sm text-gray-500">Member since</div>
+                                            <div class="text-sm font-medium">{{ user_data.created_at.strftime('%b %Y')
+                                                }}
+                                            </div>
+                                        </div>
+                                    </div>
+
+
+                                    {% if certificates_count > 0 %}
+                                    <div class="flex items-center gap-3 p-3 rounded-lg bg-gray-50">
+                                        <div class="p-2 rounded-lg bg-purple-100/50">
+                                            <svg class="h-5 w-5 text-purple-500" viewBox="0 0 20 20"
+                                                fill="currentColor">
+                                                <path
+                                                    d="M5.5 2A1.5 1.5 0 004 3.5V4h12v-.5A1.5 1.5 0 0014.5 2h-9zM2 7.5A1.5 1.5 0 013.5 6h13A1.5 1.5 0 0118 7.5V8H2v-.5zm15 3.5H3v6.5A1.5 1.5 0 004.5 19h11a1.5 1.5 0 001.5-1.5V11z" />
+                                            </svg>
+                                        </div>
+                                        <div>
+                                            <div class="text-lg font-semibold">{{ certificates_count }}</div>
+                                            <div class="text-sm text-gray-500">Certificates</div>
                                         </div>
                                     </div>
                                     {% endif %}
@@ -216,19 +216,18 @@
                         <!-- About Section -->
                         {% if user_data.bio or user_data.goals %}
                         <div class="bg-white rounded-xl shadow-sm p-6">
-                            <div class="flex items-center justify-between mb-6">
-                                <h2 class="text-lg font-semibold text-gray-900">About</h2>
-                            </div>
+
 
                             {% if user_data.bio %}
                             <div class="space-y-4">
+                                <h2 class="text-lg font-semibold text-gray-900">Bio</h2>
                                 <p class="text-gray-600 text-sm leading-relaxed">{{ user_data.bio }}</p>
                             </div>
                             {% endif %}
 
                             {% if user_data.goals %}
                             <div class="mt-6">
-                                <h3 class="text-sm font-medium text-gray-900 mb-3">Goals</h3>
+                                <h3 class="text-lg font-semibold text-gray-900">Goals</h3>
                                 <div class="bg-gray-50 rounded-lg p-4">
                                     <p class="text-sm text-gray-600">{{ user_data.goals }}</p>
                                 </div>
@@ -238,7 +237,7 @@
                         {% endif %}
                         {% if user_data.skills %}
                         <div class="bg-white rounded-xl shadow-sm p-4">
-                            <h3 class="text-sm font-medium text-gray-900 mb-3">Skills</h3>
+                            <h3 class="text-lg font-semibold text-gray-900 mb-3">Skills</h3>
                             <div class="flex flex-wrap gap-2">
                                 {% for skill in user_data.skills %}
                                 <span class="px-3 py-1 text-sm font-medium bg-purple-50 text-purple-700 rounded-full">
@@ -412,7 +411,128 @@
                             </div>
                         </div>
                         {% endif %}
+                        <!-- Add this to public_profile.html after the certificates section -->
+                        <!-- Inside the main content area <div class="lg:col-span-2 space-y-6"> -->
 
+                        <!-- Projects Section for Public Profile -->
+                        <div class="bg-white rounded-xl shadow-sm p-6">
+                            <h2 class="text-lg font-semibold text-gray-900 mb-6 flex items-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-gray-700" fill="none"
+                                    viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z" />
+                                </svg>
+                                Projects
+                            </h2>
+
+                            {% if projects %}
+                            <div class="grid grid-cols-1 gap-6">
+                                {% for project in projects %}
+                                <div
+                                    class="bg-gray-50 rounded-lg overflow-hidden hover:shadow-md transition-all duration-300">
+                                    <div class="md:flex">
+                                        {% if project.images and project.images|length > 0 %}
+                                        <div class="md:flex-shrink-0 h-48 md:h-auto md:w-48 relative">
+                                            <img src="{{ project.images[0] }}" alt="{{ project.title }}"
+                                                class="w-full h-full object-cover md:object-cover">
+
+                                            <!-- Add role badge -->
+                                            {% if project.role == 'collaborator' %}
+                                            <div
+                                                class="absolute top-2 right-2 px-2 py-1 bg-purple-500 text-white text-xs font-medium rounded-full">
+                                                Collaborator
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                        {% endif %}
+
+                                        <div class="p-6 flex-1">
+                                            <div class="flex justify-between items-start">
+                                                <h3
+                                                    class="text-lg font-semibold text-gray-900 hover:text-purple-600 transition-colors">
+                                                    <a href="{{ url_for('view_project', project_id=project.id) }}">{{
+                                                        project.title }}</a>
+                                                </h3>
+                                                {% if project.github_url %}
+                                                <a href="{{ project.github_url }}" target="_blank"
+                                                    class="text-gray-500 hover:text-gray-800">
+                                                    <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
+                                                        <path
+                                                            d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
+                                                    </svg>
+                                                </a>
+                                                {% endif %}
+                                            </div>
+
+                                            <p class="mt-2 text-sm text-gray-600">{{ project.description }}</p>
+
+                                            {% if project.tags and project.tags|length > 0 %}
+                                            <div class="flex flex-wrap gap-2 mt-3">
+                                                {% for tag in project.tags %}
+                                                <span
+                                                    class="px-2 py-1 text-xs font-medium bg-gray-200 text-gray-800 rounded-full">{{
+                                                    tag }}</span>
+                                                {% endfor %}
+                                            </div>
+                                            {% endif %}
+
+                                            {% if project.collaborators and project.collaborators|length > 0 %}
+                                            <div class="mt-4">
+                                                <div class="text-xs text-gray-500 mb-2">
+                                                    {% if project.role == 'creator' %}Collaborators:{% else %}Team:{%
+                                                    endif %}
+                                                </div>
+                                                <div class="flex -space-x-2 overflow-hidden">
+                                                    <!-- Show creator first if this is a collaborative project -->
+                                                    {% if project.role == 'collaborator' %}
+                                                    <a href="/{{ project.creator.username }}" class="tooltip"
+                                                        data-tip="{{ project.creator.username }} (Creator)">
+                                                        <img class="inline-block h-8 w-8 rounded-full ring-2 ring-white"
+                                                            src="{{ project.creator.avatar }}"
+                                                            alt="{{ project.creator.username }}">
+                                                    </a>
+                                                    {% endif %}
+
+                                                    <!-- Show collaborators -->
+                                                    {% for collaborator in project.collaborators %}
+                                                    <a href="/{{ collaborator.username }}" class="tooltip"
+                                                        data-tip="{{ collaborator.username }}">
+                                                        <img class="inline-block h-8 w-8 rounded-full ring-2 ring-white"
+                                                            src="{{ collaborator.avatar }}"
+                                                            alt="{{ collaborator.username }}">
+                                                    </a>
+                                                    {% endfor %}
+                                                </div>
+                                            </div>
+                                            {% endif %}
+
+                                            <div class="mt-4">
+                                                <a href="{{ url_for('view_project', project_id=project.id) }}"
+                                                    class="inline-flex items-center text-sm font-medium text-purple-600 hover:text-purple-800">
+                                                    View Project
+                                                    <svg class="ml-1 w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+                                                        <path fill-rule="evenodd"
+                                                            d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z"
+                                                            clip-rule="evenodd" />
+                                                    </svg>
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% else %}
+                            <div class="text-center py-8 bg-gray-50 rounded-lg">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-gray-300 mb-3"
+                                    fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z" />
+                                </svg>
+                                <p class="text-gray-500">No projects available</p>
+                            </div>
+                            {% endif %}
+                        </div>
                         <!-- Comments Section -->
                         <div class="bg-white rounded-xl shadow-sm p-6">
                             <div class="flex items-center justify-between mb-6">
