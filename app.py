@@ -54,7 +54,10 @@ if not firebase_creds_str:
     raise ValueError("FIREBASE_PRIVATE_KEY не найден в .env файле")
 firebase_credentials = json.loads(firebase_creds_str)
 NOTIFICATION_TYPES = {
-    
+    'project_comment': {
+        'icon': '💬',
+        'label': 'Project Comment'
+    },
     'like_comment': {
         'icon': '❤️',
         'label': 'Comment Liked'
@@ -104,6 +107,11 @@ ENHANCED_NOTIFICATION_TYPES = {
             'verified': True,
             'verification_type': 'system'
         }
+    },
+    'project_comment': {
+        'icon': '💬',
+        'label': 'Project Comment',
+        'priority': 'normal',
     },
     'admin_message': {
         'icon': '🏛️', 
@@ -244,31 +252,8 @@ def get_current_user_avatar():
         print(f"Error getting current user avatar: {e}")
         return None
 
-app.config['INTERNSHIP_IMAGES'] = 'static/internship_images'
-if not os.path.exists(app.config['INTERNSHIP_IMAGES']):
-    os.makedirs(app.config['INTERNSHIP_IMAGES'])
 
-# Add this schema to your database
-internships_schema = """
-CREATE TABLE IF NOT EXISTS internships (
-    id TEXT PRIMARY KEY,
-    title TEXT NOT NULL,
-    company TEXT NOT NULL,
-    description TEXT NOT NULL,
-    requirements TEXT,
-    location TEXT NOT NULL,
-    start_date TIMESTAMP,
-    end_date TIMESTAMP,
-    image_url TEXT,
-    created_at TIMESTAMP,
-    created_by TEXT,
-    status TEXT DEFAULT 'active',
-    area TEXT,
-    format TEXT,
-    address TEXT,
-    positions INTEGER DEFAULT 1
-)
-"""
+
 
 
 def get_current_username():
@@ -421,6 +406,7 @@ def update_email():
 def index():
     current_username = get_current_username()
     current_user_avatar = get_current_user_avatar()
+    notifications_count = 0
     
     if 'user_id' in session:
         user_id = session['user_id']
@@ -428,18 +414,21 @@ def index():
         user_data = user_doc.to_dict() if user_doc.exists else None
         
         avatar_url = generate_avatar_url(user_data) if user_data else None
+        notifications_count = get_unread_notifications_count(user_id)
         
         return render_template('index.html', 
                                user_data=user_data, 
                                avatar_url=avatar_url,
                                current_user_avatar=current_user_avatar,
-                               current_username=current_username)
+                               current_username=current_username,
+                               notifications_count=notifications_count)
     
     return render_template('index.html', 
                            user_data=None, 
                            avatar_url=None,
                            current_user_avatar=current_user_avatar,
-                           current_username=current_username)
+                           current_username=current_username,
+                           notifications_count=notifications_count)
 
 
 
@@ -1646,46 +1635,89 @@ def reset_password():
             'error': 'An error occurred. Please try again later.'
         }), 500
 
-@app.route('/search_users', methods=['GET'])
-@login_required
+@app.route('/search_users')
 def search_users():
     query = request.args.get('query', '').lower()
+    category = request.args.get('category')
+    subcategory = request.args.get('subcategory')
     
     try:
         users_ref = db.collection('users')
         results = []
         
-        # First try to match by username
-        username_query = users_ref.where('username', '>=', query).where('username', '<=', query + '\uf8ff').limit(10).stream()
-        
-        for user_doc in username_query:
-            user_data = user_doc.to_dict()
-            
-            # Skip if user is blocked or if it's the current user
-            if user_data.get('blocked', False) or user_doc.id == session['user_id']:
-                continue
+        # Если есть запрос и он достаточно длинный, или указана категория/подкатегория
+        if (query and len(query) >= 2) or subcategory:
+            # Сначала пробуем найти по имени пользователя
+            if query and len(query) >= 2:
+                username_query = users_ref.where('username', '>=', query).where('username', '<=', query + '\uf8ff').limit(10).stream()
                 
-            results.append({
-                'user_id': user_doc.id,  # Make sure to include the user_id
-                'username': user_data.get('display_username', user_data.get('username', '')),
-                'full_name': user_data.get('full_name', ''),
-                'avatar': generate_avatar_url(user_data),
-                'verified': user_data.get('verified', False)
-            })
+                for user_doc in username_query:
+                    user_data = user_doc.to_dict()
+                    
+                    # Пропускаем заблокированных пользователей
+                    if user_data.get('blocked', False):
+                        continue
+                    
+                    # Применяем фильтр по подкатегории, если указан
+                    if subcategory:
+                        if subcategory == 'developers' and 'developer' not in user_data.get('specialty', '').lower():
+                            continue
+                        elif subcategory == 'designers' and 'design' not in user_data.get('specialty', '').lower():
+                            continue
+                        elif subcategory == 'students' and not user_data.get('education', ''):
+                            continue
+                        elif subcategory == 'verified' and not user_data.get('verified', False):
+                            continue
+                    
+                    results.append({
+                        'user_id': user_doc.id,
+                        'username': user_data.get('display_username', user_data.get('username', '')),
+                        'full_name': user_data.get('full_name', ''),
+                        'avatar': generate_avatar_url(user_data),
+                        'verified': user_data.get('verified', False)
+                    })
             
-        # If we didn't find enough results, try by full name
-        if len(results) < 5:
-            fullname_query = users_ref.where('full_name_lower', '>=', query).where('full_name_lower', '<=', query + '\uf8ff').limit(10).stream()
+            # Если нет запроса, но есть подкатегория, отфильтровываем всех пользователей
+            elif subcategory:
+                all_users_query = users_ref.limit(50).stream()
+                
+                for user_doc in all_users_query:
+                    user_data = user_doc.to_dict()
+                    
+                    # Пропускаем заблокированных пользователей
+                    if user_data.get('blocked', False):
+                        continue
+                    
+                    # Фильтруем по подкатегории
+                    if subcategory == 'developers' and 'developer' not in user_data.get('specialty', '').lower():
+                        continue
+                    elif subcategory == 'designers' and 'design' not in user_data.get('specialty', '').lower():
+                        continue
+                    elif subcategory == 'students' and not user_data.get('education', ''):
+                        continue
+                    elif subcategory == 'verified' and not user_data.get('verified', False):
+                        continue
+                    
+                    results.append({
+                        'user_id': user_doc.id,
+                        'username': user_data.get('display_username', user_data.get('username', '')),
+                        'full_name': user_data.get('full_name', ''),
+                        'avatar': generate_avatar_url(user_data),
+                        'verified': user_data.get('verified', False)
+                    })
+        
+        # Если нет запроса и подкатегории, но указана категория 'people'
+        elif not query and not subcategory and category == 'people':
+            # Ограничиваем до 20 пользователей для функции "View all"
+            all_users_query = users_ref.limit(20).stream()
             
-            for user_doc in fullname_query:
+            for user_doc in all_users_query:
                 user_data = user_doc.to_dict()
                 
-                # Skip if user is blocked, it's the current user, or already in results
-                if (user_data.get('blocked', False) or 
-                    user_doc.id == session['user_id'] or
-                    any(r['user_id'] == user_doc.id for r in results)):
+                # Пропускаем заблокированных пользователей
+                if user_data.get('blocked', False):
                     continue
-                    
+                
                 results.append({
                     'user_id': user_doc.id,
                     'username': user_data.get('display_username', user_data.get('username', '')),
@@ -1694,19 +1726,20 @@ def search_users():
                     'verified': user_data.get('verified', False)
                 })
         
-        # Sort results by relevance
+        # Сортируем результаты по релевантности
         results.sort(key=lambda x: (
-            0 if x['username'].lower().startswith(query) else 1,
-            0 if x.get('full_name', '').lower().startswith(query) else 1,
+            0 if query and x['username'].lower().startswith(query) else 1,
+            0 if query and x.get('full_name', '').lower().startswith(query) else 1,
             x['username'].lower()
         ))
         
-        return jsonify(results[:10])  # Limit to top 10 results
-        
+        return jsonify(results[:20])  # Ограничиваем до 20 результатов
+    
     except Exception as e:
         print(f"Error searching users: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify([]), 500
-
 
 @app.route('/admin/migrate_fullnames', methods=['GET'])
 @login_required
@@ -1894,23 +1927,60 @@ def create_notification(user_id, type, content, sender_id=None, related_id=None)
 
         # Get notification type configuration
         notification_config = ENHANCED_NOTIFICATION_TYPES.get(type, {})
+        
+        # Enrich content based on notification type
         enriched_content = {
             'type_label': notification_config.get('label', 'Notification'),
             'icon': notification_config.get('icon', '🔔'),
             'priority': notification_config.get('priority', 'normal'),
             **content
         }
-
-        # Special handling for account_change notifications
-        if type == 'account_change':
-            action = content.get('action')
-            if action == 'email_updated':
-                enriched_content['message'] = f"Email updated to {content.get('new_email')}"
-            elif action == 'password_changed':
-                enriched_content['message'] = "Password has been changed"
-            elif not enriched_content.get('message'):
-                enriched_content['message'] = "Account settings have been updated"
-
+        
+        # Process specific notification types to add more context
+        if type == 'project_collaboration':
+            project_id = content.get('project_id')
+            if project_id:
+                try:
+                    project_doc = db.collection('projects').document(project_id).get()
+                    if project_doc.exists:
+                        project_data = project_doc.to_dict()
+                        if 'project_title' not in content:
+                            enriched_content['project_title'] = project_data.get('title', 'Unknown Project')
+                        if 'project_image' not in content and 'thumbnail' in project_data:
+                            enriched_content['project_image'] = project_data.get('thumbnail')
+                except Exception as e:
+                    print(f"Error enriching project collaboration notification: {e}")
+        
+        elif type == 'project_update':
+            project_id = content.get('project_id')
+            if project_id:
+                try:
+                    project_doc = db.collection('projects').document(project_id).get()
+                    if project_doc.exists:
+                        project_data = project_doc.to_dict()
+                        if 'project_title' not in content:
+                            enriched_content['project_title'] = project_data.get('title', 'Unknown Project')
+                except Exception as e:
+                    print(f"Error enriching project update notification: {e}")
+        
+        elif type == 'profile_comment':
+            if 'commenter_username' in content and 'username' not in content:
+                enriched_content['username'] = content['commenter_username']
+        
+        elif type == 'reply_comment':
+            # Get the original comment text if not included
+            if 'original_comment_text' not in content and 'related_id' in locals() and related_id:
+                try:
+                    if content.get('original_comment'):
+                        enriched_content['original_comment_text'] = content['original_comment'].get('text', '')
+                    elif user_id and related_id:
+                        comment_doc = db.collection('users').document(user_id).collection('comments').document(related_id).get()
+                        if comment_doc.exists:
+                            comment_data = comment_doc.to_dict()
+                            enriched_content['original_comment_text'] = comment_data.get('text', '')
+                except Exception as e:
+                    print(f"Error enriching reply comment notification: {e}")
+        
         # Create notification data structure
         notification_data = {
             'type': type,
@@ -1924,7 +1994,7 @@ def create_notification(user_id, type, content, sender_id=None, related_id=None)
             'metadata': {
                 'timestamp': datetime.datetime.now(tz=datetime.timezone.utc),
                 'source': 'server',
-                'version': '1.1'
+                'version': '1.2'
             }
         }
 
@@ -1941,6 +2011,8 @@ def create_notification(user_id, type, content, sender_id=None, related_id=None)
     except Exception as e:
         print(f"Comprehensive Notification Creation Error: {e}")
         return None
+
+
 @app.route('/notifications/<notification_id>/details', methods=['GET'])
 @login_required
 def get_notification_details(notification_id):
@@ -1973,6 +2045,156 @@ def get_notification_details(notification_id):
     except Exception as e:
         print(f"Error getting notification details: {e}")
         return jsonify({'error': 'Failed to get notification details'}), 500
+@app.route('/search_projects')
+def search_projects():
+    query = request.args.get('query', '').lower()
+    category = request.args.get('category')
+    subcategory = request.args.get('subcategory')
+    
+    try:
+        projects_ref = db.collection('projects')
+        results = []
+        
+        # Если есть запрос и он достаточно длинный, или указана подкатегория
+        if (query and len(query) >= 2) or subcategory:
+            # Поиск по названию, если есть запрос
+            if query and len(query) >= 2:
+                # Сначала получаем все проекты и фильтруем их
+                title_query = projects_ref.limit(50).stream()
+                
+                for doc in title_query:
+                    project_data = doc.to_dict()
+                    project_title = project_data.get('title', '').lower()
+                    
+                    # Пропускаем удаленные проекты
+                    if project_data.get('deleted', False):
+                        continue
+                    
+                    # Ищем по названию
+                    if query not in project_title:
+                        continue
+                    
+                    # Применяем фильтр по подкатегории
+                    if subcategory:
+                        tags = [tag.lower() for tag in project_data.get('tags', [])]
+                        
+                        if subcategory == 'web' and 'web' not in tags and 'website' not in tags:
+                            continue
+                        elif subcategory == 'mobile' and 'mobile' not in tags and 'app' not in tags:
+                            continue
+                        elif subcategory == 'design' and 'design' not in tags and 'ui' not in tags and 'ux' not in tags:
+                            continue
+                        elif subcategory == 'popular' and len(project_data.get('likes', [])) < 5:
+                            continue
+                    
+                    results.append({
+                        'id': doc.id,
+                        'title': project_data.get('title', ''),
+                        'description': project_data.get('description', '')[:100] + '...' if project_data.get('description', '') else '',
+                        'thumbnail': project_data.get('thumbnail', None),
+                        'tags': project_data.get('tags', []),
+                        'created_by': project_data.get('created_by', '')
+                    })
+            
+            # Только фильтрация по подкатегории, без запроса
+            elif subcategory:
+                subcategory_query = projects_ref.limit(50).stream()
+                
+                for doc in subcategory_query:
+                    project_data = doc.to_dict()
+                    
+                    # Пропускаем удаленные проекты
+                    if project_data.get('deleted', False):
+                        continue
+                    
+                    # Применяем фильтр по подкатегории
+                    tags = [tag.lower() for tag in project_data.get('tags', [])]
+                    
+                    if subcategory == 'web' and 'web' not in tags and 'website' not in tags:
+                        continue
+                    elif subcategory == 'mobile' and 'mobile' not in tags and 'app' not in tags:
+                        continue
+                    elif subcategory == 'design' and 'design' not in tags and 'ui' not in tags and 'ux' not in tags:
+                        continue
+                    elif subcategory == 'popular' and len(project_data.get('likes', [])) < 5:
+                        continue
+                    
+                    results.append({
+                        'id': doc.id,
+                        'title': project_data.get('title', ''),
+                        'description': project_data.get('description', '')[:100] + '...' if project_data.get('description', '') else '',
+                        'thumbnail': project_data.get('thumbnail', None),
+                        'tags': project_data.get('tags', []),
+                        'created_by': project_data.get('created_by', '')
+                    })
+        
+        # Если нет запроса и подкатегории, но указана категория 'projects'
+        elif not query and not subcategory and category == 'projects':
+            # Ограничиваем до 20 проектов для функции "View all"
+            all_projects_query = projects_ref.limit(20).stream()
+            
+            for doc in all_projects_query:
+                project_data = doc.to_dict()
+                
+                # Пропускаем удаленные проекты
+                if project_data.get('deleted', False):
+                    continue
+                
+                results.append({
+                    'id': doc.id,
+                    'title': project_data.get('title', ''),
+                    'description': project_data.get('description', '')[:100] + '...' if project_data.get('description', '') else '',
+                    'thumbnail': project_data.get('thumbnail', None),
+                    'tags': project_data.get('tags', []),
+                    'created_by': project_data.get('created_by', '')
+                })
+        
+        return jsonify(results[:20])
+    
+    except Exception as e:
+        print(f"Error searching projects: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify([]), 500
+@app.context_processor
+def inject_global_variables():
+    """Make common variables available to all templates"""
+    context = {}
+    
+    # Add current user avatar
+    if 'user_id' in session:
+        try:
+            current_user_id = session['user_id']
+            current_user_doc = db.collection('users').document(current_user_id).get()
+            current_user_data = current_user_doc.to_dict() if current_user_doc.exists else {}
+            
+            # Get avatar
+            avatar_url = generate_avatar_url(current_user_data)
+            context['current_user_avatar'] = avatar_url
+            
+            # Get username
+            context['current_username'] = current_user_data.get('display_username', 
+                                                              current_user_data.get('username', ''))
+            
+            # Get notifications count
+            try:
+                notifications_ref = db.collection('users').document(current_user_id).collection('notifications')
+                unread_notifications = notifications_ref.where('is_read', '==', False).get()
+                context['notifications_count'] = len(list(unread_notifications))
+            except Exception as e:
+                print(f"Error getting notification count: {e}")
+                context['notifications_count'] = 0
+        except Exception as e:
+            print(f"Error in global context processor: {e}")
+            context['current_user_avatar'] = None
+            context['current_username'] = None
+            context['notifications_count'] = 0
+    else:
+        context['current_user_avatar'] = None
+        context['current_username'] = None
+        context['notifications_count'] = 0
+    
+    return context
 @app.route('/notifications', methods=['GET'])
 @login_required
 def get_notifications():
@@ -2322,511 +2544,8 @@ def update_header():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
-@app.route('/internships/create', methods=['GET', 'POST'])
-@login_required
-def create_internship():
-    if request.method == 'POST':
-        try:
-            user_id = session['user_id']
-            
-            # Get form data
-            title = request.form.get('title')
-            company = request.form.get('company')
-            description = request.form.get('description')
-            requirements = request.form.get('requirements')
-            location = request.form.get('location')
-            start_date = request.form.get('start_date')
-            end_date = request.form.get('end_date')
-            area = request.form.get('area')
-            format_type = request.form.get('format')
-            address = request.form.get('address')
-            positions = int(request.form.get('positions', 1))
-
-            # Handle image upload
-            image_url = None
-            if 'image' in request.files:
-                image = request.files['image']
-                if image and image.filename:
-                    # Create a unique filename
-                    ext = image.filename.split('.')[-1]
-                    filename = f"internships/{user_id}/{str(uuid.uuid4())}.{ext}"
-                    
-                    # Upload to Firebase Storage
-                    blob = bucket.blob(filename)
-                    blob.upload_from_string(
-                        image.read(),
-                        content_type=image.content_type
-                    )
-                    
-                    # Make the image public and get URL
-                    blob.make_public()
-                    image_url = blob.public_url
-
-            # Create internship document
-            internship_data = {
-                'title': title,
-                'company': company,
-                'description': description,
-                'requirements': requirements,
-                'location': location,
-                'start_date': start_date,
-                'end_date': end_date,
-                'image_url': image_url,
-                'created_at': datetime.datetime.now(tz=datetime.timezone.utc),
-                'created_by': user_id,
-                'status': 'active',
-                'area': area,
-                'format': format_type,
-                'address': address,
-                'positions': positions,
-                'applications': []
-            }
-
-            # Save to Firestore
-            internship_ref = db.collection('internships').document()
-            internship_ref.set(internship_data)
-
-            # Create notification for followers
-            user_doc = db.collection('users').document(user_id).get()
-            user_data = user_doc.to_dict()
-            
-            if user_data.get('followers'):
-                for follower_id in user_data['followers']:
-                    create_notification(
-                        follower_id,
-                        'new_internship',
-                        {
-                            'internship_id': internship_ref.id,
-                            'company': company,
-                            'title': title
-                        },
-                        sender_id=user_id
-                    )
-
-            flash('Internship posted successfully!')
-            return redirect(url_for('view_internship', internship_id=internship_ref.id))
-
-        except Exception as e:
-            print(f"Error creating internship: {e}")
-            flash('Error creating internship. Please try again.')
-            return redirect(url_for('create_internship'))
-
-    return render_template('create_internship.html')
-
-@app.route('/internships')
-def list_internships():
-    try:
-        # Get all active internships
-        internships_ref = db.collection('internships')\
-            .where('status', '==', 'active')\
-            .order_by('created_at', direction=firestore.Query.DESCENDING)\
-            .stream()
-
-        internships = []
-        for doc in internships_ref:
-            internship = doc.to_dict()
-            internship['id'] = doc.id
-            
-            # Get creator information
-            creator_doc = db.collection('users').document(internship['created_by']).get()
-            if creator_doc.exists:
-                creator_data = creator_doc.to_dict()
-                internship['creator'] = {
-                    'username': creator_data.get('display_username', creator_data.get('username')),
-                    'avatar_url': generate_avatar_url(creator_data),
-                    'verified': creator_data.get('verified', False),
-                    'verification_type': creator_data.get('verification_type')
-                }
-
-            internships.append(internship)
-
-        return render_template('internships.html', 
-                             internships=internships,
-                             current_user_id=session.get('user_id'))
-
-    except Exception as e:
-        print(f"Error listing internships: {e}")
-        flash('Error loading internships. Please try again.')
-        return redirect(url_for('index'))
-
-@app.route('/internships/<internship_id>')
-def view_internship(internship_id):
-    try:
-        internship_doc = db.collection('internships').document(internship_id).get()
-        if not internship_doc.exists:
-            flash('Internship not found')
-            return redirect(url_for('list_internships'))
-
-        internship = internship_doc.to_dict()
-        internship['id'] = internship_doc.id
-        
-        # Get creator information
-        creator_doc = db.collection('users').document(internship['created_by']).get()
-        if creator_doc.exists:
-            creator_data = creator_doc.to_dict()
-            internship['creator'] = {
-                'username': creator_data.get('display_username', creator_data.get('username')),
-                'avatar_url': generate_avatar_url(creator_data),
-                'verified': creator_data.get('verified', False),
-                'verification_type': creator_data.get('verification_type')
-            }
-
-        return render_template('view_internship.html', 
-                             internship=internship,
-                             current_user_id=session.get('user_id'))
-
-    except Exception as e:
-        print(f"Error viewing internship: {e}")
-        flash('Error loading internship. Please try again.')
-        return redirect(url_for('list_internships'))
-
-@app.route('/internships/<internship_id>/apply', methods=['POST'])
-@login_required
-def apply_internship(internship_id):
-    try:
-        user_id = session['user_id']
-        
-        # Get user data for application
-        user_doc = db.collection('users').document(user_id).get()
-        user_data = user_doc.to_dict()
-        
-        # Get the internship
-        internship_ref = db.collection('internships').document(internship_id)
-        internship_doc = internship_ref.get()
-        
-        if not internship_doc.exists:
-            return jsonify({'error': 'Internship not found'}), 404
-            
-        internship_data = internship_doc.to_dict()
-        
-        # Ensure applications is a list
-        applications = internship_data.get('applications', [])
-        if not isinstance(applications, list):
-            print(f"Invalid applications type: {type(applications)}")
-            applications = []
-        
-        # Clean existing applications to remove invalid entries
-        cleaned_applications = [
-            app for app in applications 
-            if isinstance(app, dict) and app.get('user_id')
-        ]
-        
-        # Check if user already applied
-        if any(app.get('user_id') == user_id for app in cleaned_applications):
-            return jsonify({'error': 'Already applied'}), 400
-            
-        # Create application object
-        application = {
-            'user_id': user_id,
-            'username': user_data.get('display_username', user_data.get('username')),
-            'avatar_url': generate_avatar_url(user_data),
-            'status': 'pending',
-            'applied_at': datetime.datetime.now(tz=datetime.timezone.utc),
-            'skills': user_data.get('skills', []),
-            'academic_info': user_data.get('academic_info', {})
-        }
-        
-        # Add application to internship
-        cleaned_applications.append(application)
-        internship_ref.update({
-            'applications': cleaned_applications
-        })
-        
-        # Create notification for internship creator
-        create_notification(
-            internship_data['created_by'],
-            'new_application',
-            {
-                'internship_id': internship_id,
-                'internship_title': internship_data['title']
-            },
-            sender_id=user_id
-        )
-        
-        return jsonify({'success': True, 'message': 'Application submitted successfully'})
-        
-    except Exception as e:
-        print(f"Error applying to internship: {e}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({'error': 'Error submitting application'}), 500
-@app.route('/admin/clean_internship_applications', methods=['GET'])
-@login_required
-def clean_internship_applications():
-    # Only allow super admin to run this
-    if session.get('user_id') != 'vVbXL4LKGidXtrKnvqa21gWRY3V2':
-        return "Unauthorized", 403
-    
-    try:
-        # Get all internships
-        internships_ref = db.collection('internships')
-        internships = internships_ref.stream()
-        
-        cleaned_count = 0
-        for internship_doc in internships:
-            internship_data = internship_doc.to_dict()
-            
-            # Ensure applications is a list of dictionaries
-            applications = internship_data.get('applications', [])
-            
-            # Clean applications
-            cleaned_applications = [
-                app for app in applications 
-                if isinstance(app, dict) and 
-                   isinstance(app.get('user_id'), str) and 
-                   app.get('user_id')
-            ]
-            
-            # Update if cleaned applications differ
-            if len(cleaned_applications) != len(applications):
-                internships_ref.document(internship_doc.id).update({
-                    'applications': cleaned_applications
-                })
-                cleaned_count += 1
-        
-        return f"Cleaned applications in {cleaned_count} internships"
-    
-    except Exception as e:
-        print(f"Error cleaning internship applications: {e}")
-        return f"Error: {str(e)}", 500
-@app.route('/internships/<internship_id>/delete', methods=['POST'])
-@login_required
-def delete_internship(internship_id):
-    try:
-        user_id = session['user_id']
-        
-        # Get the internship
-        internship_ref = db.collection('internships').document(internship_id)
-        internship_doc = internship_ref.get()
-        
-        if not internship_doc.exists:
-            flash('Internship not found')
-            return redirect(url_for('list_internships'))
-            
-        internship_data = internship_doc.to_dict()
-        
-        # Check if user is the creator
-        if internship_data.get('created_by') != user_id:
-            flash('Unauthorized to delete this internship')
-            return redirect(url_for('view_internship', internship_id=internship_id))
-            
-        # Delete image from storage if exists
-        if internship_data.get('image_url'):
-            try:
-                image_path = internship_data['image_url'].split('/')[-1]
-                blob = bucket.blob(f"internships/{user_id}/{image_path}")
-                blob.delete()
-            except Exception as e:
-                print(f"Error deleting internship image: {e}")
-        
-        # Delete the internship document
-        internship_ref.delete()
-        
-        flash('Internship deleted successfully')
-        return redirect(url_for('list_internships'))
-        
-    except Exception as e:
-        print(f"Error deleting internship: {e}")
-        flash('Error deleting internship. Please try again.')
-        return redirect(url_for('view_internship', internship_id=internship_id))
 
 
-@app.route('/internships/<internship_id>/applications/<applicant_id>/respond', methods=['POST'])
-@login_required
-def respond_to_application(internship_id, applicant_id):
-    try:
-        user_id = session['user_id']
-        response = request.json.get('response')  # 'accept' or 'reject'
-        
-        if response not in ['accept', 'reject']:
-            return jsonify({'error': 'Invalid response'}), 400
-        
-        # Get internship data
-        internship_ref = db.collection('internships').document(internship_id)
-        internship_doc = internship_ref.get()
-        
-        if not internship_doc.exists:  # Changed from internship_doc.exists()
-            return jsonify({'error': 'Internship not found'}), 404
-            
-        internship_data = internship_doc.to_dict()
-        
-        # Verify ownership
-        if internship_data.get('created_by') != user_id:
-            return jsonify({'error': 'Unauthorized'}), 403
-        
-        # Ensure applications is a list
-        applications = internship_data.get('applications', [])
-        if not isinstance(applications, list):
-            print(f"Invalid applications type: {type(applications)}")
-            applications = []
-        
-        # Clean and validate applications
-        cleaned_applications = [
-            app for app in applications 
-            if isinstance(app, dict) and 
-               isinstance(app.get('user_id'), str) and 
-               app.get('user_id')
-        ]
-        
-        # Find and update application
-        found = False
-        for app in cleaned_applications:
-            if app.get('user_id') == applicant_id:
-                app['status'] = 'accepted' if response == 'accept' else 'rejected'
-                app['responded_at'] = datetime.datetime.now(tz=datetime.timezone.utc)
-                found = True
-                break
-                
-        if not found:
-            return jsonify({'error': 'Application not found'}), 404
-            
-        # Update internship with modified applications
-        internship_ref.update({
-            'applications': cleaned_applications
-        })
-        
-        # Check if all positions are filled after accepting
-        if response == 'accept':
-            accepted_count = sum(1 for app in cleaned_applications if app.get('status') == 'accepted')
-            if accepted_count >= internship_data.get('positions', 1):
-                # Mark internship as closed
-                internship_ref.update({
-                    'status': 'closed',
-                    'closed_at': datetime.datetime.now(tz=datetime.timezone.utc)
-                })
-                
-                # Notify remaining pending applicants
-                for app in cleaned_applications:
-                    if app.get('status') == 'pending':
-                        create_notification(
-                            app.get('user_id'),
-                            'application_update',
-                            {
-                                'internship_id': internship_id,
-                                'internship_title': internship_data['title'],
-                                'message': 'This position has been filled'
-                            }
-                        )
-        
-        # Create notification for applicant
-        create_notification(
-            applicant_id,
-            'application_update',
-            {
-                'internship_id': internship_id,
-                'internship_title': internship_data['title'],
-                'status': 'accepted' if response == 'accept' else 'rejected',
-                'message': f'Your application has been {"accepted" if response == "accept" else "rejected"}'
-            }
-        )
-        
-        return jsonify({
-            'success': True,
-            'message': f'Application {response}ed successfully'
-        })
-        
-    except Exception as e:
-        print(f"Error responding to application: {e}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({'error': str(e)}), 500
-@app.route('/internships/<internship_id>/applications')
-@login_required
-def view_applications(internship_id):
-    try:
-        user_id = session['user_id']
-        
-        # Get internship data
-        internship_ref = db.collection('internships').document(internship_id)
-        internship_doc = internship_ref.get()
-        
-        if not internship_doc.exists:
-            flash('Internship not found')
-            return redirect(url_for('list_internships'))
-            
-        internship_data = internship_doc.to_dict()
-        
-        # Ensure internship_data is a dictionary
-        if not isinstance(internship_data, dict):
-            print(f"Unexpected internship data type: {type(internship_data)}")
-            flash('Invalid internship data')
-            return redirect(url_for('list_internships'))
-        
-        internship_data['id'] = internship_id
-        
-        # Verify ownership
-        if internship_data.get('created_by') != user_id:
-            flash('Unauthorized')
-            return redirect(url_for('list_internships'))
-            
-        # Sort applications by status and date
-        applications = internship_data.get('applications', [])
-        
-        # Ensure applications is a list and each item is a dictionary
-        if not isinstance(applications, list):
-            print(f"Unexpected applications type: {type(applications)}")
-            applications = []
-        
-        # Clean and validate applications
-        cleaned_applications = []
-        for app in applications:
-            # If app is a string, skip it
-            if isinstance(app, str):
-                print(f"Skipping invalid string application: {app}")
-                continue
-            
-            # Ensure app is a dictionary
-            if not isinstance(app, dict):
-                print(f"Skipping invalid application type: {type(app)}")
-                continue
-            
-            # Normalize applied_at to datetime
-            applied_at = app.get('applied_at')
-            if isinstance(applied_at, str):
-                try:
-                    applied_at = datetime.datetime.fromisoformat(applied_at.replace('Z', '+00:00'))
-                except:
-                    applied_at = datetime.datetime.min
-            elif not isinstance(applied_at, datetime.datetime):
-                applied_at = datetime.datetime.min
-            
-            # Prepare clean application dictionary
-            app_copy = {
-                'user_id': app.get('user_id', ''),
-                'username': app.get('username', ''),
-                'avatar_url': app.get('avatar_url', ''),
-                'status': app.get('status', 'pending'),
-                'applied_at': applied_at,
-                'skills': app.get('skills', []),
-                'academic_info': app.get('academic_info', {})
-            }
-            cleaned_applications.append(app_copy)
-        
-        # Sort applications 
-        sorted_applications = sorted(
-            cleaned_applications,
-            key=lambda x: (
-                {'pending': 0, 'accepted': 1, 'rejected': 2}.get(x.get('status', 'pending'), 0),
-                x.get('applied_at', datetime.datetime.min)
-            )
-        )
-        
-        return render_template(
-            'view_applications.html',
-            internship=internship_data,
-            applications=sorted_applications
-        )
-        
-    except Exception as e:
-        print(f"Comprehensive error viewing applications: {e}")
-        print(f"Internship ID: {internship_id}")
-        print(f"User ID: {user_id}")
-        
-        import traceback
-        traceback.print_exc()
-        
-        flash('Error loading applications')
-        return redirect(url_for('list_internships'))
 @app.route('/university-recommendation')
 @login_required
 def university_recommendation():
@@ -3928,15 +3647,10 @@ def create_project():
         # Parse tags and collaborators
         tags = json.loads(request.form.get('tags', '[]'))
         
-        # Debug info for collaborators
-        collaborators_json = request.form.get('collaborators', '[]')
-        print(f"Received collaborators JSON: {collaborators_json}")
-        
         try:
+            collaborators_json = request.form.get('collaborators', '[]')
             collaborators_data = json.loads(collaborators_json)
-            # Verify it's a list
             if not isinstance(collaborators_data, list):
-                print(f"WARNING: collaborators_data is not a list: {type(collaborators_data)}")
                 collaborators_data = []
         except Exception as json_error:
             print(f"Error parsing collaborators JSON: {json_error}")
@@ -3960,9 +3674,7 @@ def create_project():
         # Process collaborators
         collaborators = []
         for collab in collaborators_data:
-            # Verify each collaborator has the required fields
             if not collab.get('user_id') or not collab.get('username'):
-                print(f"WARNING: Skipping invalid collaborator: {collab}")
                 continue
                 
             collaborator = {
@@ -3980,6 +3692,38 @@ def create_project():
         existing_images = request.form.getlist('existing_images')
         if existing_images:
             image_urls.extend(existing_images)
+        
+        # Process thumbnail
+        thumbnail_url = None
+        if 'thumbnail' in request.files:
+            thumbnail_file = request.files['thumbnail']
+            if thumbnail_file and thumbnail_file.filename:
+                # Create a unique filename
+                file_extension = thumbnail_file.filename.rsplit('.', 1)[1].lower()
+                filename = f"thumbnail_{str(uuid.uuid4())}.{file_extension}"
+                
+                # Save for later since we need the project ID
+                thumbnail_data = {
+                    'file': thumbnail_file,
+                    'filename': filename,
+                    'extension': file_extension
+                }
+        
+        # Process header image
+        header_image_url = None
+        if 'header_image' in request.files:
+            header_file = request.files['header_image']
+            if header_file and header_file.filename:
+                # Create a unique filename
+                file_extension = header_file.filename.rsplit('.', 1)[1].lower()
+                filename = f"header_{str(uuid.uuid4())}.{file_extension}"
+                
+                # Save for later since we need the project ID
+                header_data = {
+                    'file': header_file,
+                    'filename': filename,
+                    'extension': file_extension
+                }
         
         # Upload new images
         for key in request.files:
@@ -4005,6 +3749,7 @@ def create_project():
         # Create project document
         project_data = {
             'title': title,
+            'title_lower': title.lower(),  # Add lowercase version for case-insensitive search
             'description': description,
             'github_url': github_url,
             'project_url': project_url,
@@ -4018,17 +3763,55 @@ def create_project():
             'last_updated': datetime.datetime.now(tz=datetime.timezone.utc)
         }
         
-        # Debug log before saving
-        print(f"Saving project with {len(collaborators)} collaborators")
-        
         # Save to Firestore
         project_ref = db.collection('projects').document()
         project_ref.set(project_data)
+        project_id = project_ref.id
+        
+        # Now upload thumbnail if exists
+        if 'thumbnail' in request.files and request.files['thumbnail'] and request.files['thumbnail'].filename:
+            thumbnail_file = request.files['thumbnail']
+            blob_path = f"projects/thumbnails/{project_id}/{thumbnail_data['filename']}"
+            
+            blob = bucket.blob(blob_path)
+            blob.upload_from_string(
+                thumbnail_file.read(),
+                content_type=thumbnail_file.content_type
+            )
+            
+            # Make public and get URL
+            blob.make_public()
+            thumbnail_url = blob.public_url
+            
+            # Update project with thumbnail URL
+            project_ref.update({
+                'thumbnail': thumbnail_url
+            })
+        
+        # Now upload header image if exists
+        if 'header_image' in request.files and request.files['header_image'] and request.files['header_image'].filename:
+            header_file = request.files['header_image']
+            blob_path = f"projects/headers/{project_id}/{header_data['filename']}"
+            
+            blob = bucket.blob(blob_path)
+            blob.upload_from_string(
+                header_file.read(),
+                content_type=header_file.content_type
+            )
+            
+            # Make public and get URL
+            blob.make_public()
+            header_image_url = blob.public_url
+            
+            # Update project with header URL
+            project_ref.update({
+                'header_image': header_image_url
+            })
         
         # Add project reference to user document
-        user_projects_ref = db.collection('users').document(user_id).collection('projects').document(project_ref.id)
+        user_projects_ref = db.collection('users').document(user_id).collection('projects').document(project_id)
         user_projects_ref.set({
-            'project_id': project_ref.id,
+            'project_id': project_id,
             'created_at': datetime.datetime.now(tz=datetime.timezone.utc)
         })
         
@@ -4038,7 +3821,7 @@ def create_project():
                 collaborator['user_id'],
                 'project_collaboration',
                 {
-                    'project_id': project_ref.id,
+                    'project_id': project_id,
                     'project_title': title,
                     'message': f"{user_data.get('display_username', user_data.get('username', ''))} added you as a collaborator on {title}"
                 },
@@ -4047,7 +3830,7 @@ def create_project():
         
         return jsonify({
             'success': True,
-            'project_id': project_ref.id,
+            'project_id': project_id,
             'message': 'Project created successfully'
         })
         
@@ -4056,6 +3839,8 @@ def create_project():
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/projects/<project_id>')
 def get_project(project_id):
     try:
@@ -4207,6 +3992,64 @@ def update_project(project_id):
         if existing_images:
             image_urls.extend(existing_images)
         
+        # Process thumbnail if provided
+        thumbnail_url = project_data.get('thumbnail')
+        if 'thumbnail' in request.files:
+            thumbnail_file = request.files['thumbnail']
+            if thumbnail_file and thumbnail_file.filename:
+                # Delete old thumbnail if exists
+                if thumbnail_url:
+                    try:
+                        old_filename = thumbnail_url.split('/')[-1]
+                        old_blob = bucket.blob(f"projects/thumbnails/{project_id}/{old_filename}")
+                        old_blob.delete()
+                    except Exception as e:
+                        print(f"Error deleting old thumbnail: {e}")
+                
+                # Upload new thumbnail
+                file_extension = thumbnail_file.filename.rsplit('.', 1)[1].lower()
+                filename = f"thumbnail_{str(uuid.uuid4())}.{file_extension}"
+                blob_path = f"projects/thumbnails/{project_id}/{filename}"
+                
+                blob = bucket.blob(blob_path)
+                blob.upload_from_string(
+                    thumbnail_file.read(),
+                    content_type=thumbnail_file.content_type
+                )
+                
+                # Make public and get URL
+                blob.make_public()
+                thumbnail_url = blob.public_url
+        
+        # Process header image if provided
+        header_image_url = project_data.get('header_image')
+        if 'header_image' in request.files:
+            header_file = request.files['header_image']
+            if header_file and header_file.filename:
+                # Delete old header if exists
+                if header_image_url:
+                    try:
+                        old_filename = header_image_url.split('/')[-1]
+                        old_blob = bucket.blob(f"projects/headers/{project_id}/{old_filename}")
+                        old_blob.delete()
+                    except Exception as e:
+                        print(f"Error deleting old header: {e}")
+                
+                # Upload new header
+                file_extension = header_file.filename.rsplit('.', 1)[1].lower()
+                filename = f"header_{str(uuid.uuid4())}.{file_extension}"
+                blob_path = f"projects/headers/{project_id}/{filename}"
+                
+                blob = bucket.blob(blob_path)
+                blob.upload_from_string(
+                    header_file.read(),
+                    content_type=header_file.content_type
+                )
+                
+                # Make public and get URL
+                blob.make_public()
+                header_image_url = blob.public_url
+        
         # Upload new images
         for key in request.files:
             if key.startswith('image_'):
@@ -4240,6 +4083,13 @@ def update_project(project_id):
             'last_updated': datetime.datetime.now(tz=datetime.timezone.utc)
         }
         
+        # Add thumbnail and header if they exist
+        if thumbnail_url:
+            update_data['thumbnail'] = thumbnail_url
+        
+        if header_image_url:
+            update_data['header_image'] = header_image_url
+        
         project_ref.update(update_data)
         
         # Notify all collaborators about project update
@@ -4272,6 +4122,256 @@ def update_project(project_id):
         print(f"Error updating project: {e}")
         import traceback
         traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+    
+@app.route('/projects/<project_id>/update_header', methods=['POST'])
+@login_required
+def update_project_header(project_id):
+    user_id = session['user_id']
+    
+    try:
+        # Check if project exists and user has permission
+        project_ref = db.collection('projects').document(project_id)
+        project_doc = project_ref.get()
+        
+        if not project_doc.exists:
+            return jsonify({'success': False, 'error': 'Project not found'}), 404
+            
+        project_data = project_doc.to_dict()
+        
+        # Check if user is creator or collaborator
+        is_creator = user_id == project_data.get('created_by')
+        is_collaborator = any(c.get('user_id') == user_id for c in project_data.get('collaborators', []))
+        
+        if not (is_creator or is_collaborator):
+            return jsonify({'success': False, 'error': 'Not authorized to update this project'}), 403
+        
+        # Check if header_image is in request
+        if 'header_image' not in request.files:
+            return jsonify({'success': False, 'error': 'No file provided'}), 400
+        
+        header_file = request.files['header_image']
+        if not header_file or not header_file.filename:
+            return jsonify({'success': False, 'error': 'No file selected'}), 400
+            
+        # Check file size (5MB max)
+        if len(header_file.read()) > 5 * 1024 * 1024:
+            return jsonify({'success': False, 'error': 'File size exceeds 5MB limit'}), 400
+            
+        # Reset file pointer after reading
+        header_file.seek(0)
+        
+        # Delete old header image if it exists
+        if project_data.get('header_image'):
+            try:
+                # Extract filename from URL
+                old_filename = project_data['header_image'].split('/')[-1]
+                old_blob = bucket.blob(f'projects/headers/{project_id}/{old_filename}')
+                old_blob.delete()
+            except Exception as e:
+                print(f"Error deleting old header: {e}")
+        
+        # Upload new header image
+        file_extension = header_file.filename.rsplit('.', 1)[1].lower()
+        filename = f"header_{str(uuid.uuid4())}.{file_extension}"
+        blob_path = f"projects/headers/{project_id}/{filename}"
+        
+        blob = bucket.blob(blob_path)
+        blob.upload_from_string(
+            header_file.read(),
+            content_type=header_file.content_type
+        )
+        
+        # Make file publicly accessible
+        blob.make_public()
+        header_url = blob.public_url
+        
+        # Update project document
+        project_ref.update({
+            'header_image': header_url,
+            'last_updated': datetime.datetime.now(tz=datetime.timezone.utc)
+        })
+        
+        return jsonify({
+            'success': True,
+            'header_url': header_url,
+            'message': 'Header image updated successfully'
+        })
+        
+    except Exception as e:
+        print(f"Error updating project header: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/projects/<project_id>/update_thumbnail', methods=['POST'])
+@login_required
+def update_project_thumbnail(project_id):
+    user_id = session['user_id']
+    
+    try:
+        # Check if project exists and user has permission
+        project_ref = db.collection('projects').document(project_id)
+        project_doc = project_ref.get()
+        
+        if not project_doc.exists:
+            return jsonify({'success': False, 'error': 'Project not found'}), 404
+            
+        project_data = project_doc.to_dict()
+        
+        # Check if user is creator or collaborator
+        is_creator = user_id == project_data.get('created_by')
+        is_collaborator = any(c.get('user_id') == user_id for c in project_data.get('collaborators', []))
+        
+        if not (is_creator or is_collaborator):
+            return jsonify({'success': False, 'error': 'Not authorized to update this project'}), 403
+        
+        # Check if thumbnail is in request
+        if 'thumbnail' not in request.files:
+            return jsonify({'success': False, 'error': 'No file provided'}), 400
+        
+        thumbnail_file = request.files['thumbnail']
+        if not thumbnail_file or not thumbnail_file.filename:
+            return jsonify({'success': False, 'error': 'No file selected'}), 400
+            
+        # Check file size (2MB max)
+        if len(thumbnail_file.read()) > 2 * 1024 * 1024:
+            return jsonify({'success': False, 'error': 'File size exceeds 2MB limit'}), 400
+            
+        # Reset file pointer after reading
+        thumbnail_file.seek(0)
+        
+        # Delete old thumbnail if it exists
+        if project_data.get('thumbnail'):
+            try:
+                # Extract filename from URL
+                old_filename = project_data['thumbnail'].split('/')[-1]
+                old_blob = bucket.blob(f'projects/thumbnails/{project_id}/{old_filename}')
+                old_blob.delete()
+            except Exception as e:
+                print(f"Error deleting old thumbnail: {e}")
+        
+        # Upload new thumbnail
+        file_extension = thumbnail_file.filename.rsplit('.', 1)[1].lower()
+        filename = f"thumbnail_{str(uuid.uuid4())}.{file_extension}"
+        blob_path = f"projects/thumbnails/{project_id}/{filename}"
+        
+        blob = bucket.blob(blob_path)
+        blob.upload_from_string(
+            thumbnail_file.read(),
+            content_type=thumbnail_file.content_type
+        )
+        
+        # Make file publicly accessible
+        blob.make_public()
+        thumbnail_url = blob.public_url
+        
+        # Update project document
+        project_ref.update({
+            'thumbnail': thumbnail_url,
+            'last_updated': datetime.datetime.now(tz=datetime.timezone.utc)
+        })
+        
+        return jsonify({
+            'success': True,
+            'thumbnail_url': thumbnail_url,
+            'message': 'Thumbnail updated successfully'
+        })
+        
+    except Exception as e:
+        print(f"Error updating project thumbnail: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+@app.route('/projects/<project_id>/updates', methods=['POST'])
+@login_required
+def add_project_update(project_id):
+    user_id = session['user_id']
+    
+    try:
+        # Get project document
+        project_ref = db.collection('projects').document(project_id)
+        project_doc = project_ref.get()
+        
+        if not project_doc.exists:
+            return jsonify({'success': False, 'error': 'Project not found'}), 404
+            
+        project_data = project_doc.to_dict()
+        
+        # Check if user is creator or collaborator
+        is_collaborator = (user_id == project_data['created_by']) or \
+                          any(c['user_id'] == user_id for c in project_data.get('collaborators', []))
+                          
+        if not is_collaborator:
+            return jsonify({'success': False, 'error': 'Not authorized to update this project'}), 403
+        
+        # Get form data
+        title = request.form.get('title')
+        update_type = request.form.get('type', 'Update')
+        content = request.form.get('content')
+        
+        # Validate
+        if not title or not content:
+            return jsonify({'success': False, 'error': 'Title and content are required'}), 400
+        
+        # Get user info
+        user_doc = db.collection('users').document(user_id).get()
+        user_data = user_doc.to_dict()
+        
+        # Create update object
+        update_data = {
+            'title': title,
+            'type': update_type,
+            'content': content,
+            'author_id': user_id,
+            'author_username': user_data.get('display_username', user_data.get('username', '')),
+            'author_avatar': generate_avatar_url(user_data),
+            'created_at': datetime.datetime.now(tz=datetime.timezone.utc)
+        }
+        
+        # Add update to project
+        updates = project_data.get('updates', [])
+        updates.insert(0, update_data)  # Add to the beginning to show newest first
+        
+        project_ref.update({
+            'updates': updates,
+            'last_updated': datetime.datetime.now(tz=datetime.timezone.utc)
+        })
+        
+        # Notify creator and collaborators about the update
+        notified_users = set()
+        
+        # Add creator to notification list if not the author
+        if project_data['created_by'] != user_id:
+            notified_users.add(project_data['created_by'])
+        
+        # Add all collaborators except the author
+        for collab in project_data.get('collaborators', []):
+            if collab['user_id'] != user_id:
+                notified_users.add(collab['user_id'])
+        
+        # Send notifications
+        for recipient_id in notified_users:
+            create_notification(
+                recipient_id,
+                'project_update',
+                {
+                    'project_id': project_id,
+                    'project_title': project_data['title'],
+                    'update_title': title,
+                    'update_type': update_type,
+                    'message': f"New {update_type.lower()} posted on {project_data['title']}: {title}"
+                },
+                sender_id=user_id
+            )
+        
+        return jsonify({
+            'success': True,
+            'message': 'Update added successfully'
+        })
+        
+    except Exception as e:
+        print(f"Error adding project update: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
       
 @app.route('/projects/<project_id>/delete', methods=['DELETE'])
@@ -4363,8 +4463,443 @@ def view_project(project_id):
         flash('Error loading project')
         return redirect(url_for('index'))
 
+@app.route('/projects/<project_id>/comments', methods=['GET', 'POST'])
+@login_required
+def project_comments(project_id):
+    try:
+        # Check if project exists
+        project_ref = db.collection('projects').document(project_id)
+        project_doc = project_ref.get()
+        
+        if not project_doc.exists:
+            return jsonify({'error': 'Project not found'}), 404
+            
+        # POST request - add a new comment
+        if request.method == 'POST':
+            comment_text = request.form.get('comment')
+            if not comment_text or len(comment_text.strip()) == 0:
+                return jsonify({'error': 'Comment text is required'}), 400
+            
+            if len(comment_text) > 500:
+                return jsonify({'error': 'Comment is too long'}), 400
+
+            # Create comment data
+            comment_data = {
+                'author_id': session['user_id'],
+                'author_username': session['username'],
+                'text': comment_text.strip(),
+                'created_at': datetime.datetime.now(tz=datetime.timezone.utc),
+                'likes': []
+            }
+
+            # Add comment to project's comments collection
+            comment_ref = db.collection('projects').document(project_id).collection('comments').add(comment_data)
+            
+            # Get author info for response
+            author_doc = db.collection('users').document(session['user_id']).get()
+            author_data = author_doc.to_dict()
+            
+            # Notify project owner if the commenter is not the owner
+            project_data = project_doc.to_dict()
+            owner_id = project_data.get('created_by')
+            
+            if session['user_id'] != owner_id:
+                create_notification(
+                    owner_id,
+                    'project_comment',
+                    {
+                        'project_id': project_id,
+                        'project_title': project_data.get('title', 'Project'),
+                        'comment_text': comment_text.strip()
+                    },
+                    sender_id=session['user_id'],
+                    related_id=comment_ref[1].id
+                )
+
+            # Format response
+            response_data = {
+                'success': True,
+                'comment': {
+                    'id': comment_ref[1].id,
+                    **comment_data,
+                    'author_avatar': generate_avatar_url(author_data),
+                    'author_verified': author_data.get('verified', False),
+                    'author_verification_type': author_data.get('verification_type'),
+                    'likes_count': 0,
+                    'is_liked': False
+                }
+            }
+
+            return jsonify(response_data), 201
+        
+        # GET request - fetch comments
+        else:
+            comments_ref = db.collection('projects').document(project_id).collection('comments')
+            comments_query = comments_ref.order_by('created_at', direction=firestore.Query.DESCENDING)
+
+            all_comments = comments_query.stream()
+            
+            # Process comments and replies
+            main_comments = {}
+            replies = {}
+
+            for comment_doc in all_comments:
+                comment = comment_doc.to_dict()
+                comment['id'] = comment_doc.id
+
+                # Get author info
+                author_doc = db.collection('users').document(comment['author_id']).get()
+                author_data = author_doc.to_dict() if author_doc.exists else None
+                
+                comment['author_avatar'] = generate_avatar_url(author_data) if author_data else url_for('static', filename='default-avatar.png')
+                comment['likes_count'] = len(comment.get('likes', []))
+                comment['is_liked'] = session.get('user_id') in comment.get('likes', [])
+                comment['can_delete'] = session.get('user_id') == comment['author_id'] or \
+                                        session.get('user_id') == project_doc.to_dict().get('created_by')
+
+                if 'parent_id' in comment:
+                    if comment['parent_id'] not in replies:
+                        replies[comment['parent_id']] = []
+                    replies[comment['parent_id']].append(comment)
+                else:
+                    main_comments[comment_doc.id] = comment
+
+            # Add replies to main comments
+            for comment_id, comment in main_comments.items():
+                if comment_id in replies:
+                    sorted_replies = sorted(replies[comment_id], key=lambda x: x['created_at'])
+                    comment['replies'] = sorted_replies
+
+            return jsonify(list(main_comments.values()))
+
+    except Exception as e:
+        print(f"Error in project_comments route: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
 
 
+@app.route('/projects/<project_id>/comments/<comment_id>', methods=['DELETE'])
+@login_required
+def delete_project_comment(project_id, comment_id):
+    try:
+        # Get project and comment
+        project_ref = db.collection('projects').document(project_id)
+        project_doc = project_ref.get()
+        
+        if not project_doc.exists:
+            return jsonify({'error': 'Project not found'}), 404
+            
+        comment_ref = project_ref.collection('comments').document(comment_id)
+        comment_doc = comment_ref.get()
+        
+        if not comment_doc.exists:
+            return jsonify({'error': 'Comment not found'}), 404
+        
+        comment_data = comment_doc.to_dict()
+        project_data = project_doc.to_dict()
+        
+        # Check if user is authorized to delete (comment author or project owner)
+        if comment_data['author_id'] != session['user_id'] and project_data.get('created_by') != session['user_id']:
+            return jsonify({'error': 'Unauthorized to delete this comment'}), 403
+        
+        # Delete comment
+        comment_ref.delete()
+        
+        # Also delete any replies to this comment
+        replies_query = project_ref.collection('comments').where('parent_id', '==', comment_id).get()
+        for reply in replies_query:
+            reply.reference.delete()
+        
+        return jsonify({'success': True, 'message': 'Comment deleted successfully'})
+        
+    except Exception as e:
+        print(f"Error deleting project comment: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/projects/<project_id>/comments/<comment_id>/like', methods=['POST'])
+@login_required
+def like_project_comment(project_id, comment_id):
+    try:
+        # Check if project exists
+        project_ref = db.collection('projects').document(project_id)
+        project_doc = project_ref.get()
+        
+        if not project_doc.exists:
+            return jsonify({'error': 'Project not found'}), 404
+            
+        # Get comment
+        comment_ref = project_ref.collection('comments').document(comment_id)
+        comment_doc = comment_ref.get()
+        
+        if not comment_doc.exists:
+            return jsonify({'error': 'Comment not found'}), 404
+            
+        comment_data = comment_doc.to_dict()
+        current_user_id = session['user_id']
+        
+        # Toggle like status
+        likes = comment_data.get('likes', [])
+        
+        if current_user_id in likes:
+            likes.remove(current_user_id)
+        else:
+            likes.append(current_user_id)
+            
+            # Notify comment author about like (if it's not their own comment)
+            if current_user_id != comment_data['author_id']:
+                create_notification(
+                    comment_data['author_id'],
+                    'like_comment',
+                    {
+                        'project_id': project_id,
+                        'project_title': project_doc.to_dict().get('title', 'Project'),
+                        'comment_text': comment_data['text']
+                    },
+                    sender_id=current_user_id,
+                    related_id=comment_id
+                )
+        
+        # Update comment
+        comment_ref.update({'likes': likes})
+        
+        return jsonify({
+            'success': True,
+            'likes_count': len(likes),
+            'is_liked': current_user_id in likes
+        })
+        
+    except Exception as e:
+        print(f"Error liking project comment: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/projects/<project_id>/comments/<comment_id>/reply', methods=['POST'])
+@login_required
+def reply_to_project_comment(project_id, comment_id):
+    try:
+        # Check if project exists
+        project_ref = db.collection('projects').document(project_id)
+        project_doc = project_ref.get()
+        
+        if not project_doc.exists:
+            return jsonify({'error': 'Project not found'}), 404
+            
+        # Get original comment
+        comment_ref = project_ref.collection('comments').document(comment_id)
+        comment_doc = comment_ref.get()
+        
+        if not comment_doc.exists:
+            return jsonify({'error': 'Comment not found'}), 404
+            
+        # Get reply text
+        reply_text = request.form.get('reply')
+        if not reply_text or len(reply_text.strip()) == 0:
+            return jsonify({'error': 'Reply text is required'}), 400
+            
+        if len(reply_text) > 500:
+            return jsonify({'error': 'Reply is too long'}), 400
+            
+        # Get original comment data
+        comment_data = comment_doc.to_dict()
+        
+        # Prepare reply chain
+        reply_chain = comment_data.get('reply_chain', [])
+        if 'parent_id' in comment_data:
+            # This is a reply to a reply
+            reply_chain = comment_data.get('reply_chain', [])
+        
+        # Add current comment to the chain
+        reply_chain.append(comment_id)
+        
+        # Create reply data
+        reply_data = {
+            'author_id': session['user_id'],
+            'author_username': session['username'],
+            'text': reply_text.strip(),
+            'created_at': datetime.datetime.now(tz=datetime.timezone.utc),
+            'parent_id': comment_id,
+            'reply_chain': reply_chain,
+            'reply_to_username': comment_data['author_username'],
+            'reply_level': len(reply_chain),
+            'likes': []
+        }
+        
+        # Add reply to project's comments collection
+        reply_ref = project_ref.collection('comments').add(reply_data)
+        
+        # Get author info for response
+        author_doc = db.collection('users').document(session['user_id']).get()
+        author_data = author_doc.to_dict()
+        
+        # Notify the original comment author if not the same person
+        if session['user_id'] != comment_data['author_id']:
+            create_notification(
+                comment_data['author_id'],
+                'reply_comment',
+                {
+                    'project_id': project_id,
+                    'project_title': project_doc.to_dict().get('title', 'Project'),
+                    'original_comment_text': comment_data['text'],
+                    'reply_text': reply_text.strip(),
+                    'reply_chain': reply_chain
+                },
+                sender_id=session['user_id'],
+                related_id=comment_id
+            )
+        
+        # Format response
+        response_data = {
+            'success': True,
+            'reply': {
+                'id': reply_ref[1].id,
+                **reply_data,
+                'author_avatar': generate_avatar_url(author_data),
+                'author_verified': author_data.get('verified', False),
+                'author_verification_type': author_data.get('verification_type'),
+                'likes_count': 0,
+                'is_liked': False
+            }
+        }
+        
+        return jsonify(response_data), 201
+        
+    except Exception as e:
+        print(f"Error in reply_to_project_comment: {e}")
+        return jsonify({'error': str(e)}), 500
+# Configure longer session lifetime (120 days)
+app.config['PERMANENT_SESSION_LIFETIME'] = datetime.timedelta(days=120)
+@app.route('/notifications-page')
+@login_required
+def notifications_page():
+    user_id = session['user_id']
+    
+    try:
+        # Get the active tab from the query parameter, default to 'notifications'
+        tab = request.args.get('tab', 'notifications')
+        
+        # Handle different tabs
+        if tab == 'mentions':
+            # Get mentions (users who mentioned this user)
+            items = []
+            # For now, this is placeholder logic
+            # Later you can implement a system to track when users are mentioned with @username
+        
+        elif tab == 'launch_tags':
+            # Get launch tags (similar to Product Hunt's launch notifications)
+            items = []
+            # For now, this is placeholder logic
+            # Later you can implement tagging users in project launches
+        
+        else:  # Default to notifications tab
+            # Fetch notifications from the user's collection
+            notifications_ref = db.collection('users').document(user_id).collection('notifications')
+            notifications = notifications_ref.order_by('created_at', direction=firestore.Query.DESCENDING).limit(50).stream()
+            
+            items = []
+            for notification_doc in notifications:
+                notification = notification_doc.to_dict()
+                notification['id'] = notification_doc.id
+                
+                # Process notification type info
+                notification_type = notification.get('type', 'system')
+                notification_type_info = ENHANCED_NOTIFICATION_TYPES.get(notification_type, {})
+                
+                notification['icon'] = notification_type_info.get('icon', '🔔')
+                notification['type_label'] = notification_type_info.get('label', 'Notification')
+                
+                # Handle sender info for different notification types
+                if notification_type in ['system', 'admin_message', 'important']:
+                    sender_config = notification_type_info.get('sender', {})
+                    notification['sender_info'] = {
+                        'username': sender_config.get('username', 'Jinaq'),
+                        'verified': sender_config.get('verified', True),
+                        'verification_type': sender_config.get('verification_type', 'system'),
+                        'avatar_url': url_for('static', filename='jinaq_logo.svg')
+                    }
+                
+                # Process avatar URLs for sender
+                if notification.get('sender_info'):
+                    sender_info = notification['sender_info']
+                    if not sender_info.get('avatar_url'):
+                        sender_info['avatar_url'] = generate_avatar_url({
+                            'username': sender_info.get('username', 'User')
+                        })
+                
+                # Process specific notification types
+                if notification_type == 'project_collaboration':
+                    # Try to get project details if not included
+                    if 'project_title' not in notification.get('content', {}) and notification.get('content', {}).get('project_id'):
+                        try:
+                            project_doc = db.collection('projects').document(notification['content']['project_id']).get()
+                            if project_doc.exists:
+                                project_data = project_doc.to_dict()
+                                notification['content']['project_title'] = project_data.get('title', 'Unknown Project')
+                        except Exception as e:
+                            print(f"Error fetching project details: {e}")
+                
+                # Add to items
+                items.append(notification)
+            
+            # Mark notifications as read in batches
+            try:
+                unread_items = [item for item in items if not item.get('is_read')]
+                if unread_items:
+                    batch = db.batch()
+                    for item in unread_items:
+                        notification_ref = db.collection('users').document(user_id).collection('notifications').document(item['id'])
+                        batch.update(notification_ref, {'is_read': True})
+                    batch.commit()
+                    
+                    # Update the items in memory too
+                    for item in items:
+                        item['is_read'] = True
+            except Exception as e:
+                print(f"Error marking notifications as read: {e}")
+        
+        # Get unread count for the badge (this will be 0 after viewing, but needed for other pages)
+        unread_notifications_count = 0
+        try:
+            unread_notifications = db.collection('users').document(user_id).collection('notifications').where('is_read', '==', False).get()
+            unread_notifications_count = len(list(unread_notifications))
+        except Exception as e:
+            print(f"Error getting unread count: {e}")
+        
+        # Get current user info for the template
+        current_user_avatar = get_current_user_avatar()
+        current_username = get_current_username()
+        
+        return render_template(
+            'notifications_page.html',
+            items=items,
+            current_tab=tab,
+            unread_notifications_count=unread_notifications_count,
+            current_user_avatar=current_user_avatar,
+            current_username=current_username
+        )
+    
+    except Exception as e:
+        print(f"Error in notifications page: {e}")
+        import traceback
+        traceback.print_exc()
+        flash('Error loading notifications')
+        return redirect(url_for('index'))
+def get_unread_notifications_count(user_id):
+    try:
+        if not user_id:
+            return 0
+            
+        notifications_ref = db.collection('users').document(user_id).collection('notifications')
+        unread_notifications = notifications_ref.where('is_read', '==', False).get()
+        return len(list(unread_notifications))
+    except Exception as e:
+        print(f"Error getting unread notifications count: {e}")
+        return 0
+
+@app.before_request
+def make_session_permanent():
+    session.permanent = True
 @app.errorhandler(404)
 def page_not_found(e):
 
