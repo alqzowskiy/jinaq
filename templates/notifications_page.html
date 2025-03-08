@@ -1,0 +1,680 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mx-auto px-4 sm:px-6 py-6 max-w-3xl">
+    <div class="bg-white rounded-lg overflow-hidden shadow-sm">
+        <!-- Tab Navigation -->
+        <div class="border-b border-gray-200 overflow-x-auto hide-scrollbar">
+            <nav class="flex whitespace-nowrap">
+                <a href="{{ url_for('notifications_page', tab='notifications') }}"
+                    class="px-4 sm:px-6 py-4 text-center border-b-2 font-medium text-sm flex items-center space-x-2 {% if current_tab == 'notifications' %}text-blue-600 border-blue-600{% else %}text-gray-500 border-transparent hover:text-gray-700 hover:border-gray-300{% endif %}">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M15 17h5l-1.405-1.405A2.032 2.032 0 0 1 18 15.158V11a6.002 6.002 0 0 0-4-5.659V5a2 2 0 1 0-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 1 1-6 0v-1m6 0H9" />
+                    </svg>
+                    <span>Notifications</span>
+                    {% if unread_notifications_count > 0 %}
+                    <span class="ml-1 bg-red-500 text-white text-xs rounded-full px-2 py-0.5">{{
+                        unread_notifications_count }}</span>
+                    {% endif %}
+                </a>
+                <a href="{{ url_for('notifications_page', tab='mentions') }}"
+                    class="px-4 sm:px-6 py-4 text-center border-b-2 font-medium text-sm flex items-center space-x-2 {% if current_tab == 'mentions' %}text-blue-600 border-blue-600{% else %}text-gray-500 border-transparent hover:text-gray-700 hover:border-gray-300{% endif %}">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z" />
+                    </svg>
+                    <span>Mentions</span>
+                </a>
+                <a href="{{ url_for('notifications_page', tab='launch_tags') }}"
+                    class="px-4 sm:px-6 py-4 text-center border-b-2 font-medium text-sm flex items-center space-x-2 {% if current_tab == 'launch_tags' %}text-blue-600 border-blue-600{% else %}text-gray-500 border-transparent hover:text-gray-700 hover:border-gray-300{% endif %}">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                    </svg>
+                    <span>Launch tags</span>
+                </a>
+            </nav>
+        </div>
+
+        <!-- Tab Content -->
+        <div>
+            {% if current_tab == 'notifications' and items %}
+            <div class="flex justify-between items-center p-4 border-b border-gray-100">
+                <div class="text-sm text-gray-500">{{ items|length }} notification{% if items|length != 1 %}s{% endif %}
+                </div>
+                <button id="markAllReadBtn" onclick="markAllAsRead()"
+                    class="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center space-x-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span>Mark all as read</span>
+                </button>
+            </div>
+            {% endif %}
+
+            {% if items %}
+            <div class="divide-y divide-gray-100">
+                {% for item in items %}
+                {% if current_tab == 'notifications' %}
+                <!-- Simple notification card in Twitter style -->
+                <div class="p-4 relative group" data-notification-id="{{ item.id }}">
+                    <div class="flex items-start space-x-3">
+                        <!-- Avatar section -->
+                        <div class="flex-shrink-0">
+                            {% if item.type in ['system', 'admin_message', 'important', 'account_change',
+                            'verification'] %}
+                            <div
+                                class="w-10 h-10 rounded-full flex items-center justify-center bg-blue-50 overflow-hidden border border-gray-100">
+                                <img src="{{ url_for('static', filename='jinaq_icon.svg') }}"
+                                    class="w-6 h-6 object-contain" alt="Jinaq">
+                            </div>
+                            {% elif item.sender_info %}
+                            <a href="/{{ item.sender_info.username }}" class="block">
+                                <div class="relative w-10 h-10">
+                                    {% if item.sender_info.username == 'Test2' %}
+                                    <div
+                                        class="w-10 h-10 rounded-full flex items-center justify-center bg-purple-600 text-white font-bold">
+                                        T
+                                    </div>
+                                    {% elif item.sender_info.username == 'jinaq' %}
+                                    <div
+                                        class="w-10 h-10 rounded-full flex items-center justify-center bg-yellow-500 text-white font-bold">
+                                        J
+                                    </div>
+                                    {% else %}
+                                    <img src="{{ item.sender_info.avatar_url }}"
+                                        class="w-10 h-10 rounded-full object-cover"
+                                        alt="{{ item.sender_info.username }}">
+                                    {% endif %}
+                                    {% if item.sender_info.verified %}
+                                    <div class="absolute -right-1 -bottom-1 bg-blue-500 text-white rounded-full p-0.5">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20"
+                                            fill="currentColor">
+                                            <path fill-rule="evenodd"
+                                                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                                                clip-rule="evenodd" />
+                                        </svg>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </a>
+                            {% else %}
+                            <div class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none"
+                                    viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                </svg>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Notification content -->
+                        <div class="flex-grow pr-8">
+                            <div class="flex justify-between">
+                                <!-- Username and verification -->
+                                <div>
+                                    {% if item.type in ['system', 'admin_message', 'important', 'account_change',
+                                    'verification'] %}
+                                    <a href="javascript:void(0)" class="font-medium text-black">@{{
+                                        item.sender_info.username if item.sender_info else 'jinaq' }}</a>
+                                    {% elif item.sender_info %}
+                                    <a href="/{{ item.sender_info.username }}"
+                                        class="font-medium text-black hover:underline">@{{ item.sender_info.username
+                                        }}</a>
+                                    {% else %}
+                                    <span class="font-medium text-black">System</span>
+                                    {% endif %}
+                                </div>
+
+                                <!-- Date -->
+                                <div class="text-xs text-gray-500">
+                                    {% if item.created_at %}
+                                    {% if item.created_at._seconds %}
+                                    {{ (item.created_at._seconds * 1000)|datetime }}
+                                    {% else %}
+                                    {{ item.created_at|datetime }}
+                                    {% endif %}
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <!-- Notification type and message -->
+                            {% if item.type == 'project_collaboration' %}
+                            <div class="mt-1">
+                                <p class="text-gray-800 text-sm">
+                                    <span class="font-medium">Collaboration:</span>
+                                    {{ item.sender_info.username if item.sender_info else 'Someone' }} added you as a
+                                    collaborator on {{ item.content.project_title }}
+                                </p>
+
+                                <div class="mt-2">
+                                    <a href="/view_project/{{ item.content.project_id }}"
+                                        class="inline-flex items-center px-3 py-1.5 bg-purple-600 text-white text-sm rounded-md hover:bg-purple-700">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1.5" fill="none"
+                                            viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                        </svg>
+                                        View project
+                                    </a>
+                                </div>
+                            </div>
+
+                            {% elif item.type == 'like_comment' %}
+                            <div class="mt-1">
+                                <p class="text-gray-800 text-sm">
+                                    <span class="font-medium text-red-500">Like:</span>
+                                    {{ item.sender_info.username if item.sender_info else 'Someone' }} liked your
+                                    comment
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-red-500 inline"
+                                        viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd"
+                                            d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z"
+                                            clip-rule="evenodd" />
+                                    </svg>
+                                </p>
+
+                                {% if item.content.comment_text %}
+                                <div
+                                    class="mt-2 p-2 bg-gray-50 rounded text-sm text-gray-700 border-l-2 border-red-200">
+                                    "{{ item.content.comment_text }}"
+                                </div>
+                                {% endif %}
+
+                                <div class="mt-2">
+                                    <a href="/{{ item.sender_info.username if item.sender_info else '' }}"
+                                        class="inline-block px-3 py-1.5 bg-red-50 text-red-500 text-sm rounded-md hover:bg-red-100">
+                                        View profile
+                                    </a>
+                                </div>
+                            </div>
+
+                            {% elif item.type == 'project_update' %}
+                            <div class="mt-1">
+                                <p class="text-gray-800 text-sm">
+                                    <span class="font-medium">Project Update:</span>
+                                    {% if item.content.message %}
+                                    {{ item.content.message }}
+                                    {% else %}
+                                    Project "{{ item.content.project_title }}" has been updated
+                                    {% if item.content.update_title %} with "{{ item.content.update_title }}"{% endif %}
+                                    {% endif %}
+                                </p>
+
+                                <div class="mt-2">
+                                    <a href="/view_project/{{ item.content.project_id }}"
+                                        class="inline-flex items-center px-3 py-1.5 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1.5" fill="none"
+                                            viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                        </svg>
+                                        View updates
+                                    </a>
+                                </div>
+                            </div>
+
+                            {% elif item.type == 'verification' %}
+                            <div class="mt-1">
+                                <p class="text-gray-800 text-sm">
+                                    <span class="font-medium">Account Update:</span>
+                                    Your account verification has been revoked.
+                                </p>
+
+                                <div class="mt-2">
+                                    <a href="{{ url_for('settings') }}"
+                                        class="inline-flex items-center px-3 py-1.5 bg-gray-700 text-white text-sm rounded-md hover:bg-gray-800">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1.5" fill="none"
+                                            viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                        </svg>
+                                        View settings
+                                    </a>
+                                </div>
+                            </div>
+
+                            {% elif item.type == 'account_change' %}
+                            <div class="mt-1">
+                                <p class="text-gray-800 text-sm">
+                                    <span class="font-medium">Account Update:</span>
+                                    {% if item.content.message %}
+                                    {{ item.content.message }}
+                                    {% elif item.content.action == 'email_updated' %}
+                                    Your email has been updated to {{ item.content.new_email }}
+                                    {% elif item.content.action == 'password_changed' %}
+                                    Password has been changed
+                                    {% else %}
+                                    Your account settings have been updated
+                                    {% endif %}
+                                </p>
+
+                                <div class="mt-2">
+                                    <a href="{{ url_for('settings') }}"
+                                        class="inline-flex items-center px-3 py-1.5 bg-gray-700 text-white text-sm rounded-md hover:bg-gray-800">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1.5" fill="none"
+                                            viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                        </svg>
+                                        View settings
+                                    </a>
+                                </div>
+                            </div>
+
+                            {% elif item.type == 'system' %}
+                            <div class="mt-1">
+                                <p class="text-gray-800 text-sm">
+                                    <span class="font-medium">System Notification:</span>
+                                    {% if item.content.message %}
+                                    {{ item.content.message }}
+                                    {% else %}
+                                    test
+                                    {% endif %}
+                                </p>
+                            </div>
+
+                            {% elif item.type == 'project_comment' %}
+                            <div class="mt-1">
+                                <p class="text-gray-800 text-sm">
+                                    <span class="font-medium">Comment:</span>
+                                    {{ item.sender_info.username if item.sender_info else 'Someone' }} commented on your
+                                    project {{ item.content.project_title }}
+                                </p>
+
+                                {% if item.content.comment_text %}
+                                <div
+                                    class="mt-2 p-2 bg-gray-50 rounded text-sm text-gray-700 border-l-2 border-blue-200">
+                                    "{{ item.content.comment_text }}"
+                                </div>
+                                {% endif %}
+
+                                <div class="mt-2">
+                                    <a href="/view_project/{{ item.content.project_id }}#comments"
+                                        class="inline-flex items-center px-3 py-1.5 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1.5" fill="none"
+                                            viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                                        </svg>
+                                        View comments
+                                    </a>
+                                </div>
+                            </div>
+
+                            {% elif item.type == 'reply_comment' %}
+                            <div class="mt-1">
+                                <p class="text-gray-800 text-sm">
+                                    <span class="font-medium">Reply:</span>
+                                    {{ item.sender_info.username if item.sender_info else 'Someone' }} replied to your
+                                    comment
+                                </p>
+
+                                {% if item.content.original_comment_text %}
+                                <div
+                                    class="mt-2 p-2 bg-gray-50 rounded text-sm text-gray-500 border-l-2 border-gray-200">
+                                    <p class="text-xs text-gray-400 mb-1">Your comment:</p>
+                                    "{{ item.content.original_comment_text }}"
+                                </div>
+                                {% endif %}
+
+                                {% if item.content.reply_text %}
+                                <div
+                                    class="mt-2 p-2 bg-blue-50 rounded text-sm text-gray-700 border-l-2 border-blue-200">
+                                    <p class="text-xs text-gray-400 mb-1">Their reply:</p>
+                                    "{{ item.content.reply_text }}"
+                                </div>
+                                {% endif %}
+
+                                <div class="mt-2">
+                                    <a href="/{{ item.sender_info.username if item.sender_info else '' }}#comment-{{ item.related_id }}"
+                                        class="inline-flex items-center px-3 py-1.5 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1.5" fill="none"
+                                            viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                                        </svg>
+                                        View conversation
+                                    </a>
+                                </div>
+                            </div>
+
+                            {% elif item.type == 'profile_comment' %}
+                            <div class="mt-1">
+                                <p class="text-gray-800 text-sm">
+                                    <span class="font-medium">Profile Comment:</span>
+                                    {{ item.sender_info.username if item.sender_info else 'Someone' }} commented on your
+                                    profile
+                                </p>
+
+                                {% if item.content.comment_text %}
+                                <div
+                                    class="mt-2 p-2 bg-gray-50 rounded text-sm text-gray-700 border-l-2 border-yellow-200">
+                                    "{{ item.content.comment_text }}"
+                                </div>
+                                {% endif %}
+
+                                <div class="mt-2">
+                                    <a href="/{{ session.get('username', '') }}#comments"
+                                        class="inline-flex items-center px-3 py-1.5 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1.5" fill="none"
+                                            viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                                        </svg>
+                                        View comments
+                                    </a>
+                                </div>
+                            </div>
+
+                            {% else %}
+                            <!-- Default display for other notification types -->
+                            <div class="mt-1">
+                                <p class="text-gray-800 text-sm">
+                                    {% if item.content.message %}
+                                    {{ item.content.message }}
+                                    {% else %}
+                                    {{ item.type_label }}
+                                    {% endif %}
+                                </p>
+
+                                {% if item.content.action_url %}
+                                <div class="mt-2">
+                                    <a href="{{ item.content.action_url }}"
+                                        class="inline-flex items-center px-3 py-1.5 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1.5" fill="none"
+                                            viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M13 9l3 3m0 0l-3 3m3-3H8m13 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                        {{ item.content.action_text|default('View details') }}
+                                    </a>
+                                </div>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Delete button -->
+                    <button onclick="deleteNotification('{{ item.id }}')"
+                        class="absolute top-4 right-4 opacity-0 group-hover:opacity-100 text-gray-400 hover:text-gray-700 transition-opacity duration-200 p-1 rounded-full">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                {% elif current_tab == 'mentions' %}
+                <!-- Mentions tab content -->
+                <div class="p-4 flex items-center space-x-3">
+                    <div class="flex-shrink-0">
+                        <img src="{{ item.avatar_url }}"
+                            class="w-10 h-10 rounded-full object-cover border border-gray-200"
+                            alt="{{ item.username }}">
+                    </div>
+                    <div class="flex-grow">
+                        <div class="font-medium text-gray-900">{{ item.username }}</div>
+                        <div class="text-gray-700 text-sm mt-1">{{ item.text }}</div>
+                        <div class="mt-1 text-xs text-gray-500">{{ item.created_at|datetime }}</div>
+                    </div>
+                    <div>
+                        <a href="{{ item.link }}"
+                            class="px-3 py-1.5 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 text-xs">
+                            View
+                        </a>
+                    </div>
+                </div>
+                {% elif current_tab == 'launch_tags' %}
+                <!-- Launch tags tab content -->
+                <div class="p-4 flex items-center space-x-3">
+                    <div class="flex-shrink-0">
+                        <img src="{{ item.avatar_url }}" class="w-10 h-10 rounded object-cover border border-gray-200"
+                            alt="{{ item.name }}">
+                    </div>
+                    <div class="flex-grow">
+                        <div class="font-medium text-gray-900">{{ item.name }}</div>
+                        <div class="text-gray-700 text-sm mt-1">{{ item.description }}</div>
+                        <div class="mt-1 text-xs text-gray-500">{{ item.created_at|datetime }}</div>
+                    </div>
+                    <div>
+                        <a href="{{ item.link }}"
+                            class="px-3 py-1.5 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 text-xs">
+                            View launch
+                        </a>
+                    </div>
+                </div>
+                {% endif %}
+                {% endfor %}
+            </div>
+            {% else %}
+            <!-- Empty state with simple illustrations -->
+            <div class="text-center py-12">
+                {% if current_tab == 'notifications' %}
+                <div class="w-16 h-16 mx-auto bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-gray-400" fill="none"
+                        viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 15.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                    </svg>
+                </div>
+                <h3 class="text-lg font-medium text-gray-800 mb-2">All caught up!</h3>
+                <p class="text-sm text-gray-600 max-w-md mx-auto">You don't have any notifications at the moment.
+                    We'll notify you when something interesting happens.</p>
+                {% elif current_tab == 'mentions' %}
+                <div class="w-16 h-16 mx-auto bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-gray-400" fill="none"
+                        viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z" />
+                    </svg>
+                </div>
+                <h3 class="text-lg font-medium text-gray-800 mb-2">No mentions yet</h3>
+                <p class="text-sm text-gray-600 max-w-md mx-auto">When people mention you in comments or
+                    discussions, you'll see them here.</p>
+                {% elif current_tab == 'launch_tags' %}
+                <div class="w-16 h-16 mx-auto bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-gray-400" fill="none"
+                        viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                    </svg>
+                </div>
+                <h3 class="text-lg font-medium text-gray-800 mb-2">No launch tags</h3>
+                <p class="text-sm text-gray-600 max-w-md mx-auto">Launch tags will appear when you're tagged in
+                    project launches or releases.</p>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+    // Hide scrollbar but maintain functionality
+    document.head.insertAdjacentHTML('beforeend', `
+        <style>
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        
+        /* Mobile optimizations */
+        @media (max-width: 640px) {
+            .notification-card {
+                padding: 12px !important;
+            }
+            .notification-text {
+                font-size: 0.875rem !important;
+            }
+        }
+        </style>
+    `);
+
+    function deleteNotification(id) {
+        // Find the notification element
+        const element = document.querySelector(`[data-notification-id="${id}"]`);
+        if (!element) return;
+
+        // Add a fade-out effect
+        element.style.opacity = '0.5';
+        element.style.transform = 'translateX(10px)';
+
+        fetch(`/notifications/${id}`, {
+            method: 'DELETE'
+        })
+            .then(response => {
+                if (response.ok) {
+                    // After successful deletion, remove the element with subtle animation
+                    element.style.height = element.offsetHeight + 'px';
+                    setTimeout(() => {
+                        element.style.height = '0';
+                        element.style.marginTop = '0';
+                        element.style.marginBottom = '0';
+                        element.style.padding = '0';
+                        element.style.overflow = 'hidden';
+                    }, 200);
+
+                    setTimeout(() => {
+                        element.remove();
+
+                        // If no more notifications, show empty state
+                        const remaining = document.querySelectorAll('[data-notification-id]');
+                        if (remaining.length === 0) {
+                            location.reload();
+                        }
+                    }, 500);
+                } else {
+                    // If failed, restore the element
+                    element.style.opacity = '1';
+                    element.style.transform = 'translateX(0)';
+                    console.error('Failed to delete notification');
+                }
+            })
+            .catch(error => {
+                // If error, restore the element
+                element.style.opacity = '1';
+                element.style.transform = 'translateX(0)';
+                console.error('Error:', error);
+            });
+    }
+
+    function markAllAsRead() {
+        // Get all notification IDs from the page
+        const notifications = document.querySelectorAll('[data-notification-id]');
+        const ids = Array.from(notifications).map(el => el.dataset.notificationId);
+
+        if (ids.length === 0) return;
+
+        // Show loading state
+        const markAllBtn = document.getElementById('markAllReadBtn');
+        if (markAllBtn) {
+            const originalHTML = markAllBtn.innerHTML;
+            markAllBtn.innerHTML = `
+                <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span>Processing...</span>
+            `;
+            markAllBtn.disabled = true;
+        }
+
+        // Mark each notification as read
+        const promises = ids.map(id =>
+            fetch(`/notifications/mark_read/${id}`, { method: 'POST' })
+        );
+
+        // After all requests complete, reload the page
+        Promise.all(promises)
+            .then(() => {
+                // Update button state
+                if (markAllBtn) {
+                    markAllBtn.innerHTML = `
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                        </svg>
+                        <span>Done!</span>
+                    `;
+
+                    // Also remove the notification counter in the navigation
+                    const navCounter = document.querySelector('.nav-notification-counter');
+                    if (navCounter) {
+                        navCounter.remove();
+                    }
+
+                    // Reset after a short delay
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
+                }
+            })
+            .catch(error => {
+                console.error('Error marking notifications as read:', error);
+                if (markAllBtn) {
+                    markAllBtn.innerHTML = `
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                        </svg>
+                        <span>Mark all as read</span>
+                    `;
+                    markAllBtn.disabled = false;
+                }
+            });
+    }
+
+    // Add subtle fade-in animation for notifications
+    document.addEventListener('DOMContentLoaded', function () {
+        const notifications = document.querySelectorAll('[data-notification-id]');
+        notifications.forEach((notification, index) => {
+            notification.style.opacity = '0';
+            notification.style.transform = 'translateY(10px)';
+            notification.style.transition = 'all 0.3s ease-out';
+
+            setTimeout(() => {
+                notification.style.opacity = '1';
+                notification.style.transform = 'translateY(0)';
+            }, 50 * index);
+        });
+
+        // Mobile optimization
+        function optimizeForMobile() {
+            if (window.innerWidth < 640) {
+                document.querySelectorAll('[data-notification-id]').forEach(el => {
+                    el.classList.add('notification-card');
+                });
+                document.querySelectorAll('.text-gray-800').forEach(el => {
+                    el.classList.add('notification-text');
+                });
+            } else {
+                document.querySelectorAll('[data-notification-id]').forEach(el => {
+                    el.classList.remove('notification-card');
+                });
+                document.querySelectorAll('.text-gray-800').forEach(el => {
+                    el.classList.remove('notification-text');
+                });
+            }
+        }
+
+        optimizeForMobile();
+        window.addEventListener('resize', optimizeForMobile);
+    });
+</script>
+{% endblock %}

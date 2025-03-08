@@ -1017,6 +1017,7 @@
 <!-- Add this at the end of the body in profile.html (before closing body tag) -->
 
 <!-- Project Create/Edit Modal -->
+<!-- Add this inside the project modal in profile.html -->
 <div id="projectModal" class="modal">
     <div class="modal-box max-w-4xl p-8 relative">
         <h3 id="projectModalTitle" class="text-2xl font-bold mb-6">Create New Project</h3>
@@ -1050,6 +1051,64 @@
                     <input type="url" id="projectUrl" name="project_url"
                         class="input input-bordered bg-gray-50 w-full focus:ring-2 focus:ring-black transition-all"
                         placeholder="https://yourproject.com">
+                </div>
+            </div>
+
+            <!-- Project Header and Thumbnail -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="form-control">
+                    <label class="label font-bold text-gray-700">Project Thumbnail</label>
+                    <div class="flex items-center space-x-4">
+                        <div id="thumbnailPreviewContainer"
+                            class="relative w-24 h-24 bg-gray-200 rounded-lg overflow-hidden border-2 border-gray-300">
+                            <img id="thumbnailPreview" src="/static/placeholder.png" alt="Thumbnail"
+                                class="w-full h-full object-cover">
+                            <div
+                                class="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-30 flex items-center justify-center transition-all duration-200">
+                                <svg xmlns="http://www.w3.org/2000/svg"
+                                    class="h-8 w-8 text-white opacity-0 group-hover:opacity-100" fill="none"
+                                    viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="flex-1">
+                            <input type="file" id="thumbnailInput" name="thumbnail" accept="image/*"
+                                class="file-input file-input-bordered w-full max-w-xs"
+                                onchange="previewThumbnail(this)">
+                            <p class="text-xs text-gray-500 mt-2">Recommended size: 200x200px. Max size: 2MB</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-control">
+                    <label class="label font-bold text-gray-700">Project Header</label>
+                    <div class="flex items-center space-x-4">
+                        <div id="headerPreviewContainer"
+                            class="relative w-full h-32 bg-gray-200 rounded-lg overflow-hidden border-2 border-gray-300">
+                            <img id="headerPreview" src="/static/placeholder-wide.png" alt="Header"
+                                class="w-full h-full object-cover">
+                            <div
+                                class="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-30 flex items-center justify-center transition-all duration-200">
+                                <svg xmlns="http://www.w3.org/2000/svg"
+                                    class="h-8 w-8 text-white opacity-0 group-hover:opacity-100" fill="none"
+                                    viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="flex-1">
+                            <input type="file" id="headerInput" name="header_image" accept="image/*"
+                                class="file-input file-input-bordered w-full max-w-xs" onchange="previewHeader(this)">
+                            <p class="text-xs text-gray-500 mt-2">Recommended size: 1200x400px. Max size: 5MB</p>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -5666,26 +5725,6 @@
     let projectCollaborators = [];
     let projectTags = [];
 
-    // Show modal for creating a new project
-    function showCreateProjectModal() {
-        document.getElementById('projectModalTitle').textContent = 'Create New Project';
-        document.getElementById('projectForm').reset();
-        document.getElementById('projectId').value = '';
-
-        // Reset global variables
-        currentProjectId = null;
-        projectImages = [];
-        projectCollaborators = [];
-        projectTags = [];
-
-        // Clear UI elements
-        document.getElementById('imagesContainer').innerHTML = '';
-        document.getElementById('collaboratorsContainer').innerHTML = '';
-        document.getElementById('tagsContainer').innerHTML = '';
-
-        // Show the modal
-        document.getElementById('projectModal').classList.add('modal-open');
-    }
 
     // Close project modal
     function closeProjectModal() {
@@ -5791,84 +5830,6 @@
     // Replace the project form submission code with this updated version
 
     // Submit project form
-    document.getElementById('projectForm').addEventListener('submit', async function (e) {
-        e.preventDefault();
-
-        const submitBtn = this.querySelector('button[type="submit"]');
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = `<svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        <span class="ml-2">Saving...</span>`;
-
-        try {
-            // Create form data
-            const formData = new FormData();
-            formData.append('title', document.getElementById('projectTitle').value);
-            formData.append('description', document.getElementById('projectDescription').value);
-            formData.append('github_url', document.getElementById('projectGithub').value);
-            formData.append('project_url', document.getElementById('projectUrl').value);
-
-            // Make sure to stringify the tags and collaborators arrays
-            formData.append('tags', JSON.stringify(projectTags));
-
-            // Log collaborators to verify they're being included - this is for debugging
-            console.log("Submitting collaborators:", projectCollaborators);
-            formData.append('collaborators', JSON.stringify(projectCollaborators));
-
-            // Add project ID if editing
-            if (currentProjectId) {
-                formData.append('project_id', currentProjectId);
-            }
-
-            // Add new images
-            let imageIndex = 0;
-            projectImages.forEach(image => {
-                if (image.file) {
-                    // New file to upload
-                    formData.append(`image_${imageIndex}`, image.file);
-                    imageIndex++;
-                } else if (image.url && image.isExisting) {
-                    // Existing image to keep
-                    formData.append('existing_images', image.url);
-                }
-            });
-
-            // DEBUG: Log form data before submission
-            for (let pair of formData.entries()) {
-                console.log(pair[0], pair[1]);
-            }
-
-            // Upload project
-            const url = currentProjectId ? `/projects/${currentProjectId}/update` : '/projects/create';
-            const response = await fetch(url, {
-                method: 'POST',
-                body: formData
-            });
-
-            const result = await response.json();
-
-            if (result.success) {
-                showNotification(currentProjectId ? 'Project updated successfully' : 'Project created successfully');
-                closeProjectModal();
-
-                // Reload the page to show the new/updated project
-                setTimeout(() => {
-                    window.location.reload();
-                }, 1000);
-            } else {
-                throw new Error(result.error || 'Failed to save project');
-            }
-        } catch (error) {
-            console.error('Error saving project:', error);
-            showNotification('Error saving project. Please try again.', 'error');
-        } finally {
-            // Re-enable the button
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = 'Save Project';
-        }
-    });
 
     // Fix for the collaborator search function too
     function searchUsers() {
@@ -6033,79 +5994,6 @@
             currentUsername = usernameMeta.getAttribute('content');
         }
     });
-    // Edit existing project
-    function editProject(projectId) {
-        // Set current project ID
-        currentProjectId = projectId;
-        document.getElementById('projectId').value = projectId;
-        document.getElementById('projectModalTitle').textContent = 'Edit Project';
-
-        // Reset arrays
-        projectImages = [];
-        projectCollaborators = [];
-        projectTags = [];
-
-        // Fetch project data
-        fetch(`/projects/${projectId}`)
-            .then(response => response.json())
-            .then(project => {
-                // Fill form fields
-                document.getElementById('projectTitle').value = project.title || '';
-                document.getElementById('projectDescription').value = project.description || '';
-                document.getElementById('projectGithub').value = project.github_url || '';
-                document.getElementById('projectUrl').value = project.project_url || '';
-
-                // Load tags
-                if (project.tags && project.tags.length > 0) {
-                    projectTags = [...project.tags];
-                    updateTagsUI();
-                }
-
-                // Load images
-                if (project.images && project.images.length > 0) {
-                    const imagesContainer = document.getElementById('imagesContainer');
-                    imagesContainer.innerHTML = '';
-
-                    project.images.forEach(imageUrl => {
-                        const imagePreview = document.createElement('div');
-                        imagePreview.className = 'relative group';
-                        imagePreview.innerHTML = `
-                        <img src="${imageUrl}" alt="Project Image" 
-                            class="w-full h-32 object-cover rounded-lg">
-                        <div class="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button type="button" class="p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
-                                onclick="removeExistingImage(this, '${imageUrl}')">
-                                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                            </button>
-                        </div>
-                    `;
-
-                        imagesContainer.appendChild(imagePreview);
-
-                        // Store existing image URL
-                        projectImages.push({
-                            url: imageUrl,
-                            isExisting: true
-                        });
-                    });
-                }
-
-                // Load collaborators
-                if (project.collaborators && project.collaborators.length > 0) {
-                    projectCollaborators = [...project.collaborators];
-                    updateCollaboratorsUI();
-                }
-
-                // Show the modal
-                document.getElementById('projectModal').classList.add('modal-open');
-            })
-            .catch(error => {
-                console.error('Error loading project:', error);
-                showNotification('Error loading project details', 'error');
-            });
-    }
 
     // Remove an existing image
     function removeExistingImage(button, imageUrl) {
@@ -6180,7 +6068,1078 @@
             searchResults.classList.add('hidden');
         }
     });
+    // Add these functions to your existing JavaScript
 
+    // Preview thumbnail when selected
+    function previewThumbnail(input) {
+        const preview = document.getElementById('thumbnailPreview');
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                preview.src = e.target.result;
+                document.getElementById('thumbnailPreviewContainer').classList.add('border-purple-500');
+
+                // Store the thumbnail file for later upload
+                projectThumbnail = input.files[0];
+            };
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+
+    // Preview header when selected
+    function previewHeader(input) {
+        const preview = document.getElementById('headerPreview');
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                preview.src = e.target.result;
+                document.getElementById('headerPreviewContainer').classList.add('border-purple-500');
+
+                // Store the header file for later upload
+                projectHeader = input.files[0];
+            };
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+
+    // Global variables for project management (add these to your existing variables)
+    let projectThumbnail = null;
+    let projectHeader = null;
+
+    // Update the showCreateProjectModal function
+    function showCreateProjectModal() {
+        document.getElementById('projectModalTitle').textContent = 'Create New Project';
+        document.getElementById('projectForm').reset();
+        document.getElementById('projectId').value = '';
+
+        // Reset global variables
+        currentProjectId = null;
+        projectImages = [];
+        projectCollaborators = [];
+        projectTags = [];
+        projectThumbnail = null;
+        projectHeader = null;
+
+        // Reset preview images
+        document.getElementById('thumbnailPreview').src = '/static/placeholder.png';
+        document.getElementById('headerPreview').src = '/static/placeholder-wide.png';
+        document.getElementById('thumbnailPreviewContainer').classList.remove('border-purple-500');
+        document.getElementById('headerPreviewContainer').classList.remove('border-purple-500');
+
+        // Clear UI elements
+        document.getElementById('imagesContainer').innerHTML = '';
+        document.getElementById('collaboratorsContainer').innerHTML = '';
+        document.getElementById('tagsContainer').innerHTML = '';
+
+        // Show the modal
+        document.getElementById('projectModal').classList.add('modal-open');
+    }
+
+    // Update the editProject function to load thumbnail and header
+    function editProject(projectId) {
+        // Set current project ID
+        currentProjectId = projectId;
+        document.getElementById('projectId').value = projectId;
+        document.getElementById('projectModalTitle').textContent = 'Edit Project';
+
+        // Reset arrays and files
+        projectImages = [];
+        projectCollaborators = [];
+        projectTags = [];
+        projectThumbnail = null;
+        projectHeader = null;
+
+        // Fetch project data
+        fetch(`/projects/${projectId}`)
+            .then(response => response.json())
+            .then(project => {
+                // Fill form fields
+                document.getElementById('projectTitle').value = project.title || '';
+                document.getElementById('projectDescription').value = project.description || '';
+                document.getElementById('projectGithub').value = project.github_url || '';
+                document.getElementById('projectUrl').value = project.project_url || '';
+
+                // Load thumbnail if exists
+                if (project.thumbnail) {
+                    document.getElementById('thumbnailPreview').src = project.thumbnail;
+                    document.getElementById('thumbnailPreviewContainer').classList.add('border-purple-500');
+                } else {
+                    document.getElementById('thumbnailPreview').src = '/static/placeholder.png';
+                    document.getElementById('thumbnailPreviewContainer').classList.remove('border-purple-500');
+                }
+
+                // Load header if exists
+                if (project.header_image) {
+                    document.getElementById('headerPreview').src = project.header_image;
+                    document.getElementById('headerPreviewContainer').classList.add('border-purple-500');
+                } else {
+                    document.getElementById('headerPreview').src = '/static/placeholder-wide.png';
+                    document.getElementById('headerPreviewContainer').classList.remove('border-purple-500');
+                }
+
+                // Load tags
+                if (project.tags && project.tags.length > 0) {
+                    projectTags = [...project.tags];
+                    updateTagsUI();
+                }
+
+                // Load images
+                if (project.images && project.images.length > 0) {
+                    const imagesContainer = document.getElementById('imagesContainer');
+                    imagesContainer.innerHTML = '';
+
+                    project.images.forEach(imageUrl => {
+                        const imagePreview = document.createElement('div');
+                        imagePreview.className = 'relative group';
+                        imagePreview.innerHTML = `
+                    <img src="${imageUrl}" alt="Project Image" 
+                        class="w-full h-32 object-cover rounded-lg">
+                    <div class="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button type="button" class="p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                            onclick="removeExistingImage(this, '${imageUrl}')">
+                            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+                `;
+
+                        imagesContainer.appendChild(imagePreview);
+
+                        // Store existing image URL
+                        projectImages.push({
+                            url: imageUrl,
+                            isExisting: true
+                        });
+                    });
+                }
+
+                // Load collaborators
+                if (project.collaborators && project.collaborators.length > 0) {
+                    projectCollaborators = [...project.collaborators];
+                    updateCollaboratorsUI();
+                }
+
+                // Show the modal
+                document.getElementById('projectModal').classList.add('modal-open');
+            })
+            .catch(error => {
+                console.error('Error loading project:', error);
+                showNotification('Error loading project details', 'error');
+            });
+    }
+
+    // Update the project form submission to include thumbnail and header
+    document.getElementById('projectForm').addEventListener('submit', async function (e) {
+        e.preventDefault();
+
+        const submitBtn = this.querySelector('button[type="submit"]');
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = `<svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span class="ml-2">Saving...</span>`;
+
+        try {
+            // Create form data
+            const formData = new FormData();
+            formData.append('title', document.getElementById('projectTitle').value);
+            formData.append('description', document.getElementById('projectDescription').value);
+            formData.append('github_url', document.getElementById('projectGithub').value);
+            formData.append('project_url', document.getElementById('projectUrl').value);
+
+            // Add thumbnail and header if they exist
+            if (projectThumbnail) {
+                formData.append('thumbnail', projectThumbnail);
+            }
+
+            if (projectHeader) {
+                formData.append('header_image', projectHeader);
+            }
+
+            // Make sure to stringify the tags and collaborators arrays
+            formData.append('tags', JSON.stringify(projectTags));
+            formData.append('collaborators', JSON.stringify(projectCollaborators));
+
+            // Add project ID if editing
+            if (currentProjectId) {
+                formData.append('project_id', currentProjectId);
+            }
+
+            // Add new images
+            let imageIndex = 0;
+            projectImages.forEach(image => {
+                if (image.file) {
+                    // New file to upload
+                    formData.append(`image_${imageIndex}`, image.file);
+                    imageIndex++;
+                } else if (image.url && image.isExisting) {
+                    // Existing image to keep
+                    formData.append('existing_images', image.url);
+                }
+            });
+
+            // Upload project
+            const url = currentProjectId ? `/projects/${currentProjectId}/update` : '/projects/create';
+            const response = await fetch(url, {
+                method: 'POST',
+                body: formData
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                showNotification(currentProjectId ? 'Project updated successfully' : 'Project created successfully');
+                closeProjectModal();
+
+                // Reload the page to show the new/updated project
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+            } else {
+                throw new Error(result.error || 'Failed to save project');
+            }
+        } catch (error) {
+            console.error('Error saving project:', error);
+            showNotification('Error saving project. Please try again.', 'error');
+        } finally {
+            // Re-enable the button
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = 'Save Project';
+        }
+    });
+
+    // Add this near the top of your JavaScript in profile.html
+    document.addEventListener('DOMContentLoaded', function () {
+        // Set up the edit mode persistence
+        setupEditModePersistence();
+    });
+
+    // Function to set up edit mode persistence
+    function setupEditModePersistence() {
+        const editBtn = document.getElementById('editProfileBtn');
+        if (!editBtn) return;
+
+        // Check if we should be in edit mode on page load
+        const shouldBeInEditMode = localStorage.getItem('profileEditMode') === 'true';
+
+        // The elements we need to show/hide
+        const editableSections = document.querySelectorAll('.profile-editable-section');
+        const displaySections = document.querySelectorAll('.profile-display-section');
+        const headerContainer = document.getElementById('headerContainer');
+        const floatingSaveBtn = document.getElementById('floatingSaveBtn');
+
+        // If we should be in edit mode, trigger the edit mode
+        if (shouldBeInEditMode) {
+            enterEditMode();
+        }
+
+        // Update the click handler to save the state
+        editBtn.addEventListener('click', function () {
+            const isCurrentlyInEditMode = editBtn.textContent.includes('Cancel');
+
+            if (!isCurrentlyInEditMode) {
+                // Entering edit mode
+                enterEditMode();
+                localStorage.setItem('profileEditMode', 'true');
+            } else {
+                // Exiting edit mode
+                exitEditMode();
+                localStorage.setItem('profileEditMode', 'false');
+            }
+        });
+
+        // Save button should exit edit mode
+        if (floatingSaveBtn) {
+            const originalClickHandler = floatingSaveBtn.onclick;
+            floatingSaveBtn.onclick = async function (e) {
+                // Call the original handler first (which handles the actual saving)
+                if (originalClickHandler) {
+                    await originalClickHandler.call(this, e);
+                }
+
+                // Exit edit mode after saving
+                localStorage.setItem('profileEditMode', 'false');
+                // Note: The page will reload, so we don't need to call exitEditMode()
+            };
+        }
+
+        // Handle form submissions to exit edit mode
+        const forms = document.querySelectorAll('form');
+        forms.forEach(form => {
+            form.addEventListener('submit', function () {
+                localStorage.setItem('profileEditMode', 'false');
+            });
+        });
+
+        // Function to enter edit mode
+        function enterEditMode() {
+            // Show editable sections
+            editableSections.forEach(section => {
+                section.style.display = 'block';
+            });
+
+            // Hide display sections
+            displaySections.forEach(section => {
+                section.style.display = 'none';
+            });
+
+            // Show header container and floating save button
+            if (headerContainer) {
+                headerContainer.style.display = 'block';
+            }
+            if (floatingSaveBtn) {
+                floatingSaveBtn.style.display = 'flex';
+            }
+
+            // Update button text
+            editBtn.textContent = 'Cancel Editing';
+            editBtn.classList.add('bg-gray-600');
+            editBtn.classList.remove('bg-black');
+        }
+
+        // Function to exit edit mode
+        function exitEditMode() {
+            // Hide editable sections
+            editableSections.forEach(section => {
+                section.style.display = 'none';
+            });
+
+            // Show display sections
+            displaySections.forEach(section => {
+                section.style.display = 'block';
+            });
+
+            // Hide header container and floating save button
+            if (headerContainer) {
+                headerContainer.style.display = 'none';
+            }
+            if (floatingSaveBtn) {
+                floatingSaveBtn.style.display = 'none';
+            }
+
+            // Update button text
+            editBtn.textContent = 'Edit Profile';
+            editBtn.classList.remove('bg-gray-600');
+            editBtn.classList.add('bg-black');
+        }
+    }
+    // Add this to your profile.html script section to save forms without reloading
+
+    // Function to set up AJAX form submissions
+    function setupAjaxFormSubmissions() {
+        // Set up the unified save button
+        const floatingSaveBtn = document.getElementById('floatingSaveBtn');
+        if (floatingSaveBtn) {
+            floatingSaveBtn.addEventListener('click', async function (e) {
+                e.preventDefault();
+
+                try {
+                    // Show loading state
+                    this.disabled = true;
+                    this.innerHTML = `
+                    <div class="save-btn-content">
+                        <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span>Saving...</span>
+                    </div>
+                `;
+
+                    // Save all forms without reloading
+                    await Promise.all([
+                        saveProfileForm(),
+                        saveAcademicPortfolio(),
+                        saveLinks()
+                    ]);
+
+                    showNotification('All changes saved successfully');
+
+                    // Reset button state
+                    this.disabled = false;
+                    this.innerHTML = `
+                    <div class="save-btn-content">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                        </svg>
+                        <span>Save All Changes</span>
+                    </div>
+                `;
+
+                    // Don't exit edit mode - remove this line to stay in edit mode
+                    // localStorage.setItem('profileEditMode', 'false');
+
+                    // Update the display sections with new data without page reload
+                    updateDisplaySections();
+
+                } catch (error) {
+                    console.error('Error saving changes:', error);
+                    showNotification('Error saving changes. Please try again.', 'error');
+
+                    // Reset button state
+                    this.disabled = false;
+                    this.innerHTML = `
+                    <div class="save-btn-content">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                        </svg>
+                        <span>Save All Changes</span>
+                    </div>
+                `;
+                }
+            });
+        }
+    }
+
+    // Function to save profile form
+    async function saveProfileForm() {
+        const profileForm = document.getElementById('profileForm');
+        if (!profileForm) return;
+
+        const formData = new FormData(profileForm);
+
+        const response = await fetch('{{ url_for("profile") }}', {
+            method: 'POST',
+            body: formData,
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        });
+
+        const data = await response.json();
+        if (!data.success) {
+            throw new Error(data.error || 'Failed to update profile');
+        }
+
+        return data;
+    }
+
+    // Function to save academic portfolio
+    async function saveAcademicPortfolio() {
+        const academicForm = document.getElementById('academicPortfolioForm');
+        if (!academicForm) return;
+
+        const academicData = {
+            gpa: academicForm.querySelector('input[name="gpa"]').value,
+            sat_score: academicForm.querySelector('input[name="sat_score"]').value,
+            toefl_score: academicForm.querySelector('input[name="toefl_score"]').value,
+            ielts_score: academicForm.querySelector('input[name="ielts_score"]').value,
+            languages: collectLanguages(),
+            achievements: collectAchievements()
+        };
+
+        const response = await fetch('/update_academic_portfolio', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify(academicData)
+        });
+
+        const data = await response.json();
+        if (!data.success) {
+            throw new Error(data.error || 'Failed to update academic portfolio');
+        }
+
+        return data;
+    }
+
+    // Function to save links
+    async function saveLinks() {
+        const linkTitles = Array.from(document.querySelectorAll('input[name="link_titles[]"]')).map(input => input.value.trim());
+        const linkUrls = Array.from(document.querySelectorAll('input[name="link_urls[]"]')).map(input => input.value.trim());
+
+        const links = linkTitles.map((title, index) => ({
+            title: title,
+            url: linkUrls[index]
+        })).filter(link => link.title && link.url);
+
+        const response = await fetch('{{ url_for("profile") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({
+                action: 'update_links',
+                links: links
+            })
+        });
+
+        const data = await response.json();
+        if (!data.success) {
+            throw new Error(data.error || 'Failed to update links');
+        }
+
+        return data;
+    }
+
+    // Function to update display sections with new data
+    function updateDisplaySections() {
+        // Update profile info
+        updateProfileDisplayInfo();
+
+        // Update skills display
+        updateSkillsDisplay();
+    }
+
+    // Function to update profile display info
+    function updateProfileDisplayInfo() {
+        const profileForm = document.getElementById('profileForm');
+        const displayInfo = document.getElementById('profileDisplayInfo');
+        if (!profileForm || !displayInfo) return;
+
+        // Get values from form
+        const fullName = profileForm.querySelector('input[name="full_name"]').value;
+        const specialty = profileForm.querySelector('input[name="specialty"]').value;
+        const age = profileForm.querySelector('input[name="age"]').value;
+        const goals = profileForm.querySelector('textarea[name="goals"]').value;
+        const bio = profileForm.querySelector('textarea[name="bio"]').value;
+        const education = profileForm.querySelector('textarea[name="education"]').value;
+
+        // Update the profile name in the profile card too
+        const profileName = document.querySelector('.gradient-text');
+        if (profileName && fullName) {
+            profileName.textContent = fullName;
+        }
+
+        // Create HTML for display
+        let html = `<h2 class="text-2xl font-bold mb-6">Profile Information</h2><div class="space-y-4">`;
+
+        if (specialty) {
+            html += `
+        <div>
+            <h3 class="font-medium text-gray-700">Specialty</h3>
+            <p class="text-gray-900">${specialty}</p>
+        </div>`;
+        }
+
+        if (age) {
+            html += `
+        <div>
+            <h3 class="font-medium text-gray-700">Age</h3>
+            <p class="text-gray-900">${age} years</p>
+        </div>`;
+        }
+
+        if (goals) {
+            html += `
+        <div>
+            <h3 class="font-medium text-gray-700">Goals</h3>
+            <p class="text-gray-900">${goals}</p>
+        </div>`;
+        }
+
+        if (bio) {
+            html += `
+        <div>
+            <h3 class="font-medium text-gray-700">Bio</h3>
+            <p class="text-gray-900">${bio}</p>
+        </div>`;
+        }
+
+        // Skills are updated by updateSkillsDisplay function
+
+        if (education) {
+            html += `
+        <div>
+            <h3 class="font-medium text-gray-700">Education</h3>
+            <p class="text-gray-900">${education}</p>
+        </div>`;
+        }
+
+        html += `</div>`;
+        displayInfo.innerHTML = html;
+    }
+
+    // Call this function when the page loads
+    document.addEventListener('DOMContentLoaded', function () {
+        setupAjaxFormSubmissions();
+    });
+    // This script combines both edit mode persistence and form handling without reload
+    // Add to profile.html
+
+    document.addEventListener('DOMContentLoaded', function () {
+        // Initialize edit mode persistence
+        setupEditModePersistence();
+
+        // Set up form submissions without reload
+        setupAjaxFormSubmissions();
+
+        // Add event listeners for avatar upload
+        setupAvatarUpload();
+
+        // Initialize academic portfolios and skills
+        setupSkillsAndAcademic();
+    });
+
+    // ===== EDIT MODE PERSISTENCE =====
+
+    function setupEditModePersistence() {
+        const editBtn = document.getElementById('editProfileBtn');
+        if (!editBtn) return;
+
+        // Check if we should be in edit mode on page load
+        const shouldBeInEditMode = localStorage.getItem('profileEditMode') === 'true';
+
+        // The elements we need to show/hide
+        const editableSections = document.querySelectorAll('.profile-editable-section');
+        const displaySections = document.querySelectorAll('.profile-display-section');
+        const headerContainer = document.getElementById('headerContainer');
+        const floatingSaveBtn = document.getElementById('floatingSaveBtn');
+
+        // If we should be in edit mode, trigger the edit mode
+        if (shouldBeInEditMode) {
+            enterEditMode();
+        }
+
+        // Update the click handler to save the state
+        editBtn.addEventListener('click', function () {
+            const isCurrentlyInEditMode = editBtn.textContent.includes('Cancel');
+
+            if (!isCurrentlyInEditMode) {
+                // Entering edit mode
+                enterEditMode();
+                localStorage.setItem('profileEditMode', 'true');
+            } else {
+                // Exiting edit mode
+                exitEditMode();
+                localStorage.setItem('profileEditMode', 'false');
+            }
+        });
+
+        // Function to enter edit mode
+        function enterEditMode() {
+            // Show editable sections
+            editableSections.forEach(section => {
+                section.style.display = 'block';
+            });
+
+            // Hide display sections
+            displaySections.forEach(section => {
+                section.style.display = 'none';
+            });
+
+            // Show header container and floating save button
+            if (headerContainer) {
+                headerContainer.style.display = 'block';
+            }
+            if (floatingSaveBtn) {
+                floatingSaveBtn.style.display = 'flex';
+            }
+
+            // Update button text
+            editBtn.textContent = 'Cancel Editing';
+            editBtn.classList.add('bg-gray-600');
+            editBtn.classList.remove('bg-black');
+        }
+
+        // Function to exit edit mode
+        function exitEditMode() {
+            // Hide editable sections
+            editableSections.forEach(section => {
+                section.style.display = 'none';
+            });
+
+            // Show display sections
+            displaySections.forEach(section => {
+                section.style.display = 'block';
+            });
+
+            // Hide header container and floating save button
+            if (headerContainer) {
+                headerContainer.style.display = 'none';
+            }
+            if (floatingSaveBtn) {
+                floatingSaveBtn.style.display = 'none';
+            }
+
+            // Update button text
+            editBtn.textContent = 'Edit Profile';
+            editBtn.classList.remove('bg-gray-600');
+            editBtn.classList.add('bg-black');
+        }
+    }
+
+    // ===== FORM SUBMISSION WITHOUT RELOAD =====
+
+    function setupAjaxFormSubmissions() {
+        const floatingSaveBtn = document.getElementById('floatingSaveBtn');
+        if (floatingSaveBtn) {
+            // Remove any existing click handlers
+            const newBtn = floatingSaveBtn.cloneNode(true);
+            floatingSaveBtn.parentNode.replaceChild(newBtn, floatingSaveBtn);
+
+            // Add our new click handler
+            newBtn.addEventListener('click', async function (e) {
+                e.preventDefault();
+
+                try {
+                    // Show loading state
+                    this.disabled = true;
+                    this.innerHTML = `
+                    <div class="save-btn-content">
+                        <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span>Saving...</span>
+                    </div>
+                `;
+
+                    // Save all forms without reloading
+                    const results = await Promise.all([
+                        saveProfileForm(),
+                        saveAcademicPortfolio(),
+                        saveLinks()
+                    ]);
+
+                    // Update the display sections with new data
+                    updateDisplaySections();
+
+                    showNotification('All changes saved successfully');
+
+                    // Reset button state
+                    this.disabled = false;
+                    this.innerHTML = `
+                    <div class="save-btn-content">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                        </svg>
+                        <span>Save All Changes</span>
+                    </div>
+                `;
+
+                    // Stay in edit mode - don't set localStorage
+                } catch (error) {
+                    console.error('Error saving changes:', error);
+                    showNotification('Error saving changes. Please try again.', 'error');
+
+                    // Reset button state
+                    this.disabled = false;
+                    this.innerHTML = `
+                    <div class="save-btn-content">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                        </svg>
+                        <span>Save All Changes</span>
+                    </div>
+                `;
+                }
+            });
+        }
+    }
+
+    // Save profile form without reloading
+    async function saveProfileForm() {
+        const profileForm = document.getElementById('profileForm');
+        if (!profileForm) return { success: false };
+
+        const formData = new FormData(profileForm);
+
+        const response = await fetch(window.location.href, {
+            method: 'POST',
+            body: formData,
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        return data;
+    }
+
+    // Save academic portfolio without reloading
+    async function saveAcademicPortfolio() {
+        const academicForm = document.getElementById('academicPortfolioForm');
+        if (!academicForm) return { success: false };
+
+        const academicData = {
+            gpa: academicForm.querySelector('input[name="gpa"]')?.value || '',
+            sat_score: academicForm.querySelector('input[name="sat_score"]')?.value || '',
+            toefl_score: academicForm.querySelector('input[name="toefl_score"]')?.value || '',
+            ielts_score: academicForm.querySelector('input[name="ielts_score"]')?.value || '',
+            languages: collectLanguages(),
+            achievements: collectAchievements()
+        };
+
+        const response = await fetch('/update_academic_portfolio', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify(academicData)
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        return data;
+    }
+
+    // Save links without reloading
+    async function saveLinks() {
+        const linkTitles = Array.from(document.querySelectorAll('input[name="link_titles[]"]')).map(input => input.value.trim());
+        const linkUrls = Array.from(document.querySelectorAll('input[name="link_urls[]"]')).map(input => input.value.trim());
+
+        const links = linkTitles.map((title, index) => ({
+            title: title,
+            url: linkUrls[index]
+        })).filter(link => link.title && link.url);
+
+        const response = await fetch(window.location.href, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({
+                action: 'update_links',
+                links: links
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        return data;
+    }
+
+    // ===== HELPER FUNCTIONS =====
+
+    // Function to update display sections after saving without reload
+    function updateDisplaySections() {
+        // Update profile display info
+        updateProfileInfo();
+
+        // Update skills display
+        updateSkillsDisplay();
+    }
+
+    // Function to update profile info display
+    function updateProfileInfo() {
+        const profileForm = document.getElementById('profileForm');
+        const displayInfo = document.getElementById('profileDisplayInfo');
+        if (!profileForm || !displayInfo) return;
+
+        // Get values from form
+        const fullName = profileForm.querySelector('input[name="full_name"]')?.value || '';
+        const specialty = profileForm.querySelector('input[name="specialty"]')?.value || '';
+        const age = profileForm.querySelector('input[name="age"]')?.value || '';
+        const goals = profileForm.querySelector('textarea[name="goals"]')?.value || '';
+        const bio = profileForm.querySelector('textarea[name="bio"]')?.value || '';
+        const education = profileForm.querySelector('textarea[name="education"]')?.value || '';
+
+        // Update the profile name in the profile card
+        const profileName = document.querySelector('.gradient-text');
+        if (profileName && fullName) {
+            profileName.textContent = fullName;
+        }
+
+        // Create HTML for profile display
+        let html = `<h2 class="text-2xl font-bold mb-6">Profile Information</h2><div class="space-y-4">`;
+
+        if (specialty) {
+            html += `
+        <div>
+            <h3 class="font-medium text-gray-700">Specialty</h3>
+            <p class="text-gray-900">${specialty}</p>
+        </div>`;
+        }
+
+        if (age) {
+            html += `
+        <div>
+            <h3 class="font-medium text-gray-700">Age</h3>
+            <p class="text-gray-900">${age} years</p>
+        </div>`;
+        }
+
+        if (goals) {
+            html += `
+        <div>
+            <h3 class="font-medium text-gray-700">Goals</h3>
+            <p class="text-gray-900">${goals}</p>
+        </div>`;
+        }
+
+        if (bio) {
+            html += `
+        <div>
+            <h3 class="font-medium text-gray-700">Bio</h3>
+            <p class="text-gray-900">${bio}</p>
+        </div>`;
+        }
+
+        if (currentSkills && currentSkills.length > 0) {
+            html += `
+        <div>
+            <h3 class="font-medium text-gray-700">Skills</h3>
+            <div class="flex flex-wrap gap-2 mt-2">`;
+
+            currentSkills.forEach(skill => {
+                html += `
+                <span class="px-3 py-1 text-sm font-medium bg-purple-50 text-purple-700 rounded-full">
+                    ${skill}
+                </span>`;
+            });
+
+            html += `</div></div>`;
+        }
+
+        if (education) {
+            html += `
+        <div>
+            <h3 class="font-medium text-gray-700">Education</h3>
+            <p class="text-gray-900">${education}</p>
+        </div>`;
+        }
+
+        html += `</div>`;
+        displayInfo.innerHTML = html;
+    }
+
+    // Function to collect languages from form
+    function collectLanguages() {
+        const languages = [];
+        const containers = document.querySelectorAll('#languagesContainer > div');
+
+        containers.forEach(container => {
+            const nameInput = container.querySelector('input[name="language_name"]');
+            const levelSelect = container.querySelector('select[name="language_level"]');
+
+            if (nameInput && nameInput.value.trim()) {
+                languages.push({
+                    name: nameInput.value.trim(),
+                    level: levelSelect ? levelSelect.value : 'A1'
+                });
+            }
+        });
+
+        return languages;
+    }
+
+    // Function to collect achievements from form
+    function collectAchievements() {
+        const achievements = [];
+        const containers = document.querySelectorAll('#achievementsContainer > div');
+
+        containers.forEach(container => {
+            const titleInput = container.querySelector('input[name="achievement_title"]');
+            const descTextarea = container.querySelector('textarea[name="achievement_description"]');
+            const dateInput = container.querySelector('input[name="achievement_date"]');
+
+            if (titleInput && titleInput.value.trim()) {
+                achievements.push({
+                    title: titleInput.value.trim(),
+                    description: descTextarea ? descTextarea.value : '',
+                    date: dateInput ? dateInput.value : ''
+                });
+            }
+        });
+
+        return achievements;
+    }
+
+    // Function to handle avatar upload
+    function setupAvatarUpload() {
+        const avatarInput = document.querySelector('input[name="avatar"]');
+        if (avatarInput) {
+            avatarInput.addEventListener('change', async function (event) {
+                const file = this.files[0];
+                if (!file) return;
+
+                // Preview the image immediately
+                const preview = document.getElementById('avatarPreview');
+                if (preview) {
+                    const reader = new FileReader();
+                    reader.onload = function (e) {
+                        preview.src = e.target.result;
+                    };
+                    reader.readAsDataURL(file);
+                }
+
+                // Upload the avatar asynchronously
+                const formData = new FormData();
+                formData.append('avatar', file);
+
+                try {
+                    const response = await fetch(window.location.href, {
+                        method: 'POST',
+                        body: formData,
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        // Update all instances of the avatar on the page
+                        document.querySelectorAll('.avatar img').forEach(img => {
+                            img.src = data.avatar_url;
+                        });
+
+                        showNotification('Avatar updated successfully');
+                    } else {
+                        throw new Error(data.error || 'Failed to update avatar');
+                    }
+                } catch (error) {
+                    console.error('Error updating avatar:', error);
+                    showNotification('Error updating avatar', 'error');
+                }
+            });
+        }
+    }
+
+    // Setup skills and academic portfolio
+    function setupSkillsAndAcademic() {
+        // Initialize the skills editor
+        const skillsEditorBtn = document.querySelector('button[onclick="showSkillsEditor()"]');
+        if (skillsEditorBtn) {
+            skillsEditorBtn.addEventListener('click', function (e) {
+                e.preventDefault();
+                showSkillsEditor();
+            });
+        }
+
+        // Setup academic form functionality
+        initializeAcademicPortfolio();
+    }
+
+    // Initialize academic portfolio form
+    function initializeAcademicPortfolio() {
+        // Add event listener to add language button
+        const addLanguageBtn = document.getElementById('addLanguageBtn');
+        if (addLanguageBtn) {
+            addLanguageBtn.addEventListener('click', addLanguage);
+        }
+
+        // Add event listener to add achievement button
+        const addAchievementBtn = document.getElementById('addAchievementBtn');
+        if (addAchievementBtn) {
+            addAchievementBtn.addEventListener('click', addAchievement);
+        }
+    }
+
+    // Show a notification
+    function showNotification(message, type = 'success') {
+        const notification = document.createElement('div');
+        notification.className = `fixed top-4 right-4 z-50 px-4 py-2 rounded-lg ${type === 'success' ? 'bg-black text-white' : 'bg-red-500 text-white'} transition-opacity duration-300`;
+        notification.textContent = message;
+        document.body.appendChild(notification);
+
+        setTimeout(() => {
+            notification.style.opacity = '0';
+            setTimeout(() => notification.remove(), 300);
+        }, 3000);
+    }
 </script>
 
 {% endblock %}

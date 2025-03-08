@@ -1,86 +1,122 @@
-<!-- Create a new file called project_view.html -->
 {% extends "base.html" %}
 
 {% block content %}
-<div class="min-h-screen bg-gray-50 pt-8 pb-12">
-    <div class="container mx-auto px-4">
+<div class="min-h-screen bg-gray-100 pt-8 pb-12">
+    <div class="container mx-auto px-4 max-w-6xl">
         <!-- Back button -->
         <div class="mb-6">
             <a href="javascript:history.back()"
-                class="inline-flex items-center text-gray-600 hover:text-black transition-colors">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24"
-                    stroke="currentColor">
+                class="inline-flex items-center text-gray-600 hover:text-black transition-colors duration-300 group">
+                <svg xmlns="http://www.w3.org/2000/svg"
+                    class="h-5 w-5 mr-2 transform group-hover:-translate-x-1 transition-transform duration-300"
+                    fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                         d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                 </svg>
-                Back to Profile
+                <span class="font-medium">Back to Profile</span>
             </a>
         </div>
 
-        <!-- Project Header -->
-        <div class="bg-white rounded-xl shadow-sm p-6 mb-8">
-            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                <div>
-                    <h1 class="text-3xl font-bold text-gray-900">{{ project.title }}</h1>
-                    <div class="mt-2 flex flex-wrap gap-2">
+        <!-- Project Header Banner Image -->
+        <div class="w-full h-64 rounded-xl mb-8 overflow-hidden shadow-lg relative">
+            {% if project.header_image %}
+            <img src="{{ project.header_image }}" alt="{{ project.title }} banner" class="w-full h-full object-cover"
+                id="projectHeaderImg">
+            {% else %}
+            <div class="absolute inset-0 bg-gradient-to-r from-gray-800 to-black"></div>
+            {% endif %}
+
+            <!-- Overlay for text readability -->
+            <div class="absolute inset-0 bg-black bg-opacity-40 flex items-end">
+                <div class="p-8 w-full">
+                    <!-- Project Logo/Thumbnail -->
+                    <div class="flex items-center gap-6 mb-4">
+                        {% if project.thumbnail %}
+                        <div class="w-16 h-16 bg-white rounded-lg p-1 shadow-lg relative group">
+                            <img src="{{ project.thumbnail }}" alt="{{ project.title }} logo"
+                                class="w-full h-full object-contain" id="projectThumbnailImg">
+
+                            <!-- Edit overlay (Only visible for collaborators) -->
+                            {% if is_collaborator %}
+                            <div
+                                class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 flex items-center justify-center transition-all duration-200">
+                                <button onclick="editProjectThumbnail()"
+                                    class="p-1 bg-white rounded-full opacity-0 group-hover:opacity-100 transition-all transform hover:scale-110">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-black" fill="none"
+                                        viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                    </svg>
+                                </button>
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+
+                        <h1 class="text-4xl font-bold text-white tracking-tight">{{ project.title }}</h1>
+                    </div>
+
+                    <!-- Project Tagline -->
+                    {% if project.tagline %}
+                    <p class="text-lg text-white/90 max-w-3xl">{{ project.tagline }}</p>
+                    {% endif %}
+
+                    <!-- Tags -->
+                    <div class="mt-3 flex flex-wrap gap-2">
                         {% if project.tags and project.tags|length > 0 %}
                         {% for tag in project.tags %}
-                        <span class="px-2 py-1 text-xs font-medium bg-gray-100 text-gray-800 rounded-full">{{ tag
+                        <span class="px-3 py-1 text-xs font-medium bg-white text-black rounded-full shadow-sm">{{ tag
                             }}</span>
                         {% endfor %}
                         {% endif %}
                     </div>
                 </div>
-
-                <div class="flex gap-3">
-                    {% if project.github_url %}
-                    <a href="{{ project.github_url }}" target="_blank"
-                        class="inline-flex items-center px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors">
-                        <svg class="h-5 w-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
-                            <path
-                                d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
-                        </svg>
-                        View on GitHub
-                    </a>
-                    {% endif %}
-
-                    {% if project.project_url %}
-                    <a href="{{ project.project_url }}" target="_blank"
-                        class="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24"
-                            stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                        </svg>
-                        Visit Project
-                    </a>
-                    {% endif %}
-                </div>
             </div>
+
+            <!-- Edit header button (Only visible for collaborators) -->
+            {% if is_collaborator %}
+            <button onclick="editProjectHeader()"
+                class="absolute top-4 right-4 p-2 bg-white bg-opacity-80 hover:bg-opacity-100 rounded-full shadow-lg transition-all transform hover:scale-105">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-black" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                </svg>
+            </button>
+            {% endif %}
         </div>
 
+        <!-- Main Content -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <!-- Main Content -->
             <div class="lg:col-span-2 space-y-8">
                 <!-- Project Images -->
                 {% if project.images and project.images|length > 0 %}
-                <div class="bg-white rounded-xl shadow-sm p-6">
-                    <h2 class="text-xl font-semibold text-gray-900 mb-4">Project Gallery</h2>
+                <div
+                    class="bg-white rounded-xl shadow-lg p-8 border border-gray-200 transform transition-all duration-300 hover:shadow-xl">
+                    <h2 class="text-2xl font-bold text-black mb-6 flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        Project Gallery
+                    </h2>
 
                     <!-- Main image -->
-                    <div class="mb-4">
+                    <div class="mb-6">
                         <img id="mainImage" src="{{ project.images[0] }}" alt="{{ project.title }}"
-                            class="w-full h-96 object-contain rounded-lg">
+                            class="w-full h-96 object-contain rounded-xl shadow-md border border-gray-200 transition-all duration-500">
                     </div>
 
                     <!-- Thumbnails -->
                     {% if project.images|length > 1 %}
-                    <div class="grid grid-cols-6 gap-2">
+                    <div class="grid grid-cols-6 gap-3">
                         {% for image in project.images %}
-                        <div class="cursor-pointer transition-all duration-200 hover:opacity-80 
-                                  {% if loop.index0 == 0 %}ring-2 ring-purple-500{% endif %}"
+                        <div class="cursor-pointer transition-all duration-300 hover:opacity-90 hover:scale-105 
+                                  {% if loop.index0 == 0 %}ring-2 ring-black{% else %}ring-1 ring-gray-200{% endif %} rounded-lg overflow-hidden"
                             onclick="changeMainImage('{{ image }}', this)">
-                            <img src="{{ image }}" alt="Thumbnail" class="w-full h-16 object-cover rounded">
+                            <img src="{{ image }}" alt="Thumbnail" class="w-full h-16 object-cover">
                         </div>
                         {% endfor %}
                     </div>
@@ -89,35 +125,98 @@
                 {% endif %}
 
                 <!-- Project Description -->
-                <div class="bg-white rounded-xl shadow-sm p-6">
-                    <h2 class="text-xl font-semibold text-gray-900 mb-4">About the Project</h2>
-                    <div class="prose prose-sm max-w-none text-gray-600">
+                <div
+                    class="bg-white rounded-xl shadow-lg p-8 border border-gray-200 transform transition-all duration-300 hover:shadow-xl">
+                    <h2 class="text-2xl font-bold text-black mb-6 flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        About the Project
+                    </h2>
+                    <div class="prose prose-lg max-w-none text-gray-800">
                         {{ project.description|safe }}
+                    </div>
+                </div>
+
+                <!-- Comments Section -->
+                <div
+                    class="bg-white rounded-xl shadow-lg p-8 border border-gray-200 transform transition-all duration-300 hover:shadow-xl">
+                    <div class="flex items-center justify-between mb-6">
+                        <h2 class="text-2xl font-bold text-black flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                            </svg>
+                            Comments
+                        </h2>
+                        <span id="commentCount" class="text-sm text-gray-500">(0)</span>
+                    </div>
+
+                    {% if session.get('user_id') %}
+                    <div class="mb-6">
+                        <form id="commentForm">
+                            <div class="relative">
+                                <textarea id="commentText" class="w-full min-h-[120px] p-4 border border-gray-200 rounded-xl bg-gray-50 
+                                         focus:ring-2 focus:ring-black focus:border-transparent resize-y"
+                                    placeholder="Share your thoughts..." maxlength="500"></textarea>
+
+                                <div class="absolute bottom-4 right-4 flex items-center gap-4">
+                                    <span id="charCount" class="text-sm text-gray-500">0 / 500</span>
+                                    <button type="submit" class="inline-flex items-center px-4 py-2 rounded-lg bg-black text-white hover:bg-gray-800 
+                                           transition-colors">
+                                        <svg class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                                        </svg>
+                                        Post Comment
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                    {% endif %}
+
+                    <!-- Comments List -->
+                    <div id="commentsList" class="space-y-4">
+                        <!-- Comments will be loaded dynamically -->
                     </div>
                 </div>
 
                 <!-- Project Updates/Releases -->
                 {% if project.updates and project.updates|length > 0 %}
-                <div class="bg-white rounded-xl shadow-sm p-6">
-                    <h2 class="text-xl font-semibold text-gray-900 mb-4">Project Updates</h2>
+                <div
+                    class="bg-white rounded-xl shadow-lg p-8 border border-gray-200 transform transition-all duration-300 hover:shadow-xl">
+                    <h2 class="text-2xl font-bold text-black mb-6 flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                        </svg>
+                        Project Updates
+                    </h2>
 
-                    <div class="space-y-6">
+                    <div class="space-y-8">
                         {% for update in project.updates %}
-                        <div class="border-l-4 border-purple-500 pl-4 pb-6">
-                            <div class="flex items-center mb-2">
-                                <span class="text-lg font-medium text-gray-900">{{ update.title }}</span>
+                        <div
+                            class="border-l-4 border-black pl-6 pb-6 relative hover:bg-gray-50 transition-colors duration-300 p-4 rounded-r-lg">
+                            <div class="absolute left-[-10px] top-0 w-5 h-5 bg-black rounded-full"></div>
+                            <div class="flex items-center mb-3">
+                                <span class="text-xl font-bold text-black">{{ update.title }}</span>
                                 <span
-                                    class="ml-2 px-2 py-1 text-xs font-medium bg-purple-100 text-purple-800 rounded-full">
+                                    class="ml-3 px-3 py-1 text-xs font-medium bg-black text-white rounded-full shadow-sm">
                                     {{ update.type }}
                                 </span>
                             </div>
 
-                            <p class="text-sm text-gray-600 mb-3">{{ update.content }}</p>
+                            <p class="text-gray-800 mb-4 leading-relaxed">{{ update.content }}</p>
 
-                            <div class="flex items-center text-xs text-gray-500">
+                            <div class="flex items-center text-sm text-gray-500">
                                 <img src="{{ update.author_avatar }}" alt="{{ update.author_username }}"
-                                    class="h-5 w-5 rounded-full mr-2">
-                                <span>{{ update.author_username }}</span>
+                                    class="h-8 w-8 rounded-full border-2 border-gray-200 mr-3">
+                                <span class="font-medium">{{ update.author_username }}</span>
                                 <span class="mx-2">•</span>
                                 <span>{{ update.created_at | datetime }}</span>
                             </div>
@@ -129,20 +228,28 @@
 
                 <!-- Add Update Section (for collaborators only) -->
                 {% if is_collaborator %}
-                <div class="bg-white rounded-xl shadow-sm p-6">
-                    <h2 class="text-xl font-semibold text-gray-900 mb-4">Add Project Update</h2>
+                <div
+                    class="bg-white rounded-xl shadow-lg p-8 border border-gray-200 transform transition-all duration-300 hover:shadow-xl">
+                    <h2 class="text-2xl font-bold text-black mb-6 flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                        </svg>
+                        Add Project Update
+                    </h2>
 
-                    <form id="updateForm" class="space-y-4">
+                    <form id="updateForm" class="space-y-6">
                         <div class="form-control">
-                            <label class="label font-medium text-gray-700">Update Title*</label>
+                            <label class="label font-medium text-gray-800">Update Title*</label>
                             <input type="text" id="updateTitle" name="title" required
-                                class="input input-bordered bg-gray-50 w-full focus:ring-2 focus:ring-black transition-all">
+                                class="input bg-gray-50 w-full focus:ring-2 focus:ring-black transition-all p-3 rounded-lg border border-gray-300">
                         </div>
 
                         <div class="form-control">
-                            <label class="label font-medium text-gray-700">Update Type</label>
+                            <label class="label font-medium text-gray-800">Update Type</label>
                             <select id="updateType" name="type"
-                                class="select select-bordered bg-gray-50 w-full focus:ring-2 focus:ring-black transition-all">
+                                class="select bg-gray-50 w-full focus:ring-2 focus:ring-black transition-all p-3 rounded-lg border border-gray-300 appearance-none">
                                 <option value="Update">Update</option>
                                 <option value="Release">Release</option>
                                 <option value="Bugfix">Bugfix</option>
@@ -152,14 +259,14 @@
                         </div>
 
                         <div class="form-control">
-                            <label class="label font-medium text-gray-700">Content*</label>
+                            <label class="label font-medium text-gray-800">Content*</label>
                             <textarea id="updateContent" name="content" required
-                                class="textarea textarea-bordered bg-gray-50 w-full min-h-[120px] focus:ring-2 focus:ring-black transition-all"></textarea>
+                                class="textarea bg-gray-50 w-full min-h-[150px] focus:ring-2 focus:ring-black transition-all p-3 rounded-lg border border-gray-300"></textarea>
                         </div>
 
                         <div class="flex justify-end">
                             <button type="submit"
-                                class="btn bg-black hover:bg-gray-800 text-white transform hover:scale-[1.02] transition-all duration-200">
+                                class="bg-black hover:bg-gray-800 text-white px-6 py-3 rounded-lg transform transition-all duration-300 hover:scale-105 shadow-md font-medium">
                                 Post Update
                             </button>
                         </div>
@@ -170,56 +277,129 @@
 
             <!-- Sidebar -->
             <div class="space-y-8">
-                <!-- Project Info -->
-                <div class="bg-white rounded-xl shadow-sm p-6">
-                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Project Info</h3>
+                <!-- Project Actions -->
+                <div
+                    class="bg-white rounded-xl shadow-lg p-8 border border-gray-200 transform transition-all duration-300 hover:shadow-xl">
+                    <h3 class="text-xl font-bold text-black mb-6 flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                        </svg>
+                        Project Actions
+                    </h3>
 
-                    <div class="space-y-4">
-                        <div>
-                            <h4 class="text-sm font-medium text-gray-700">Created by</h4>
-                            <div class="flex items-center mt-2">
+                    <div class="flex flex-col gap-4">
+                        {% if project.github_url %}
+                        <a href="{{ project.github_url }}" target="_blank"
+                            class="inline-flex items-center px-5 py-3 bg-black text-white rounded-lg hover:bg-gray-800 transition-all duration-300 transform hover:scale-105 shadow-sm">
+                            <svg class="h-5 w-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
+                                <path
+                                    d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
+                            </svg>
+                            View on GitHub
+                        </a>
+                        {% endif %}
+
+                        {% if project.project_url %}
+                        <a href="{{ project.project_url }}" target="_blank"
+                            class="inline-flex items-center px-5 py-3 bg-white text-black border-2 border-black rounded-lg hover:bg-black hover:text-white transition-all duration-300 transform hover:scale-105 shadow-sm">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                            </svg>
+                            Visit Project
+                        </a>
+                        {% endif %}
+
+                        <button onclick="shareProject()"
+                            class="inline-flex items-center px-5 py-3 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 transition-all duration-300 transform hover:scale-105 shadow-sm">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                            </svg>
+                            Share Project
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Project Info -->
+                <div
+                    class="bg-white rounded-xl shadow-lg p-8 border border-gray-200 transform transition-all duration-300 hover:shadow-xl">
+                    <h3 class="text-xl font-bold text-black mb-6 flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Project Info
+                    </h3>
+
+                    <div class="space-y-6">
+                        <div class="bg-gray-50 p-4 rounded-xl">
+                            <h4 class="text-sm font-medium text-gray-700 mb-3">Created by</h4>
+                            <div class="flex items-center">
                                 <img src="{{ project.creator.avatar }}" alt="{{ project.creator.username }}"
-                                    class="h-8 w-8 rounded-full mr-3">
+                                    class="h-12 w-12 rounded-full border-2 border-gray-200 mr-4">
                                 <div>
                                     <a href="/{{ project.creator.username }}"
-                                        class="text-sm font-medium hover:text-purple-600 transition-colors">
+                                        class="text-base font-bold hover:text-gray-600 transition-colors">
                                         {{ project.creator.full_name or project.creator.username }}
                                     </a>
-                                    <div class="text-xs text-gray-500">@{{ project.creator.username }}</div>
+                                    <div class="text-sm text-gray-500">@{{ project.creator.username }}</div>
                                 </div>
                             </div>
                         </div>
 
-                        <div>
-                            <h4 class="text-sm font-medium text-gray-700">Created on</h4>
-                            <p class="text-sm text-gray-600 mt-1">{{ project.created_at | datetime }}</p>
-                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="bg-gray-50 p-4 rounded-xl">
+                                <h4 class="text-sm font-medium text-gray-700 mb-2">Created on</h4>
+                                <p class="text-sm font-medium text-black">{{ project.created_at | datetime }}</p>
+                            </div>
 
-                        {% if project.last_updated %}
-                        <div>
-                            <h4 class="text-sm font-medium text-gray-700">Last updated</h4>
-                            <p class="text-sm text-gray-600 mt-1">{{ project.last_updated | datetime }}</p>
+                            {% if project.last_updated %}
+                            <div class="bg-gray-50 p-4 rounded-xl">
+                                <h4 class="text-sm font-medium text-gray-700 mb-2">Last updated</h4>
+                                <p class="text-sm font-medium text-black">{{ project.last_updated | datetime }}</p>
+                            </div>
+                            {% endif %}
                         </div>
-                        {% endif %}
                     </div>
                 </div>
 
                 <!-- Collaborators -->
                 {% if project.collaborators and project.collaborators|length > 0 %}
-                <div class="bg-white rounded-xl shadow-sm p-6">
-                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Collaborators</h3>
+                <div
+                    class="bg-white rounded-xl shadow-lg p-8 border border-gray-200 transform transition-all duration-300 hover:shadow-xl">
+                    <h3 class="text-xl font-bold text-black mb-6 flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                        </svg>
+                        Collaborators
+                    </h3>
 
                     <div class="space-y-4">
                         {% for collaborator in project.collaborators %}
-                        <div class="flex items-center">
+                        <div
+                            class="flex items-center bg-gray-50 p-4 rounded-xl transition-transform duration-300 hover:scale-105">
                             <img src="{{ collaborator.avatar }}" alt="{{ collaborator.username }}"
-                                class="h-8 w-8 rounded-full mr-3">
+                                class="h-12 w-12 rounded-full border-2 border-gray-200 mr-4">
                             <div>
                                 <a href="/{{ collaborator.username }}"
-                                    class="text-sm font-medium hover:text-purple-600 transition-colors">
+                                    class="text-base font-bold hover:text-gray-600 transition-colors">
                                     {{ collaborator.full_name or collaborator.username }}
                                 </a>
-                                <div class="text-xs text-gray-500">@{{ collaborator.username }}</div>
+                                <div class="text-sm text-gray-500">@{{ collaborator.username }}</div>
                             </div>
                         </div>
                         {% endfor %}
@@ -232,19 +412,375 @@
 </div>
 
 <script>
-    // Function to change the main image
+    // Global variables
+    let commentsInitialized = false;
+    let currentHeaderFile = null;
+    let currentThumbnailFile = null;
+
+    // Wait for DOM to be fully loaded
+    document.addEventListener('DOMContentLoaded', function () {
+        // Initialize comments only once
+        if (!commentsInitialized) {
+            initializeComments();
+        }
+
+        // Initialize image gallery if it exists
+        initImageGallery();
+    });
+
+    // Function to change the main image with smooth transition
     function changeMainImage(imageUrl, thumbnail) {
-        // Update main image
-        document.getElementById('mainImage').src = imageUrl;
+        // Get main image element
+        const mainImage = document.getElementById('mainImage');
+
+        // Fade out
+        mainImage.style.opacity = '0';
+
+        // After fade out, change source and fade in
+        setTimeout(() => {
+            mainImage.src = imageUrl;
+            mainImage.style.opacity = '1';
+        }, 300);
 
         // Update active thumbnail
         const thumbnails = document.querySelectorAll('.grid-cols-6 > div');
         thumbnails.forEach(el => {
-            el.classList.remove('ring-2', 'ring-purple-500');
+            el.classList.remove('ring-2', 'ring-black');
+            el.classList.add('ring-1', 'ring-gray-200');
         });
 
-        thumbnail.classList.add('ring-2', 'ring-purple-500');
+        thumbnail.classList.remove('ring-1', 'ring-gray-200');
+        thumbnail.classList.add('ring-2', 'ring-black');
     }
+
+    // Share project function
+    function shareProject() {
+        if (navigator.share) {
+            navigator.share({
+                title: '{{ project.title }}',
+                text: '{{ project.description|striptags|truncate(100) }}',
+                url: window.location.href
+            })
+                .then(() => showNotification('Project shared successfully!'))
+                .catch(error => console.error('Error sharing project:', error));
+        } else {
+            // Fallback to clipboard
+            navigator.clipboard.writeText(window.location.href)
+                .then(() => showNotification('Project link copied to clipboard!'))
+                .catch(error => showNotification('Could not copy link', 'error'));
+        }
+    }
+
+    // Initialize image gallery if present
+    function initImageGallery() {
+        const mainContent = document.querySelector('.container');
+        if (mainContent) {
+            mainContent.style.opacity = '0';
+            setTimeout(() => {
+                mainContent.style.transition = 'opacity 0.5s ease-in-out';
+                mainContent.style.opacity = '1';
+            }, 100);
+        }
+    }
+
+    // ====== COMMENTS FUNCTIONS ======
+
+    // Initialize comments functionality
+    function initializeComments() {
+        if (commentsInitialized) {
+            console.log('Comments already initialized');
+            return;
+        }
+
+        console.log('Initializing comments system');
+
+        const commentForm = document.getElementById('commentForm');
+        const commentText = document.getElementById('commentText');
+        const charCount = document.getElementById('charCount');
+
+        // Character count for comment
+        if (commentText && charCount) {
+            commentText.addEventListener('input', function () {
+                const currentLength = this.value.length;
+                charCount.textContent = `${currentLength} / 500`;
+                charCount.classList.toggle('text-red-500', currentLength > 450);
+            });
+        }
+
+        // Load comments on page load
+        loadComments();
+
+        // Submit comment
+        if (commentForm) {
+            commentForm.addEventListener('submit', handleCommentSubmit);
+        }
+
+        commentsInitialized = true;
+        console.log('Comments system initialized');
+    }
+
+    // Handle comment submission
+    async function handleCommentSubmit(e) {
+        e.preventDefault();
+
+        const commentText = document.getElementById('commentText');
+        const comment = commentText.value.trim();
+
+        if (!comment) return;
+
+        // Get submit button and disable it
+        const submitBtn = this.querySelector('button[type="submit"]');
+        const originalBtnHTML = submitBtn.innerHTML;
+
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = `
+            <svg class="animate-spin h-4 w-4 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            Posting...
+        `;
+
+        try {
+            const formData = new FormData();
+            formData.append('comment', comment);
+
+            const response = await fetch(`/projects/{{ project.id }}/comments`, {
+                method: 'POST',
+                body: formData
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                // Clear form
+                commentText.value = '';
+                const charCount = document.getElementById('charCount');
+                if (charCount) {
+                    charCount.textContent = '0 / 500';
+                }
+
+                showNotification('Comment posted successfully');
+
+                // Don't reload if it was a duplicate
+                if (!result.duplicate) {
+                    loadComments();
+                }
+            } else {
+                throw new Error(result.error || 'Failed to post comment');
+            }
+        } catch (error) {
+            console.error('Error posting comment:', error);
+            showNotification('Error posting comment. Please try again.', 'error');
+        } finally {
+            // Reset button
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalBtnHTML;
+        }
+    }
+
+    // Function to load comments
+    async function loadComments() {
+        try {
+            const response = await fetch(`/projects/{{ project.id }}/comments`);
+            const comments = await response.json();
+
+            const commentsList = document.getElementById('commentsList');
+            const commentCount = document.getElementById('commentCount');
+
+            if (!commentsList || !commentCount) {
+                console.error('Comments elements not found');
+                return;
+            }
+
+            commentCount.textContent = `(${comments.length})`;
+
+            if (comments.length === 0) {
+                commentsList.innerHTML = `
+                    <div class="text-center py-12">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-gray-300 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                        </svg>
+                        <p class="text-gray-500">No comments yet. Be the first to share your thoughts!</p>
+                    </div>
+                `;
+            } else {
+                commentsList.innerHTML = comments.map(comment => {
+                    return `
+                        <div class="bg-gray-50 rounded-xl p-4 transition-all duration-300 hover:shadow-md">
+                            <div class="flex items-start gap-3">
+                                <img src="${comment.author_avatar}" alt="${comment.author_username}" class="w-10 h-10 rounded-full border-2 border-gray-200">
+                                <div class="flex-1">
+                                    <div class="flex items-center gap-2">
+                                        <a href="/${comment.author_username}" class="font-semibold hover:underline">${comment.author_username}</a>
+                                        <span class="text-xs text-gray-500">${formatDate(comment.created_at)}</span>
+                                    </div>
+                                    <p class="mt-1 text-gray-800">${comment.text}</p>
+                                    <div class="mt-3 flex items-center gap-4 text-xs text-gray-500">
+                                        <button onclick="likeComment('${comment.id}')" class="flex items-center gap-1 ${comment.is_liked ? 'text-red-500' : ''} hover:text-red-500 transition-colors">
+                                            <svg class="h-4 w-4" fill="${comment.is_liked ? 'currentColor' : 'none'}" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                                      d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                                            </svg>
+                                            <span>${comment.likes_count || 0}</span>
+                                        </button>
+                                        
+                                        <button onclick="showReplyForm('${comment.id}')" class="hover:text-gray-700 transition-colors">
+                                            Reply
+                                        </button>
+                                        
+                                        ${comment.can_delete ? `
+                                            <button onclick="deleteComment('${comment.id}')" class="hover:text-red-500 transition-colors">
+                                                Delete
+                                            </button>
+                                        ` : ''}
+                                    </div>
+                                    <div id="reply-form-${comment.id}" class="hidden mt-3">
+                                        <textarea class="w-full text-sm min-h-[60px] p-3 border border-gray-200 rounded-lg bg-white"
+                                                placeholder="Write a reply..."></textarea>
+                                        <div class="flex justify-end mt-2">
+                                            <button onclick="submitReply('${comment.id}')"
+                                                    class="px-3 py-1 bg-black hover:bg-gray-800 text-white text-xs rounded transition-colors">
+                                                Reply
+                                            </button>
+                                        </div>
+                                    </div>
+                                    ${comment.replies && comment.replies.length > 0 ? `
+                                        <div class="mt-3 space-y-3 pl-4 border-l-2 border-gray-200">
+                                            ${comment.replies.map(reply => `
+                                                <div class="flex items-start gap-3">
+                                                    <img src="${reply.author_avatar}" alt="${reply.author_username}" class="w-8 h-8 rounded-full border-2 border-gray-200">
+                                                    <div>
+                                                        <div class="flex items-center gap-2">
+                                                            <a href="/${reply.author_username}" class="font-semibold hover:underline text-sm">${reply.author_username}</a>
+                                                            <span class="text-xs text-gray-500">${formatDate(reply.created_at)}</span>
+                                                        </div>
+                                                        <p class="text-sm text-gray-700">${reply.text}</p>
+                                                    </div>
+                                                </div>
+                                            `).join('')}
+                                        </div>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+        } catch (error) {
+            console.error('Error loading comments:', error);
+            showNotification('Error loading comments', 'error');
+        }
+    }
+
+    // Function to format date
+    function formatDate(dateString) {
+        if (!dateString) return '';
+
+        const date = new Date(dateString);
+        const now = new Date();
+        const diffMinutes = Math.floor((now - date) / (1000 * 60));
+
+        if (diffMinutes < 1) return 'Just now';
+        if (diffMinutes < 60) return `${diffMinutes} min ago`;
+        if (diffMinutes < 1440) return `${Math.floor(diffMinutes / 60)} hours ago`;
+
+        return date.toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        });
+    }
+
+    // Function to show reply form
+    function showReplyForm(commentId) {
+        const replyForm = document.getElementById(`reply-form-${commentId}`);
+        if (replyForm) {
+            replyForm.classList.toggle('hidden');
+        }
+    }
+
+    // Function to submit reply
+    async function submitReply(commentId) {
+        const replyForm = document.getElementById(`reply-form-${commentId}`);
+        const replyText = replyForm.querySelector('textarea').value.trim();
+        const replyButton = replyForm.querySelector('button');
+
+        if (!replyText) return;
+
+        try {
+            replyButton.disabled = true;
+            replyButton.textContent = 'Sending...';
+
+            const formData = new FormData();
+            formData.append('reply', replyText);
+
+            const response = await fetch(`/projects/{{ project.id }}/comments/${commentId}/reply`, {
+                method: 'POST',
+                body: formData
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                showNotification('Reply posted successfully');
+                loadComments();
+            } else {
+                throw new Error(result.error || 'Failed to post reply');
+            }
+        } catch (error) {
+            console.error('Error posting reply:', error);
+            showNotification('Error posting reply', 'error');
+        } finally {
+            replyButton.disabled = false;
+            replyButton.textContent = 'Reply';
+        }
+    }
+
+    // Function to like comment
+    async function likeComment(commentId) {
+        try {
+            const response = await fetch(`/projects/{{ project.id }}/comments/${commentId}/like`, {
+                method: 'POST'
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                loadComments();
+            } else {
+                throw new Error(result.error || 'Failed to like comment');
+            }
+        } catch (error) {
+            console.error('Error liking comment:', error);
+            showNotification('Error liking comment', 'error');
+        }
+    }
+
+    // Function to delete comment
+    async function deleteComment(commentId) {
+        if (!confirm('Are you sure you want to delete this comment?')) return;
+
+        try {
+            const response = await fetch(`/projects/{{ project.id }}/comments/${commentId}`, {
+                method: 'DELETE'
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                showNotification('Comment deleted successfully');
+                loadComments();
+            } else {
+                throw new Error(result.error || 'Failed to delete comment');
+            }
+        } catch (error) {
+            console.error('Error deleting comment:', error);
+            showNotification('Error deleting comment', 'error');
+        }
+    }
+
+    // ====== PROJECT UPDATE FUNCTIONS ======
 
     // Submit update form
     document.getElementById('updateForm')?.addEventListener('submit', async function (e) {
@@ -252,11 +788,11 @@
 
         const submitBtn = this.querySelector('button[type="submit"]');
         submitBtn.disabled = true;
-        submitBtn.innerHTML = `<svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        submitBtn.innerHTML = `<svg class="animate-spin h-5 w-5 text-white inline mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                               <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                             </svg>
-                            <span class="ml-2">Posting...</span>`;
+                            Posting...`;
 
         try {
             const formData = new FormData();
@@ -294,18 +830,259 @@
         }
     });
 
-    // Show a notification
+    // ====== HEADER AND THUMBNAIL EDITING ======
+
+    // Functions for editing project header
+    function editProjectHeader() {
+        const modal = document.getElementById('editHeaderModal');
+        if (modal) {
+            modal.classList.add('modal-open');
+        }
+    }
+
+    function closeHeaderModal() {
+        const modal = document.getElementById('editHeaderModal');
+        if (modal) {
+            modal.classList.remove('modal-open');
+            currentHeaderFile = null;
+        }
+    }
+
+    function previewHeaderImage(input) {
+        const preview = document.getElementById('headerPreviewImg');
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                preview.src = e.target.result;
+                currentHeaderFile = input.files[0];
+            };
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+
+    async function saveHeaderImage() {
+        if (!currentHeaderFile) {
+            showNotification('Please select an image to upload', 'error');
+            return;
+        }
+
+        try {
+            const formData = new FormData();
+            formData.append('header_image', currentHeaderFile);
+
+            // Get the save button and show loading state
+            const saveBtn = document.querySelector('#editHeaderModal button[onclick="saveHeaderImage()"]');
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = `
+                <svg class="animate-spin h-5 w-5 text-white inline mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Uploading...
+            `;
+
+            // Send the request
+            const response = await fetch(`/projects/{{ project.id }}/update_header`, {
+                method: 'POST',
+                body: formData
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                // Update the image in the DOM
+                const headerImg = document.getElementById('projectHeaderImg');
+                if (headerImg) {
+                    headerImg.src = result.header_url;
+                }
+
+                showNotification('Header image updated successfully');
+                closeHeaderModal();
+            } else {
+                throw new Error(result.error || 'Failed to update header image');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showNotification('Error uploading header image', 'error');
+        } finally {
+            // Reset the button state
+            const saveBtn = document.querySelector('#editHeaderModal button[onclick="saveHeaderImage()"]');
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = 'Save Changes';
+        }
+    }
+
+    // Functions for editing project thumbnail
+    function editProjectThumbnail() {
+        const modal = document.getElementById('editThumbnailModal');
+        if (modal) {
+            modal.classList.add('modal-open');
+        }
+    }
+
+    function closeThumbnailModal() {
+        const modal = document.getElementById('editThumbnailModal');
+        if (modal) {
+            modal.classList.remove('modal-open');
+            currentThumbnailFile = null;
+        }
+    }
+
+    function previewThumbnailImage(input) {
+        const preview = document.getElementById('thumbnailPreviewImg');
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                preview.src = e.target.result;
+                currentThumbnailFile = input.files[0];
+            };
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+
+    async function saveThumbnailImage() {
+        if (!currentThumbnailFile) {
+            showNotification('Please select an image to upload', 'error');
+            return;
+        }
+
+        try {
+            const formData = new FormData();
+            formData.append('thumbnail', currentThumbnailFile);
+
+            // Get the save button and show loading state
+            const saveBtn = document.querySelector('#editThumbnailModal button[onclick="saveThumbnailImage()"]');
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = `
+                <svg class="animate-spin h-5 w-5 text-white inline mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Uploading...
+            `;
+
+            // Send the request
+            const response = await fetch(`/projects/{{ project.id }}/update_thumbnail`, {
+                method: 'POST',
+                body: formData
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                // Update the image in the DOM
+                const thumbnailImg = document.getElementById('projectThumbnailImg');
+                if (thumbnailImg) {
+                    thumbnailImg.src = result.thumbnail_url;
+                }
+
+                showNotification('Thumbnail updated successfully');
+                closeThumbnailModal();
+            } else {
+                throw new Error(result.error || 'Failed to update thumbnail');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showNotification('Error uploading thumbnail', 'error');
+        } finally {
+            // Reset the button state
+            const saveBtn = document.querySelector('#editThumbnailModal button[onclick="saveThumbnailImage()"]');
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = 'Save Changes';
+        }
+    }
+
+    // Show a notification with improved styling
     function showNotification(message, type = 'success') {
         const notification = document.createElement('div');
-        notification.className = `fixed bottom-4 right-4 px-6 py-3 rounded-xl shadow-lg transform transition-all duration-300 
-        ${type === 'success' ? 'bg-green-600' : 'bg-red-600'} text-white`;
-        notification.textContent = message;
+        notification.className = `fixed bottom-6 right-6 px-6 py-4 rounded-xl shadow-xl transform transition-all duration-500 
+        ${type === 'success' ? 'bg-black' : 'bg-red-500'} text-white opacity-0 translate-y-6`;
+
+        const icon = document.createElement('span');
+        icon.className = 'mr-2';
+        icon.innerHTML = type === 'success'
+            ? '✓'
+            : '✗';
+
+        notification.appendChild(icon);
+        notification.appendChild(document.createTextNode(message));
         document.body.appendChild(notification);
 
+        // Animate in
+        setTimeout(() => {
+            notification.style.opacity = '1';
+            notification.style.transform = 'translateY(0)';
+        }, 10);
+
+        // Animate out
         setTimeout(() => {
             notification.style.opacity = '0';
-            setTimeout(() => notification.remove(), 300);
+            notification.style.transform = 'translateY(10px)';
+            setTimeout(() => notification.remove(), 500);
         }, 3000);
     }
 </script>
+<div id="editHeaderModal" class="modal">
+    <div class="modal-box max-w-2xl p-8 relative">
+        <h3 class="text-2xl font-bold mb-6">Change Project Header</h3>
+        <form id="headerForm">
+            <div class="space-y-6">
+                <div class="relative w-full h-48 bg-gray-100 rounded-xl overflow-hidden border-2 border-gray-300 mb-6">
+                    <img id="headerPreviewImg" src="{{ project.header_image or '/static/placeholder-wide.png' }}"
+                        alt="Header preview" class="w-full h-full object-cover">
+                </div>
+
+                <div class="form-control">
+                    <label class="label font-medium text-gray-700">Select New Header Image</label>
+                    <input type="file" name="header_image" id="headerImageInput" accept="image/*"
+                        class="file-input file-input-bordered w-full bg-gray-50 focus:ring-2 focus:ring-black transition-all"
+                        onchange="previewHeaderImage(this)">
+                    <p class="text-xs text-gray-500 mt-2">Recommended size: 1200x400px. Max size: 5MB</p>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-4 mt-8">
+                <button type="button" onclick="closeHeaderModal()"
+                    class="btn btn-ghost hover:bg-gray-100 transition-colors">Cancel</button>
+                <button type="button" onclick="saveHeaderImage()"
+                    class="btn bg-black hover:bg-gray-800 text-white transform hover:scale-[1.02] transition-all duration-200">
+                    Save Changes
+                </button>
+            </div>
+
+        </form>
+    </div>
+</div>
+
+<!-- Thumbnail Edit Modal -->
+<div id="editThumbnailModal" class="modal">
+    <div class="modal-box max-w-md p-8 relative">
+        <h3 class="text-2xl font-bold mb-6">Change Project Thumbnail</h3>
+        <form id="thumbnailForm">
+            <div class="space-y-6">
+                <div class="w-32 h-32 mx-auto bg-white rounded-lg p-2 shadow-xl relative mb-6">
+                    <img id="thumbnailPreviewImg" src="{{ project.thumbnail or '/static/placeholder.png' }}"
+                        alt="Thumbnail preview" class="w-full h-full object-contain">
+                </div>
+
+                <div class="form-control">
+                    <label class="label font-medium text-gray-700">Select New Thumbnail</label>
+                    <input type="file" name="thumbnail" id="thumbnailImageInput" accept="image/*"
+                        class="file-input file-input-bordered w-full bg-gray-50 focus:ring-2 focus:ring-black transition-all"
+                        onchange="previewThumbnailImage(this)">
+                    <p class="text-xs text-gray-500 mt-2">Recommended size: 200x200px. Max size: 2MB</p>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-4 mt-8">
+                <button type="button" onclick="closeThumbnailModal()"
+                    class="btn btn-ghost hover:bg-gray-100 transition-colors">Cancel</button>
+                <button type="button" onclick="saveThumbnailImage()"
+                    class="btn bg-black hover:bg-gray-800 text-white transform hover:scale-[1.02] transition-all duration-200">
+                    Save Changes
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
 {% endblock %}

@@ -11,6 +11,8 @@
         href="{{ url_for('static', filename='favicon.ico/apple-touch-icon.png') }}" />
     <link rel="manifest" href="{{ url_for('static', filename='favicon.ico/site.webmanifest') }}" />
 
+    <!-- Add a fallback favicon -->
+    <link rel="icon" href="{{ url_for('static', filename='jinaq_icon.svg') }}" />
     <!-- Rest of the existing head content continues -->
     <script>
         (function () {
@@ -58,6 +60,8 @@
                 transform: scale(1.1);
             }
         }
+
+
 
         .animate-pulse {
             animation: pulse 0.3s ease-in-out;
@@ -779,6 +783,303 @@
             }
         }
     }" x-init="isCyrillic = /[А-Яа-я]/.test(document.body.textContent)" class="min-h-screen flex flex-col">
+    <!-- Add this at the top of your base.html file, right after the opening <body> tag -->
+    <div id="topProgressBar"
+        class="fixed top-0 left-0 w-0 h-1 bg-gradient-to-r from-blue-500 via-blue-500 to-blue-500 z-[9999] transition-all duration-300 ease-out shadow-md">
+    </div>
+    <!-- Search Modal Template -->
+    <!-- Replace the current search modal structure with this improved version -->
+    <!-- Search Modal Template with outside X button -->
+    <div id="searchModal" class="fixed inset-0 z-[100] overflow-y-auto hidden">
+        <!-- Prominent X button at top-left of screen -->
+        <button id="closeSearchModal"
+            class="absolute top-7 left-7 z-[120] bg-gray-800 bg-opacity-70 rounded-full p-2 text-white hover:bg-opacity-90 transition-all">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
+                stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+        </button>
+
+        <!-- Backdrop overlay with blur effect -->
+        <div class="absolute inset-0 bg-black bg-opacity-20 backdrop-blur-sm" id="searchModalBackdrop"></div>
+
+        <!-- Modal Content -->
+        <div class="relative min-h-screen flex items-start justify-center pt-16 pb-20 px-4 sm:px-6">
+            <div
+                class="bg-white rounded-xl shadow-2xl w-full max-w-3xl mx-auto overflow-hidden transform transition-all z-[110]">
+                <!-- Search input -->
+                <div class="p-4 border-b border-gray-200">
+                    <div class="relative">
+                        <input type="text" id="modalSearchInput"
+                            class="w-full pl-10 pr-10 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-800"
+                            placeholder="Search for users, projects...">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none"
+                                viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                        </div>
+                        <!-- Clear search button (X in input field) -->
+                        <div class="absolute inset-y-0 right-0 pr-3 flex items-center">
+                            <button type="button" id="clearSearchBtn" class="text-gray-400 hover:text-gray-500">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
+                                    stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+
+
+
+                <!-- Modal body with tabs -->
+                <div class="p-4 max-h-[70vh] overflow-y-auto" id="searchModalContent">
+                    <!-- Search results will show here when searching -->
+                    <div id="searchResults" class="hidden">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-semibold text-gray-900">Search Results</h3>
+                            <span id="searchResultsCount" class="text-sm text-gray-500"></span>
+                        </div>
+
+                        <!-- Search filter tabs -->
+                        <div class="flex space-x-2 mb-4 overflow-x-auto pb-2">
+                            <button id="filter-all"
+                                class="filter-tab px-3 py-1 rounded-full bg-blue-500 text-white text-sm font-medium">
+                                All
+                            </button>
+                            <button id="filter-people"
+                                class="filter-tab px-3 py-1 rounded-full bg-gray-200 text-gray-700 text-sm font-medium">
+                                People
+                            </button>
+                            <button id="filter-projects"
+                                class="filter-tab px-3 py-1 rounded-full bg-gray-200 text-gray-700 text-sm font-medium">
+                                Projects
+                            </button>
+                        </div>
+
+                        <div id="searchResultsList" class="space-y-4"></div>
+                    </div>
+
+                    <!-- Default content shown before searching -->
+                    <div id="defaultContent">
+                        <!-- Popular search categories -->
+                        <div class="mb-8">
+                            <h3 class="text-sm font-medium text-gray-500 uppercase tracking-wider mb-3">POPULAR SEARCH
+                                CATEGORIES</h3>
+                            <div class="flex flex-wrap gap-2">
+                                <button
+                                    class="search-tag px-3 py-1.5 bg-gray-100 text-gray-800 rounded-lg text-sm hover:bg-gray-200 transition-colors">
+                                    Developers
+                                </button>
+                                <button
+                                    class="search-tag px-3 py-1.5 bg-gray-100 text-gray-800 rounded-lg text-sm hover:bg-gray-200 transition-colors">
+                                    Designers
+                                </button>
+                                <button
+                                    class="search-tag px-3 py-1.5 bg-gray-100 text-gray-800 rounded-lg text-sm hover:bg-gray-200 transition-colors">
+                                    Web Development
+                                </button>
+                                <button
+                                    class="search-tag px-3 py-1.5 bg-gray-100 text-gray-800 rounded-lg text-sm hover:bg-gray-200 transition-colors">
+                                    UI/UX
+                                </button>
+                                <button
+                                    class="search-tag px-3 py-1.5 bg-gray-100 text-gray-800 rounded-lg text-sm hover:bg-gray-200 transition-colors">
+                                    Data Science
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Search categories -->
+                        <div>
+                            <h3 class="text-sm font-medium text-gray-500 uppercase tracking-wider mb-3">SEARCH
+                                CATEGORIES</h3>
+
+                            <!-- Users category -->
+                            <div class="mb-6 bg-white border border-gray-200 rounded-xl overflow-hidden">
+                                <div class="flex justify-between items-center p-4 border-b border-gray-200">
+                                    <h4 class="font-medium text-gray-900">People</h4>
+                                    <a href="#" id="viewAllPeople" class="text-sm text-blue-500 hover:text-blue-600">
+                                        View all
+                                    </a>
+                                </div>
+                                <div class="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <a href="#" class="category-link text-gray-700 hover:text-black"
+                                        data-category="people" data-subcategory="developers">
+                                        Developers
+                                    </a>
+                                    <a href="#" class="category-link text-gray-700 hover:text-black"
+                                        data-category="people" data-subcategory="designers">
+                                        Designers
+                                    </a>
+                                    <a href="#" class="category-link text-gray-700 hover:text-black"
+                                        data-category="people" data-subcategory="students">
+                                        Students
+                                    </a>
+                                    <a href="#" class="category-link text-gray-700 hover:text-black"
+                                        data-category="people" data-subcategory="verified">
+                                        Verified Users
+                                    </a>
+                                </div>
+                            </div>
+
+                            <!-- Projects category -->
+                            <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
+                                <div class="flex justify-between items-center p-4 border-b border-gray-200">
+                                    <h4 class="font-medium text-gray-900">Projects</h4>
+                                    <a href="#" id="viewAllProjects" class="text-sm text-blue-500 hover:text-blue-600">
+                                        View all
+                                    </a>
+                                </div>
+                                <div class="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <a href="#" class="category-link text-gray-700 hover:text-black"
+                                        data-category="projects" data-subcategory="web">
+                                        Web Applications
+                                    </a>
+                                    <a href="#" class="category-link text-gray-700 hover:text-black"
+                                        data-category="projects" data-subcategory="mobile">
+                                        Mobile Apps
+                                    </a>
+                                    <a href="#" class="category-link text-gray-700 hover:text-black"
+                                        data-category="projects" data-subcategory="design">
+                                        Design Projects
+                                    </a>
+                                    <a href="#" class="category-link text-gray-700 hover:text-black"
+                                        data-category="projects" data-subcategory="popular">
+                                        Popular Projects
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        // Top Progress Bar Navigation System
+        // Top Progress Bar Navigation System
+        (function () {
+            const progressBar = document.getElementById('topProgressBar');
+
+            // Show progress bar and start loading animation
+            function startProgress() {
+                // Reset to 0 width
+                progressBar.style.width = '0';
+                progressBar.style.opacity = '1';
+
+                // Quick initial progress to show responsiveness
+                setTimeout(() => {
+                    progressBar.style.width = '30%';
+                    progressBar.style.transition = 'width 300ms ease-out';
+
+                    // Slow down as it progresses
+                    setTimeout(() => {
+                        progressBar.style.width = '50%';
+                        progressBar.style.transition = 'width 800ms ease-out';
+
+                        // Slow down even more, giving time for actual page load
+                        setTimeout(() => {
+                            progressBar.style.width = '80%';
+                            progressBar.style.transition = 'width 1500ms ease-out';
+                        }, 600);
+                    }, 400);
+                }, 50);
+            }
+
+            // Complete progress and hide bar - FIX: Adding missing function
+            function completeProgress() {
+                // Quickly finish the progress bar
+                progressBar.style.width = '100%';
+                progressBar.style.transition = 'width 200ms ease-out';
+
+                // Fade out after completion
+                setTimeout(() => {
+                    progressBar.style.opacity = '0';
+
+                    // Reset to 0 width after fade out (won't be visible due to opacity)
+                    setTimeout(() => {
+                        progressBar.style.width = '0';
+                    }, 300);
+                }, 300);
+            }
+
+            // Handle initial page load
+            window.addEventListener('DOMContentLoaded', () => {
+                completeProgress();
+            });
+
+            // Handle clicks on links
+            document.addEventListener('click', (e) => {
+                // Only handle clicks on links to the same domain
+                const link = e.target.closest('a');
+
+                if (link &&
+                    link.href &&
+                    link.href.startsWith(window.location.origin) &&
+                    !link.getAttribute('target') &&
+                    !link.getAttribute('download') &&
+                    !e.ctrlKey &&
+                    !e.metaKey &&
+                    !e.shiftKey) {
+
+                    // Start progress bar
+                    startProgress();
+                }
+            });
+
+            // Handle form submissions
+            document.addEventListener('submit', (e) => {
+                // Check if it's a regular form submission
+                const form = e.target;
+                if (form.method && form.method.toLowerCase() !== 'get' &&
+                    !form.getAttribute('target') &&
+                    !form.hasAttribute('data-no-progress')) {
+                    startProgress();
+                }
+            });
+
+            // Handle back/forward navigation
+            window.addEventListener('pageshow', (event) => {
+                if (event.persisted) {
+                    // Page is loaded from cache (back/forward navigation)
+                    completeProgress();
+                }
+            });
+
+            // For SPA-like navigation, in case you use fetch or AJAX for some requests
+            const originalFetch = window.fetch;
+            window.fetch = function (...args) {
+                // Check if this is a navigation request
+                const isNavigationRequest = args[0] && typeof args[0] === 'string' &&
+                    (args[0].endsWith('.html') || args[0].indexOf('?') > -1) &&
+                    !args[0].includes('/api/') && !args[0].includes('/static/');
+
+                if (isNavigationRequest) {
+                    startProgress();
+                }
+
+                return originalFetch.apply(this, args)
+                    .then(response => {
+                        if (isNavigationRequest && response.ok) {
+                            completeProgress();
+                        }
+                        return response;
+                    })
+                    .catch(error => {
+                        if (isNavigationRequest) {
+                            // Hide progress bar on error
+                            progressBar.style.opacity = '0';
+                        }
+                        throw error;
+                    });
+            };
+        })();
+    </script>
     <!-- Overlay для мобильного меню -->
     <div x-show="mobileMenuOpen" x-cloak @click="toggleMobileMenu()"
         x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0"
@@ -820,169 +1121,38 @@
                 </div>
             </div>
 
-            <div class="relative w-full mb-4">
-                <input type="text" id="mobileUserSearch" placeholder="Find users..."
-                    class="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-black">
-                <div id="mobileSearchResults" class="search-dropdown hidden"></div>
-            </div>
+            <button id="mobileUserSearch"
+                class="flex items-center w-full px-4 py-3 rounded-lg border text-left focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-500 dark:text-gray-400 dark:border-white-600 dark:bg-white-700 hover:bg-white-50 dark:hover:bg-white-600 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <span>Search users, projects, and more...</span>
+            </button>
             {% endif %}
-            <div x-data="notificationsSystem()" class="relative">
-                <div @click="toggleMobileNotifications"
-                    class="flex items-center justify-between px-4 py-3 hover:bg-gray-100 cursor-pointer">
-                    <div class="flex items-center space-x-3">
-
-                        <span>Notifications</span>
-                    </div>
-                    <div class="relative">
-                        <span x-show="unreadCount > 0" class="bg-red-500 text-white rounded-full px-2 py-0.5 text-xs"
-                            x-text="unreadCount"></span>
-                    </div>
+            <!-- Also update the mobile menu notifications link -->
+            <a href="{{ url_for('notifications_page') }}"
+                class="flex items-center justify-between px-4 py-3 hover:bg-gray-100 rounded-lg">
+                <div class="flex items-center space-x-3">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M15 17h5l-1.405-1.405A2.032 2.032 0 0 1 18 15.158V11a6.002 6.002 0 0 0-4-5.659V5a2 2 0 1 0-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 1 1-6 0v-1m6 0H9" />
+                    </svg>
+                    <span>Notifications</span>
                 </div>
-
-                <div x-show="showMobileNotifications" x-transition class="fixed inset-0 bg-white z-50 overflow-y-auto">
-                    <div class="p-4 border-b flex justify-between items-center">
-                        <h3 class="text-lg font-semibold">Notifications</h3>
-                        <button @click="toggleMobileNotifications" class="text-gray-600">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
-                                stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                        </button>
-                    </div>
-
-                    <div class="p-4">
-                        <template x-if="notifications.length === 0">
-                            <div class="text-center text-gray-500">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto mb-2 text-gray-300"
-                                    fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M15 17h5l-1.405-1.405A2.032 2.032 0 0 1 18 15.158V11a6.002 6.002 0 0 0-4-5.659V5a2 2 0 1 0-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 1 1-6 0v-1m6 0H9" />
-                                </svg>
-                                No notifications
-                            </div>
-                        </template>
-
-                        <!-- Замените существующий template для уведомлений на: -->
-                        <!-- Общий шаблон уведомлений для обоих видов (мобильного и десктопного) -->
-                        <!-- Общий шаблон уведомлений для обоих видов (мобильного и десктопного) -->
-                        <template x-for="notification in notifications" :key="notification.id">
-                            <div class="p-4 hover:bg-gray-50 border-b cursor-pointer group"
-                                @click="handleNotificationClick(notification)">
-                                <div class="flex items-center gap-3 w-full">
-                                    <!-- Аватар -->
-                                    <!-- Обновленный шаблон для аватара в уведомлениях -->
-                                    <!-- Обновленный шаблон для аватара в уведомлениях -->
-                                    <div class="flex-shrink-0">
-                                        <!-- Для системных, account_change и других системных уведомлений показываем логотип -->
-                                        <template
-                                            x-if="['system', 'admin_message', 'important', 'account_change', 'verification'].includes(notification.type)">
-                                            <div
-                                                class="w-8 h-8 rounded-full bg-white flex items-center justify-center overflow-hidden border border-gray-100">
-                                                <img src="/static/jinaq_icon.svg" class="w-6 h-6 object-contain"
-                                                    alt="Jinaq" style="aspect-ratio: 877/243;">
-                                            </div>
-                                        </template>
-                                        <!-- Для обычных уведомлений показываем аватар пользователя -->
-                                        <template
-                                            x-if="!['system', 'admin_message', 'important', 'account_change', 'verification'].includes(notification.type) && notification.sender_info">
-                                            <img :src="notification.sender_info.avatar_url || generateDefaultAvatar(notification.sender_info.username)"
-                                                class="w-8 h-8 rounded-full object-cover"
-                                                :alt="notification.sender_info.username">
-                                        </template>
-                                    </div>
-
-                                    <!-- Контент -->
-                                    <div class="flex-grow">
-                                        <div class="flex flex-col">
-                                            <!-- Информация о действии -->
-                                            <div class="flex items-center gap-1">
-                                                <!-- Для системных уведомлений -->
-                                                <template
-                                                    x-if="['system', 'admin_message', 'important'].includes(notification.type)">
-                                                    <span class="font-semibold text-sm">
-                                                        <span
-                                                            x-text="notification.sender_info?.username || 'Jinaq'"></span>
-                                                        <svg xmlns="http://www.w3.org/2000/svg"
-                                                            class="h-4 w-4 text-blue-500 inline-block ml-1"
-                                                            viewBox="0 0 20 20" fill="currentColor">
-                                                            <path fill-rule="evenodd"
-                                                                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                                                                clip-rule="evenodd" />
-                                                        </svg>
-                                                    </span>
-                                                </template>
-                                                <!-- Для обычных уведомлений -->
-                                                <template
-                                                    x-if="!['system', 'admin_message', 'important'].includes(notification.type)">
-                                                    <span class="font-semibold text-sm"
-                                                        x-text="'@' + notification.sender_info?.username"></span>
-                                                </template>
-
-                                                <!-- Тип уведомления -->
-
-                                                <!-- Тип уведомления -->
-                                                <!-- Добавьте этот блок внутри секции с типами уведомлений -->
-                                                <template
-                                                    x-if="['system', 'admin_message', 'important', 'account_change', 'verification'].includes(notification.type)">
-                                                    <span class="text-sm text-gray-600"
-                                                        x-text="notification.content.message"></span>
-
-                                                </template>
-                                                <template x-if="notification.type === 'like_comment'">
-                                                    <span class="text-sm text-gray-600">liked your comment</span>
-                                                </template>
-                                                <template x-if="notification.type === 'reply_comment'">
-                                                    <span class="text-sm text-gray-600">replied to your comment</span>
-                                                </template>
-
-                                                <!-- Добавьте отображение текста прокомментированного контента для лайков -->
-                                                <template
-                                                    x-if="notification.type === 'like_comment' && notification.content.comment_text">
-                                                    <div class="mt-2 p-3 bg-gray-50 rounded-lg text-sm text-gray-500"
-                                                        x-text="notification.content.comment_text"></div>
-                                                </template>
-
-                                                <span class="text-xs text-gray-400 ml-auto"
-                                                    x-text="formatDate(notification.created_at)"></span>
-                                            </div>
-
-                                            <!-- Показываем оригинальный комментарий -->
-                                            <template x-if="notification.content.original_comment?.text">
-                                                <div class="mt-1 text-sm text-gray-500"
-                                                    x-text="notification.content.original_comment.text"></div>
-                                            </template>
-
-                                            <!-- Показываем текст ответа -->
-                                            <template x-if="notification.content.reply_text">
-                                                <div class="mt-1 text-sm" x-text="notification.content.reply_text">
-                                                </div>
-                                            </template>
-                                        </div>
-                                    </div>
-
-                                    <!-- Кнопка удаления -->
-                                    <button @click.stop="deleteNotification(notification.id)"
-                                        class="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition-colors ml-2">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none"
-                                            viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                d="M6 18L18 6M6 6l12 12" />
-                                        </svg>
-                                    </button>
-                                </div>
-                            </div>
-                        </template>
-                    </div>
-                </div>
-            </div>
+                {% if notifications_count and notifications_count > 0 %}
+                <span class="bg-red-500 text-white rounded-full px-2 py-0.5 text-xs min-w-[20px] text-center">
+                    {{ notifications_count }}
+                </span>
+                {% endif %}
+            </a>
             {% if 'user_id' in session %}
             <a href="{{ url_for('profile') }}" class="block px-4 py-3 rounded-lg hover:bg-gray-100">
                 My Portfolio
             </a>
-            <!-- <a href="{{ url_for('list_internships') }}" class="block px-4 py-3 rounded-lg hover:bg-gray-100">
-                Internships
-            </a> -->
+
             <a href="{{ url_for('settings') }}" class="block px-4 py-3 rounded-lg hover:bg-gray-100">
                 Settings
             </a>
@@ -991,11 +1161,15 @@
             </a>
 
             {% else %}
-            <div class="relative w-full mb-4">
-                <input type="text" id="mobileUserSearch" placeholder="Find users..."
-                    class="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-black">
-                <div id="mobileSearchResults" class="search-dropdown hidden"></div>
-            </div>
+            <button id="mobileUserSearch"
+                class="flex items-center w-full px-4 py-3 rounded-lg border text-left focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-500 dark:text-gray-400 dark:border-white-600 dark:bg-white-700 hover:bg-white-50 dark:hover:bg-white-600 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <span>Search users, projects, and more...</span>
+            </button>
             <a href="{{ url_for('login') }}" class="block px-4 py-3 rounded-lg hover:bg-gray-100">
                 Login
             </a>
@@ -1023,159 +1197,29 @@
 
                 <div class="flex items-center space-x-4">
                     {% if 'user_id' in session %}
-                    <div x-data="notificationsSystem()" class="relative">
-                        <button @click="toggleNotifications" class="btn btn-ghost btn-circle relative">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 24 24" fill="none"
-                                stroke="currentColor" stroke-width="2">
+                    <!-- Replace the old notifications dropdown with this link in desktop navigation -->
+                    <a href="{{ url_for('notifications_page') }}" class="relative group">
+                        <div class="btn btn-ghost btn-circle relative flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg"
+                                class="h-6 w-6 transition-all duration-200 group-hover:text-blue-600"
+                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path stroke-linecap="round" stroke-linejoin="round"
                                     d="M15 17h5l-1.405-1.405A2.032 2.032 0 0 1 18 15.158V11a6.002 6.002 0 0 0-4-5.659V5a2 2 0 1 0-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 1 1-6 0v-1m6 0H9" />
                             </svg>
-                            <span x-show="unreadCount > 0"
-                                class="absolute -top-1 -right-1 bg-red-500 text-white rounded-full px-1.5 py-0.5 text-xs"
-                                x-text="unreadCount"></span>
-                        </button>
-
-                        <div x-show="showNotifications" x-transition @click.outside="showNotifications = false"
-                            class="absolute right-0 mt-2 w-96 bg-white rounded-xl shadow-lg border border-gray-100 z-50">
-
-                            <div class="p-4 border-b flex justify-between items-center">
-                                <h3 class="text-lg font-semibold">Notifications</h3>
-                                <button @click="markAllAsRead" class="text-sm text-blue-500">Mark all read</button>
-                            </div>
-
-                            <div class="max-h-[500px] overflow-y-auto">
-                                <template x-if="notifications.length === 0">
-                                    <div class="p-4 text-center text-gray-500">
-                                        <svg xmlns="http://www.w3.org/2000/svg"
-                                            class="h-12 w-12 mx-auto mb-2 text-gray-300" fill="none" viewBox="0 0 24 24"
-                                            stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                d="M15 17h5l-1.405-1.405A2.032 2.032 0 0 1 18 15.158V11a6.002 6.002 0 0 0-4-5.659V5a2 2 0 1 0-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 1 1-6 0v-1m6 0H9" />
-                                        </svg>
-                                        No notifications
-                                    </div>
-                                </template>
-
-                                <!-- Общий шаблон уведомлений для обоих видов (мобильного и десктопного) -->
-
-                                <template x-for="notification in notifications" :key="notification.id">
-                                    <div class="p-4 hover:bg-gray-50 border-b cursor-pointer group"
-                                        @click="handleNotificationClick(notification)">
-                                        <div class="flex items-center gap-3 w-full">
-                                            <!-- Аватар -->
-
-                                            <div class="flex-shrink-0">
-
-                                                <template
-                                                    x-if="['system', 'admin_message', 'important', 'account_change', 'verification'].includes(notification.type)">
-                                                    <div
-                                                        class="w-8 h-8 rounded-full bg-white flex items-center justify-center overflow-hidden border border-gray-100">
-                                                        <img src="/static/jinaq_icon.svg" class="w-6 h-6 object-contain"
-                                                            alt="Jinaq" style="aspect-ratio: 877/243;">
-                                                    </div>
-                                                </template>
-
-                                                <template
-                                                    x-if="!['system', 'admin_message', 'important', 'account_change', 'verification'].includes(notification.type) && notification.sender_info">
-                                                    <img :src="notification.sender_info.avatar_url || generateDefaultAvatar(notification.sender_info.username)"
-                                                        class="w-8 h-8 rounded-full object-cover"
-                                                        :alt="notification.sender_info.username">
-                                                </template>
-                                            </div>
-
-                                            <!-- Контент -->
-                                            <div class="flex-grow">
-                                                <div class="flex flex-col">
-                                                    <!-- Информация о действии -->
-                                                    <div class="flex items-center gap-1">
-                                                        <!-- Для системных уведомлений -->
-                                                        <template
-                                                            x-if="['system', 'admin_message', 'important'].includes(notification.type)">
-                                                            <span class="font-semibold text-sm">
-                                                                <span
-                                                                    x-text="notification.sender_info?.username || 'Jinaq'"></span>
-                                                                <svg xmlns="http://www.w3.org/2000/svg"
-                                                                    class="h-4 w-4 text-blue-500 inline-block ml-1"
-                                                                    viewBox="0 0 20 20" fill="currentColor">
-                                                                    <path fill-rule="evenodd"
-                                                                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                                                                        clip-rule="evenodd" />
-                                                                </svg>
-                                                            </span>
-                                                        </template>
-                                                        <!-- Для обычных уведомлений -->
-                                                        <template
-                                                            x-if="!['system', 'admin_message', 'important'].includes(notification.type)">
-                                                            <span class="font-semibold text-sm"
-                                                                x-text="'@' + notification.sender_info?.username"></span>
-                                                        </template>
-
-                                                        <!-- Тип уведомления -->
-
-                                                        <!-- Тип уведомления -->
-                                                        <template
-                                                            x-if="['system', 'admin_message', 'important', 'account_change', 'verification'].includes(notification.type)">
-                                                            <span class="text-sm text-gray-600"
-                                                                x-text="notification.content.message"></span>
-                                                        </template>
-                                                        <template x-if="notification.type === 'like_comment'">
-                                                            <span class="text-sm text-gray-600">liked your
-                                                                comment</span>
-                                                        </template>
-                                                        <template x-if="notification.type === 'reply_comment'">
-                                                            <span class="text-sm text-gray-600">replied to your
-                                                                comment</span>
-                                                        </template>
-
-                                                        <!-- Добавьте отображение текста прокомментированного контента для лайков -->
-                                                        <template
-                                                            x-if="notification.type === 'like_comment' && notification.content.comment_text">
-                                                            <div class="mt-2 p-3 bg-gray-50 rounded-lg text-sm text-gray-500"
-                                                                x-text="notification.content.comment_text"></div>
-                                                        </template>
-
-                                                        <span class="text-xs text-gray-400 ml-auto"
-                                                            x-text="formatDate(notification.created_at)"></span>
-                                                    </div>
-
-                                                    <!-- Показываем оригинальный комментарий -->
-                                                    <template x-if="notification.content.original_comment?.text">
-                                                        <div class="mt-1 text-sm text-gray-500"
-                                                            x-text="notification.content.original_comment.text"></div>
-                                                    </template>
-
-                                                    <!-- Показываем текст ответа -->
-                                                    <template x-if="notification.content.reply_text">
-                                                        <div class="mt-1 text-sm"
-                                                            x-text="notification.content.reply_text">
-                                                        </div>
-                                                    </template>
-                                                </div>
-                                            </div>
-
-                                            <!-- Кнопка удаления -->
-                                            <button @click.stop="deleteNotification(notification.id)"
-                                                class="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition-colors ml-2">
-                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none"
-                                                    viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path stroke-linecap="round" stroke-linejoin="round"
-                                                        stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                                                </svg>
-                                            </button>
-                                        </div>
-                                    </div>
-                                </template>
-                            </div>
+                            {% if notifications_count and notifications_count > 0 %}
+                            <span
+                                class="absolute -top-1 -right-1 bg-red-500 text-white rounded-full px-1.5 py-0.5 text-xs min-w-[18px] text-center nav-notification-counter">
+                                {{ notifications_count }}
+                            </span>
+                            {% endif %}
                         </div>
-                    </div>
+                    </a>
+
 
                     <a href="{{ url_for('profile') }}" class="px-3 py-2 rounded-lg hover:bg-gray-100 nav-hover">
                         My Portfolio
                     </a>
 
-                    <!-- <a href="{{ url_for('list_internships') }}" class="px-3 py-2 rounded-lg hover:bg-gray-100 nav-hover">
-                        Internships
-                    </a> -->
                     <a href="{{ url_for('settings') }}" class="px-3 py-2 rounded-lg hover:bg-gray-100 nav-hover">
                         Settings
                     </a>
@@ -1211,17 +1255,27 @@
                         </ul>
                     </div>
                     <div class="relative">
-                        <input type="text" id="desktopUserSearch" placeholder="Find users..."
-                            class="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-black w-48">
-                        <div id="desktopSearchResults" class="search-dropdown hidden absolute top-full left-0 w-full">
-                        </div>
+                        <button id="desktopUserSearch"
+                            class="flex items-center px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-500 dark:text-gray-400 dark:border-white-600 dark:bg-white-700 hover:bg-white-50 dark:hover:bg-white-600 transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                            <span>Search</span>
+                        </button>
                     </div>
                     {% else %}
                     <div class="relative">
-                        <input type="text" id="desktopUserSearch" placeholder="Find users..."
-                            class="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-black w-48">
-                        <div id="desktopSearchResults" class="search-dropdown hidden absolute top-full left-0 w-full">
-                        </div>
+                        <button id="desktopUserSearch"
+                            class="flex items-center px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-500 dark:text-gray-400 dark:border-white-600 dark:bg-white-700 hover:bg-white-50 dark:hover:bg-white-600 transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                            <span>Search</span>
+                        </button>
                     </div>
 
                     <a href="{{ url_for('login') }}" class="px-3 py-2 rounded-lg hover:bg-gray-100 nav-hover">
@@ -1477,453 +1531,18 @@
                 }
             };
         }
+        // Add a fade-in effect to the main content on page load
+        document.addEventListener('DOMContentLoaded', function () {
+            const mainContent = document.querySelector('.container');
+            mainContent.style.opacity = '0';
+            setTimeout(() => {
+                mainContent.style.transition = 'opacity 0.5s ease-in-out';
+                mainContent.style.opacity = '1';
+            }, 100);
 
-        // Функция для системы уведомлений
-        function notificationsSystem() {
-            return {
-                notifications: [],
-                unreadCount: 0,
-                showNotifications: false,
-                showMobileNotifications: false,
-
-                init() {
-                    this.fetchNotifications();
-                    setInterval(() => this.fetchNotifications(), 60000);
-                },
-
-                async fetchNotifications() {
-                    try {
-                        const response = await fetch('/notifications');
-                        if (response.ok) {
-                            const data = await response.json();
-                            // Группируем уведомления по типам и времени
-                            this.notifications = this.groupNotifications(data);
-                            this.unreadCount = data.filter(n => !n.is_read).length;
-                        }
-                    } catch (error) {
-                        console.error('Failed to fetch notifications:', error);
-                    }
-                },
-
-                groupNotifications(notifications) {
-                    // Группируем похожие уведомления вместе
-                    const groups = {};
-                    notifications.forEach(notification => {
-                        const key = `${notification.type}_${notification.sender_id}_${notification.related_id}`;
-                        if (!groups[key]) {
-                            groups[key] = [];
-                        }
-                        groups[key].push(notification);
-                    });
-
-                    // Форматируем группы
-                    return Object.values(groups).map(group => {
-                        if (group.length === 1) {
-                            return group[0];
-                        }
-
-                        // Объединяем похожие уведомления
-                        const latest = group[0];
-                        latest.grouped = true;
-                        latest.count = group.length;
-                        return latest;
-                    });
-                },
-
-                formatNotificationContent(notification) {
-                    // Общая функция для получения аватара
-                    const getAvatar = (sender) => {
-                        if (sender && sender.avatar_url) return sender.avatar_url;
-                        return this.generateDefaultAvatar(sender?.username || 'Jinaq');
-                    };
-
-                    // Общая функция для отображения верификационного бейджа
-                    const getVerificationBadge = (sender) => {
-                        if (!sender || !sender.verified) return '';
-                        return `
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-blue-500 inline-block ml-1" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-            </svg>
-        `;
-                    };
-
-                    // Системные уведомления
-                    if (['system', 'admin_message', 'important'].includes(notification.type)) {
-                        return `
-            <div class="flex items-start space-x-3">
-                <div class="flex-shrink-0">
-                    <img src="/static/jinaq_logo.svg" 
-                         class="w-10 h-10 rounded-full object-cover"
-                         alt="System">
-                </div>
-                <div class="flex-grow">
-                    <div class="flex items-center gap-1">
-                        <span class="font-medium">Jinaq</span>
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-                        </svg>
-                    </div>
-                    <div class="text-sm text-gray-600">
-                        ${notification.content.type_label || 'System Notification'}
-                    </div>
-                    <div class="mt-2 text-sm">
-                        <p>${notification.content.message}</p>
-                        ${notification.content.sender ? `
-                            <div class="text-xs text-gray-500 mt-1">
-                                Sent by: ${notification.content.sender}
-                            </div>
-                        ` : ''}
-                    </div>
-                    <div class="mt-2 text-xs text-gray-400">
-                        ${this.formatDate(notification.created_at)}
-                    </div>
-                </div>
-            </div>
-        `;
-                    }
-
-                    // Уведомления о комментариях
-                    if (notification.type === 'reply_comment') {
-                        return `
-            <div class="flex items-start space-x-3">
-                <div class="flex-shrink-0">
-                    <img src="${getAvatar(notification.sender_info)}" 
-                         class="w-10 h-10 rounded-full object-cover"
-                         alt="${notification.sender_info?.username || 'User'}">
-                </div>
-                <div class="flex-grow">
-                    <div class="flex items-center gap-1">
-                        <span class="font-medium">@${notification.sender_info?.username}</span>
-                        ${getVerificationBadge(notification.sender_info)}
-                        <span class="text-xs text-gray-400 ml-auto">
-                            ${this.formatDate(notification.created_at)}
-                        </span>
-                    </div>
-                    <div class="text-sm text-gray-600">replied to your comment</div>
-                    
-                    ${notification.content.original_comment ? `
-                        <div class="mt-2 p-3 bg-gray-50 rounded-lg text-sm">
-                            <p class="text-gray-500">${notification.content.original_comment.text}</p>
-                        </div>
-                    ` : ''}
-                    
-                    ${notification.content.reply_text ? `
-                        <div class="mt-2 text-sm">
-                            <p>${notification.content.reply_text}</p>
-                        </div>
-                    ` : ''}
-                    
-                    ${notification.grouped ? `
-                        <div class="mt-1 text-xs text-gray-500">
-                            +${notification.count - 1} more replies
-                        </div>
-                    ` : ''}
-                </div>
-            </div>
-        `;
-                    }
-
-                    // Уведомления о лайках
-                    if (notification.type === 'like_comment') {
-                        return `
-            <div class="flex items-start space-x-3">
-                <div class="flex-shrink-0">
-                    <img src="${getAvatar(notification.sender_info)}" 
-                         class="w-10 h-10 rounded-full object-cover"
-                         alt="${notification.sender_info?.username || 'User'}">
-                </div>
-                <div class="flex-grow">
-                    <div class="flex items-center gap-1">
-                        <span class="font-medium">@${notification.sender_info?.username}</span>
-                        ${getVerificationBadge(notification.sender_info)}
-                        <span class="text-xs text-gray-400 ml-auto">
-                            ${this.formatDate(notification.created_at)}
-                        </span>
-                    </div>
-                    <div class="text-sm text-gray-600">liked your comment</div>
-                    
-                    ${notification.content.comment_text ? `
-                        <div class="mt-2 p-3 bg-gray-50 rounded-lg text-sm">
-                            <p class="text-gray-500">${notification.content.comment_text}</p>
-                        </div>
-                    ` : ''}
-                    
-                    ${notification.grouped ? `
-                        <div class="mt-1 text-xs text-gray-500">
-                            +${notification.count - 1} more likes
-                        </div>
-                    ` : ''}
-                </div>
-            </div>
-        `;
-                    }
-
-                    // Уведомления о профильных комментариях
-                    if (notification.type === 'profile_comment') {
-                        return `
-            <div class="flex items-start space-x-3">
-                <div class="flex-shrink-0">
-                    <img src="${getAvatar(notification.sender_info)}" 
-                         class="w-10 h-10 rounded-full object-cover"
-                         alt="${notification.sender_info?.username || 'User'}">
-                </div>
-                <div class="flex-grow">
-                    <div class="flex items-center gap-1">
-                        <span class="font-medium">@${notification.sender_info?.username}</span>
-                        ${getVerificationBadge(notification.sender_info)}
-                        <span class="text-xs text-gray-400 ml-auto">
-                            ${this.formatDate(notification.created_at)}
-                        </span>
-                    </div>
-                    <div class="text-sm text-gray-600">commented on your profile</div>
-                    
-                    ${notification.content.comment_text ? `
-                        <div class="mt-2 p-3 bg-gray-50 rounded-lg text-sm">
-                            <p class="text-gray-500">${notification.content.comment_text}</p>
-                        </div>
-                    ` : ''}
-                    
-                    ${notification.grouped ? `
-                        <div class="mt-1 text-xs text-gray-500">
-                            +${notification.count - 1} more comments
-                        </div>
-                    ` : ''}
-                </div>
-            </div>
-        `;
-                    }
-
-                    // Уведомления об изменении аккаунта
-                    if (notification.type === 'account_change') {
-                        const actionMessages = {
-                            'email_updated': 'Your email has been updated',
-                            'password_changed': 'Your password has been changed',
-                            'verification_revoked': 'Your account verification has been revoked'
-                        };
-
-                        return `
-            <div class="flex items-start space-x-3">
-                <div class="flex-shrink-0">
-                    <img src="/static/jinaq_logo.svg" 
-                         class="w-10 h-10 rounded-full object-cover"
-                         alt="Account">
-                </div>
-                <div class="flex-grow">
-                    <div class="flex items-center gap-1">
-                        <span class="font-medium">Jinaq</span>
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-                        </svg>
-                        <span class="text-xs text-gray-400 ml-auto">
-                            ${this.formatDate(notification.created_at)}
-                        </span>
-                    </div>
-                    <div class="text-sm text-gray-600">
-                        ${actionMessages[notification.content.action] || 'Account settings changed'}
-                    </div>
-                </div>
-            </div>
-        `;
-                    }
-
-                    // Уведомления о верификации
-                    if (notification.type === 'verification') {
-                        const verificationTypes = {
-                            'official': '🏛️ Official Account',
-                            'creator': '🎨 Content Creator',
-                            'business': '💼 Business Account'
-                        };
-
-                        return `
-            <div class="flex items-start space-x-3">
-                <div class="flex-shrink-0">
-                    <img src="/static/jinaq_logo.svg" 
-                         class="w-10 h-10 rounded-full object-cover"
-                         alt="Verification">
-                </div>
-                <div class="flex-grow">
-                    <div class="flex items-center gap-1">
-                        <span class="font-medium">Jinaq</span>
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-                        </svg>
-                        <span class="text-xs text-gray-400 ml-auto">
-                            ${this.formatDate(notification.created_at)}
-                        </span>
-                    </div>
-                    <div class="text-sm text-gray-600">
-                        ${notification.content.message || `You have been verified as ${verificationTypes[notification.content.verification_type]}`}
-                    </div>
-                </div>
-            </div>
-        `;
-                    }
-
-                    // Фолбэк для неизвестных типов уведомлений
-                    return `
-        <div class="flex items-start space-x-3">
-            <div class="flex-shrink-0">
-                <img src="/static/jinaq_logo.svg" 
-                     class="w-10 h-10 rounded-full object-cover"
-                     alt="Notification">
-            </div>
-            <div class="flex-grow">
-                <div class="text-sm">Notification</div>
-            </div>
-        </div>
-    `;
-                },
-                getVerifiedBadge(type) {
-                    return `
-                <svg xmlns="http://www.w3.org/2000/svg" 
-                     class="h-4 w-4 text-blue-500" 
-                     viewBox="0 0 20 20" 
-                     fill="currentColor">
-                    <path fill-rule="evenodd" 
-                          d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" 
-                          clip-rule="evenodd"/>
-                </svg>
-            `;
-                },
-
-
-                formatDate(timestamp) {
-                    if (!timestamp) return '';
-
-                    const date = timestamp._seconds
-                        ? new Date(timestamp._seconds * 1000)
-                        : new Date(timestamp);
-                    const now = new Date();
-                    const diffMinutes = Math.floor((now - date) / (1000 * 60));
-
-                    if (diffMinutes < 1) return 'just now';
-                    if (diffMinutes < 60) return `${diffMinutes}m`;
-                    if (diffMinutes < 1440) return `${Math.floor(diffMinutes / 60)}h`;
-                    if (diffMinutes < 10080) return `${Math.floor(diffMinutes / 1440)}d`;
-
-                    return date.toLocaleDateString('en-US', {
-                        month: 'short',
-                        day: 'numeric'
-                    });
-                },
-
-                generateDefaultAvatar(username) {
-                    if (!username) return '';
-                    const initials = username.split(' ')
-                        .map(word => word[0])
-                        .join('')
-                        .toUpperCase()
-                        .slice(0, 2);
-                    return `https://ui-avatars.com/api/?name=${initials}&background=random&color=fff&size=128`;
-                },
-
-                toggleNotifications() {
-                    this.showNotifications = !this.showNotifications;
-                    if (this.showNotifications) {
-                        this.fetchNotifications();
-                    }
-                },
-
-                toggleMobileNotifications() {
-                    this.showMobileNotifications = !this.showMobileNotifications;
-                    if (this.showMobileNotifications) {
-                        this.fetchNotifications();
-                    }
-                },
-
-                async handleNotificationClick(notification) {
-                    // Помечаем уведомление как прочитанное
-                    if (!notification.is_read) {
-                        await fetch(`/notifications/mark_read/${notification.id}`, {
-                            method: 'POST'
-                        });
-                    }
-
-                    // Для системных и административных уведомлений просто закрываем окно
-                    if (notification.type === 'system' || notification.type === 'admin_message' || notification.type === 'important') {
-                        this.showNotifications = false;
-                        this.showMobileNotifications = false;
-                        this.fetchNotifications();
-                        return;
-                    }
-
-                    // Существующая логика для других типов уведомлений
-                    if (notification.type === 'reply_comment') {
-                        const originalComment = notification.content.original_comment;
-                        if (originalComment) {
-                            const username = notification.sender_info?.username;
-                            if (username) {
-                                window.location.href = `/${username}#comment-${notification.related_id}`;
-                                return;
-                            }
-                        }
-                    } else if (notification.type === 'like_comment') {
-                        const username = notification.sender_info?.username;
-                        if (username) {
-                            window.location.href = `/${username}`;
-                            return;
-                        }
-                    }
-
-                    // Закрываем окно уведомлений
-                    this.showNotifications = false;
-                    this.showMobileNotifications = false;
-
-                    // Обновляем счетчик непрочитанных
-                    this.fetchNotifications();
-                },
-
-                async deleteNotification(notificationId) {
-                    try {
-                        const response = await fetch(`/notifications/${notificationId}`, {
-                            method: 'DELETE'
-                        });
-
-                        if (response.ok) {
-                            // Удаляем уведомление из списка
-                            this.notifications = this.notifications.filter(n => n.id !== notificationId);
-                            // Обновляем счетчик непрочитанных
-                            this.unreadCount = this.notifications.filter(n => !n.is_read).length;
-                        }
-                    } catch (error) {
-                        console.error('Failed to delete notification:', error);
-                    }
-                },
-
-                async markAllAsRead() {
-                    try {
-                        const promises = this.notifications
-                            .filter(n => !n.is_read)
-                            .map(n => fetch(`/notifications/mark_read/${n.id}`, { method: 'POST' }));
-
-                        await Promise.all(promises);
-                        this.fetchNotifications();
-                    } catch (error) {
-                        console.error('Failed to mark notifications as read:', error);
-                    }
-                },
-
-                getNotificationIcon(type) {
-                    switch (type) {
-                        case 'reply_comment':
-                            return `<svg class="h-6 w-6 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                            d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/>
-                    </svg>`;
-                        case 'like_comment':
-                            return `<svg class="h-6 w-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                            d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
-                    </svg>`;
-                        default:
-                            return `<svg class="h-6 w-6 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                            d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 15.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
-                    </svg>`;
-                    }
-                }
-            };
-        }
+            // Initialize comment functionality
+            initializeComments();
+        });
 
         // Инициализация при загрузке документа
         document.addEventListener('DOMContentLoaded', function () {
@@ -1948,6 +1567,540 @@
                 });
             });
         });
+
+        // Enhanced Search Modal System
+        // Find the section with the Enhanced Search Modal System
+        // Replace it with this improved version
+        // Find this section in your code (around line 340 in your app.py):
+        (function () {
+            // DOM elements with null checking
+            const searchModal = document.getElementById('searchModal');
+            const backdrop = searchModal ? document.getElementById('searchModalBackdrop') : null;
+            const closeBtn = searchModal ? document.getElementById('closeSearchModal') : null;
+            const clearBtn = searchModal ? document.getElementById('clearSearchBtn') : null;
+            const modalSearchInput = searchModal ? document.getElementById('modalSearchInput') : null;
+            const searchResults = searchModal ? document.getElementById('searchResults') : null;
+            const defaultContent = searchModal ? document.getElementById('defaultContent') : null;
+            const searchResultsList = searchModal ? document.getElementById('searchResultsList') : null;
+            const searchResultsCount = searchModal ? document.getElementById('searchResultsCount') : null;
+            const modalContent = searchModal ? searchModal.querySelector('.bg-white') : null;
+
+            // Search trigger elements
+            const desktopSearchTrigger = document.getElementById('desktopUserSearch');
+            const mobileSearchTrigger = document.getElementById('mobileUserSearch');
+
+            // Check if required elements exist before initializing
+            if (!searchModal) {
+                console.warn("Search modal not found in the DOM. Search functionality may not work properly.");
+                return;
+            }
+
+            // Current search state
+            let currentSearchQuery = '';
+            let currentFilter = 'all';
+
+            // Original search results storage
+            let currentUsers = [];
+            let currentProjects = [];
+
+            // Open search modal
+            function openSearchModal() {
+                if (!searchModal) return;
+
+                searchModal.classList.remove('hidden');
+                setTimeout(() => {
+                    if (modalSearchInput) modalSearchInput.focus();
+                }, 100);
+
+                // Prevent body scrolling when modal is open
+                document.body.style.overflow = 'hidden';
+            }
+
+            // Close search modal
+            function closeSearchModal() {
+                if (!searchModal) return;
+
+                searchModal.classList.add('hidden');
+                // Reset modal state
+                if (modalSearchInput) modalSearchInput.value = '';
+                if (searchResults) searchResults.classList.add('hidden');
+                if (defaultContent) defaultContent.classList.remove('hidden');
+
+                // Reset search state
+                currentSearchQuery = '';
+                currentFilter = 'all';
+
+                // Reset filter tabs
+                updateFilterTabs('all');
+
+                // Re-enable body scrolling
+                document.body.style.overflow = '';
+            }
+
+            // Improved clearSearch function - add this to your JavaScript
+            function clearSearch() {
+                const modalSearchInput = document.getElementById('modalSearchInput');
+                const searchResults = document.getElementById('searchResults');
+                const defaultContent = document.getElementById('defaultContent');
+                const filterTabs = document.querySelectorAll('.filter-tab');
+
+                if (!modalSearchInput) return;
+
+                // Clear the input field
+                modalSearchInput.value = '';
+
+                // Hide search results and show default content
+                if (searchResults) searchResults.classList.add('hidden');
+                if (defaultContent) defaultContent.classList.remove('hidden');
+
+                // Reset filter tabs to "All"
+                filterTabs.forEach(tab => {
+                    const filterId = tab.id.replace('filter-', '');
+                    if (filterId === 'all') {
+                        tab.classList.remove('bg-gray-200', 'text-gray-700');
+                        tab.classList.add('bg-blue-500', 'text-white');
+                    } else {
+                        tab.classList.remove('bg-blue-500', 'text-white');
+                        tab.classList.add('bg-gray-200', 'text-gray-700');
+                    }
+                });
+
+                // Reset any active category links
+                const categoryLinks = document.querySelectorAll('.category-link');
+                categoryLinks.forEach(link => {
+                    link.classList.remove('font-bold', 'text-blue-500');
+                    link.classList.add('text-gray-700');
+                });
+
+                // Reset any active search tags
+                const searchTags = document.querySelectorAll('.search-tag');
+                searchTags.forEach(tag => {
+                    tag.classList.remove('bg-blue-100', 'text-blue-800');
+                    tag.classList.add('bg-gray-100', 'text-gray-800');
+                });
+
+                // Focus on the search input
+                modalSearchInput.focus();
+
+                console.log("Search cleared and filters reset");
+            }
+
+            // Make sure to connect this function to the clear button
+            document.addEventListener('DOMContentLoaded', function () {
+                const clearBtn = document.getElementById('clearSearchBtn');
+                if (clearBtn) {
+                    clearBtn.addEventListener('click', function (e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        clearSearch();
+                    });
+                }
+            });
+            // Perform search
+            async function performSearch(query, category = null, subcategory = null) {
+                if (!searchResults || !defaultContent || !searchResultsList) return;
+
+                if (query.length < 2 && !category && !subcategory) {
+                    searchResults.classList.add('hidden');
+                    defaultContent.classList.remove('hidden');
+                    return;
+                }
+
+                try {
+                    // Update current search query
+                    currentSearchQuery = query;
+
+                    // Show loading state
+                    searchResultsList.innerHTML = `
+                <div class="flex justify-center items-center py-10">
+                    <svg class="animate-spin h-8 w-8 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                </div>
+            `;
+                    searchResults.classList.remove('hidden');
+                    defaultContent.classList.add('hidden');
+
+                    // Build the query parameters
+                    let params = new URLSearchParams();
+                    if (query) {
+                        params.append('query', query);
+                    }
+                    if (category) {
+                        params.append('category', category);
+                    }
+                    if (subcategory) {
+                        params.append('subcategory', subcategory);
+                    }
+
+                    // Fetch users
+                    let users = [];
+                    if (category === null || category === 'people') {
+                        try {
+                            const usersResponse = await fetch(`/search_users?${params.toString()}`);
+                            if (usersResponse.ok) {
+                                users = await usersResponse.json();
+                            }
+                        } catch (userError) {
+                            console.warn("Error fetching users:", userError);
+                        }
+                    }
+
+                    // Fetch projects
+                    let projects = [];
+                    if (category === null || category === 'projects') {
+                        try {
+                            const projectsResponse = await fetch(`/search_projects?${params.toString()}`);
+                            if (projectsResponse.ok) {
+                                projects = await projectsResponse.json();
+                            }
+                        } catch (projectError) {
+                            console.warn("Error fetching projects:", projectError);
+                        }
+                    }
+
+                    // Store the full results
+                    currentUsers = users;
+                    currentProjects = projects;
+
+                    // Apply the current filter
+                    applyFilter(currentFilter);
+
+                } catch (error) {
+                    console.error('Search error:', error);
+                    if (searchResultsList) {
+                        searchResultsList.innerHTML = `
+                    <div class="text-center py-8">
+                        <div class="text-red-500 mb-2">An error occurred while searching</div>
+                        <div class="text-sm text-gray-500">Please try again later</div>
+                    </div>
+                `;
+                    }
+                }
+            }
+
+            // Apply filter to the current search results
+            function applyFilter(filter) {
+                currentFilter = filter;
+
+                // Update the filter tabs UI
+                updateFilterTabs(filter);
+
+                let filteredUsers = [];
+                let filteredProjects = [];
+
+                // Apply the filter
+                if (filter === 'all') {
+                    filteredUsers = currentUsers;
+                    filteredProjects = currentProjects;
+                } else if (filter === 'people') {
+                    filteredUsers = currentUsers;
+                } else if (filter === 'projects') {
+                    filteredProjects = currentProjects;
+                }
+
+                // Display the filtered results
+                displaySearchResults(currentSearchQuery, filteredUsers, filteredProjects);
+            }
+
+            // Update the filter tabs UI
+            function updateFilterTabs(activeFilter) {
+                const filterTabs = document.querySelectorAll('.filter-tab');
+                filterTabs.forEach(tab => {
+                    const filterId = tab.id.replace('filter-', '');
+                    if (filterId === activeFilter) {
+                        tab.classList.remove('bg-gray-200', 'text-gray-700');
+                        tab.classList.add('bg-blue-500', 'text-white');
+                    } else {
+                        tab.classList.remove('bg-blue-500', 'text-white');
+                        tab.classList.add('bg-gray-200', 'text-gray-700');
+                    }
+                });
+            }
+
+            // Display search results
+            function displaySearchResults(query, users, projects) {
+                if (!searchResultsList || !searchResultsCount) return;
+
+                searchResultsList.innerHTML = '';
+
+                const totalResults = users.length + projects.length;
+                searchResultsCount.textContent = `${totalResults} result${totalResults !== 1 ? 's' : ''}`;
+
+                if (totalResults === 0) {
+                    searchResultsList.innerHTML = `
+                <div class="text-center py-8">
+                    <div class="text-gray-500 mb-2">No results found${query ? ` for "${query}"` : ''}</div>
+                    <div class="text-sm text-gray-500">Try a different search term or browse categories</div>
+                </div>
+            `;
+                    return;
+                }
+
+                // Users section
+                if (users.length > 0) {
+                    const usersSection = document.createElement('div');
+                    usersSection.className = 'mb-8';
+                    usersSection.innerHTML = `
+                <h3 class="text-sm font-medium text-gray-500 uppercase tracking-wider mb-3">
+                    PEOPLE (${users.length})
+                </h3>
+                <div class="space-y-3" id="userResults"></div>
+            `;
+                    searchResultsList.appendChild(usersSection);
+
+                    const userResults = usersSection.querySelector('#userResults');
+                    if (!userResults) return;
+
+                    users.forEach(user => {
+                        const userItem = document.createElement('div');
+                        userItem.className = 'flex items-center p-3 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors border border-gray-100';
+
+                        const verificationBadge = user.verified
+                            ? `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-500 ml-1" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                    </svg>`
+                            : '';
+
+                        userItem.innerHTML = `
+                    <div class="flex-shrink-0">
+                        <img src="${user.avatar}" alt="Avatar for ${user.username}" class="w-10 h-10 rounded-full object-cover">
+                    </div>
+                    <div class="ml-3 flex-grow">
+                        <div class="flex items-center">
+                            <div class="font-medium text-gray-900">${user.full_name || user.username}</div>
+                            ${verificationBadge}
+                        </div>
+                        <div class="text-sm text-gray-500">@${user.username}</div>
+                    </div>
+                `;
+
+                        userItem.addEventListener('click', () => {
+                            window.location.href = `/${user.username}`;
+                            closeSearchModal();
+                        });
+
+                        userResults.appendChild(userItem);
+                    });
+                }
+
+                // Projects section
+                if (projects.length > 0) {
+                    const projectsSection = document.createElement('div');
+                    projectsSection.className = 'mb-8';
+                    projectsSection.innerHTML = `
+                <h3 class="text-sm font-medium text-gray-500 uppercase tracking-wider mb-3">
+                    PROJECTS (${projects.length})
+                </h3>
+                <div class="space-y-3" id="projectResults"></div>
+            `;
+                    searchResultsList.appendChild(projectsSection);
+
+                    const projectResults = projectsSection.querySelector('#projectResults');
+                    if (!projectResults) return;
+
+                    projects.forEach(project => {
+                        const projectItem = document.createElement('div');
+                        projectItem.className = 'flex items-center p-3 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors border border-gray-100';
+
+                        const thumbnail = project.thumbnail
+                            ? `<img src="${project.thumbnail}" alt="${project.title}" class="w-12 h-12 rounded-lg object-cover">`
+                            : `<div class="w-12 h-12 rounded-lg bg-gray-200 flex items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                    </div>`;
+
+                        projectItem.innerHTML = `
+                    <div class="flex-shrink-0">
+                        ${thumbnail}
+                    </div>
+                    <div class="ml-3 flex-grow">
+                        <div class="font-medium text-gray-900">${project.title}</div>
+                        <div class="text-sm text-gray-500 line-clamp-1">
+                            ${project.description || 'No description available'}
+                        </div>
+                    </div>
+                `;
+
+                        projectItem.addEventListener('click', () => {
+                            window.location.href = `/view_project/${project.id}`;
+                            closeSearchModal();
+                        });
+
+                        projectResults.appendChild(projectItem);
+                    });
+                }
+            }
+
+            // Attach event listeners
+            function initialize() {
+                // Open modal when clicking search inputs
+                if (desktopSearchTrigger) {
+                    desktopSearchTrigger.addEventListener('click', function (e) {
+                        e.preventDefault();
+                        openSearchModal();
+                    });
+                }
+
+                if (mobileSearchTrigger) {
+                    mobileSearchTrigger.addEventListener('click', function (e) {
+                        e.preventDefault();
+                        openSearchModal();
+                    });
+                }
+
+                // Close modal when clicking the X button in the modal header
+                if (closeBtn) {
+                    closeBtn.addEventListener('click', function (e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        closeSearchModal();
+                    });
+                }
+
+                // Clear search when clicking the clear button (X in input field)
+                if (clearBtn) {
+                    clearBtn.addEventListener('click', function (e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        clearSearch();
+                    });
+                }
+
+                // Close modal when clicking outside the modal content
+                if (backdrop) {
+                    backdrop.addEventListener('click', function (e) {
+                        // Improved: Just close the modal when clicking the backdrop
+                        closeSearchModal();
+                    });
+                }
+
+                // Additional click handler for the search modal
+                if (searchModal) {
+                    searchModal.addEventListener('click', function (e) {
+                        // If we click directly on the modal container (not its children)
+                        if (e.target === searchModal) {
+                            closeSearchModal();
+                        }
+                    });
+                }
+
+                // Close on escape key
+                document.addEventListener('keydown', function (e) {
+                    if (e.key === 'Escape' && searchModal && !searchModal.classList.contains('hidden')) {
+                        closeSearchModal();
+                    }
+                });
+
+                // Handle search input
+                if (modalSearchInput) {
+                    let debounceTimer;
+                    modalSearchInput.addEventListener('input', function () {
+                        clearTimeout(debounceTimer);
+                        debounceTimer = setTimeout(() => {
+                            performSearch(this.value.trim());
+                        }, 300);
+                    });
+
+                    // Show/hide clear button based on input content
+                    modalSearchInput.addEventListener('input', function () {
+                        if (clearBtn) {
+                            clearBtn.style.display = this.value.length > 0 ? 'block' : 'none';
+                        }
+                    });
+
+                    // Initially hide clear button if input is empty
+                    if (clearBtn && modalSearchInput.value.length === 0) {
+                        clearBtn.style.display = 'none';
+                    }
+                }
+
+                // Handle filter tabs
+                document.addEventListener('click', function (e) {
+                    if (e.target.classList.contains('filter-tab') || e.target.closest('.filter-tab')) {
+                        const tab = e.target.classList.contains('filter-tab') ? e.target : e.target.closest('.filter-tab');
+                        const filterId = tab.id.replace('filter-', '');
+                        applyFilter(filterId);
+                    }
+                });
+
+                // Handle search tags
+                const searchTags = document.querySelectorAll('.search-tag');
+                searchTags.forEach(tag => {
+                    tag.addEventListener('click', function () {
+                        if (!modalSearchInput) return;
+
+                        // Reset other tag styles
+                        searchTags.forEach(t => {
+                            t.classList.remove('bg-blue-100', 'text-blue-800');
+                            t.classList.add('bg-gray-100', 'text-gray-800');
+                        });
+
+                        // Highlight selected tag
+                        this.classList.remove('bg-gray-100', 'text-gray-800');
+                        this.classList.add('bg-blue-100', 'text-blue-800');
+
+                        const query = this.textContent.trim();
+                        modalSearchInput.value = query;
+                        performSearch(query);
+                    });
+                });
+
+                // Handle category links
+                const categoryLinks = document.querySelectorAll('.category-link');
+                categoryLinks.forEach(link => {
+                    link.addEventListener('click', function (e) {
+                        e.preventDefault();
+
+                        // Reset other link styles
+                        categoryLinks.forEach(l => {
+                            l.classList.remove('font-bold', 'text-blue-500');
+                            l.classList.add('text-gray-700');
+                        });
+
+                        // Highlight selected link
+                        this.classList.remove('text-gray-700');
+                        this.classList.add('font-bold', 'text-blue-500');
+
+                        const category = this.dataset.category;
+                        const subcategory = this.dataset.subcategory;
+
+                        // Set the filter to match the category
+                        if (category === 'people') {
+                            currentFilter = 'people';
+                        } else if (category === 'projects') {
+                            currentFilter = 'projects';
+                        }
+
+                        // Perform the category search
+                        performSearch('', category, subcategory);
+                    });
+                });
+
+                // Handle "View all" links
+                document.getElementById('viewAllPeople')?.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    currentFilter = 'people';
+                    performSearch('', 'people');
+                });
+
+                document.getElementById('viewAllProjects')?.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    currentFilter = 'projects';
+                    performSearch('', 'projects');
+                });
+            }
+
+            // Initialize when DOM is loaded
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initialize);
+            } else {
+                initialize();
+            }
+        })();
+
     </script>
     {% endblock %}
     <div x-data="modalSystem()" x-show="isOpen" x-cloak
@@ -1968,6 +2121,394 @@
             </div>
         </div>
     </div>
+
+    <script>
+        // Этот скрипт решает две проблемы:
+        // 1. Кнопка поиска не нажимается на некоторых страницах
+        // 2. Поиск не работает для незарегистрированных пользователей
+
+        document.addEventListener('DOMContentLoaded', function () {
+            // Найдем все кнопки поиска на странице
+            const searchTriggers = [
+                document.getElementById('desktopUserSearch'),
+                document.getElementById('mobileUserSearch'),
+                ...document.querySelectorAll('[data-search-trigger]') // На случай, если есть другие триггеры с атрибутом
+            ].filter(el => el); // Фильтруем null элементы
+
+            // Найдем модальное окно поиска
+            const searchModal = document.getElementById('searchModal');
+
+            // Если нет модального окна поиска, прекратим исполнение
+            if (!searchModal) {
+                console.warn("Search modal not found on page");
+                return;
+            }
+
+            // Функция для открытия модального окна поиска
+            function openSearchModal(e) {
+                if (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
+
+                searchModal.classList.remove('hidden');
+
+                // Фокус на поле ввода
+                const searchInput = document.getElementById('modalSearchInput');
+                if (searchInput) {
+                    setTimeout(() => {
+                        searchInput.focus();
+                    }, 100);
+                }
+
+                // Запретить прокрутку body
+                document.body.style.overflow = 'hidden';
+
+                console.log("Search modal opened");
+            }
+
+            // Функция для закрытия модального окна
+            function closeSearchModal() {
+                searchModal.classList.add('hidden');
+                document.body.style.overflow = ''; // Разрешить прокрутку
+
+                // Очистить поле ввода
+                const searchInput = document.getElementById('modalSearchInput');
+                if (searchInput) {
+                    searchInput.value = '';
+                }
+
+                // Скрыть результаты поиска
+                const searchResults = document.getElementById('searchResults');
+                const defaultContent = document.getElementById('defaultContent');
+                if (searchResults) searchResults.classList.add('hidden');
+                if (defaultContent) defaultContent.classList.remove('hidden');
+
+                console.log("Search modal closed");
+            }
+
+            // Добавляем обработчики событий для всех кнопок поиска
+            searchTriggers.forEach(trigger => {
+                // Удаляем существующие обработчики, чтобы избежать дублирования
+                const newTrigger = trigger.cloneNode(true);
+                if (trigger.parentNode) {
+                    trigger.parentNode.replaceChild(newTrigger, trigger);
+                }
+
+                // Добавляем новые обработчики
+                newTrigger.addEventListener('click', openSearchModal);
+
+                // Для desktop-версии добавим еще и обработчик клавиши
+                if (newTrigger.id === 'desktopUserSearch') {
+                    newTrigger.style.cursor = 'pointer';
+                }
+            });
+
+            // Обработчик на клавишу Escape для закрытия модального окна
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape' && !searchModal.classList.contains('hidden')) {
+                    closeSearchModal();
+                }
+            });
+
+            // Обработчик на клик вне модального окна для его закрытия
+            searchModal.addEventListener('click', function (e) {
+                if (e.target === searchModal || e.target.id === 'searchModalBackdrop') {
+                    closeSearchModal();
+                }
+            });
+
+            // Обработчик на кнопку закрытия
+            const closeBtn = document.getElementById('closeSearchModal');
+            if (closeBtn) {
+                closeBtn.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    closeSearchModal();
+                });
+            }
+
+            // Настройка поиска даже для незарегистрированных пользователей
+            setupSearch();
+
+            console.log("Search functionality initialized");
+        });
+
+        // Функция настройки поиска
+        function setupSearch() {
+            const modalSearchInput = document.getElementById('modalSearchInput');
+            const searchResults = document.getElementById('searchResults');
+            const defaultContent = document.getElementById('defaultContent');
+            const searchResultsList = document.getElementById('searchResultsList');
+
+            if (!modalSearchInput || !searchResults || !defaultContent || !searchResultsList) {
+                console.warn("Some search elements are missing");
+                return;
+            }
+
+            // Обработчик ввода в поле поиска
+            let debounceTimer;
+            modalSearchInput.addEventListener('input', function () {
+                clearTimeout(debounceTimer);
+
+                const query = this.value.trim();
+
+                if (query.length < 2) {
+                    // Скрыть результаты, если запрос слишком короткий
+                    searchResults.classList.add('hidden');
+                    defaultContent.classList.remove('hidden');
+                    return;
+                }
+
+                // Показать состояние загрузки
+                searchResultsList.innerHTML = `
+            <div class="flex justify-center items-center py-10">
+                <svg class="animate-spin h-8 w-8 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+            </div>
+        `;
+                searchResults.classList.remove('hidden');
+                defaultContent.classList.add('hidden');
+
+                // Дебаунс запроса
+                debounceTimer = setTimeout(() => {
+                    performSearch(query);
+                }, 300);
+            });
+
+            // Обработчик кнопки очистки
+            const clearBtn = document.getElementById('clearSearchBtn');
+            if (clearBtn) {
+                clearBtn.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    modalSearchInput.value = '';
+                    modalSearchInput.focus();
+
+                    searchResults.classList.add('hidden');
+                    defaultContent.classList.remove('hidden');
+                });
+            }
+
+            // Функция выполнения поиска
+            function performSearch(query) {
+                Promise.all([
+                    fetch(`/search_users?query=${encodeURIComponent(query)}`).then(res => res.json()).catch(() => []),
+                    fetch(`/search_projects?query=${encodeURIComponent(query)}`).then(res => res.json()).catch(() => [])
+                ])
+                    .then(([users, projects]) => {
+                        displaySearchResults(query, users, projects);
+                    })
+                    .catch(error => {
+                        console.error('Search error:', error);
+                        searchResultsList.innerHTML = `
+                <div class="text-center py-8">
+                    <div class="text-red-500 mb-2">An error occurred while searching</div>
+                    <div class="text-sm text-gray-500">Please try again later</div>
+                </div>
+            `;
+                    });
+            }
+
+            // Функция отображения результатов поиска
+            function displaySearchResults(query, users, projects) {
+                searchResultsList.innerHTML = '';
+
+                const totalResults = users.length + projects.length;
+                const searchResultsCount = document.getElementById('searchResultsCount');
+                if (searchResultsCount) {
+                    searchResultsCount.textContent = `${totalResults} result${totalResults !== 1 ? 's' : ''}`;
+                }
+
+                if (totalResults === 0) {
+                    searchResultsList.innerHTML = `
+                <div class="text-center py-8">
+                    <div class="text-gray-500 mb-2">No results found for "${query}"</div>
+                    <div class="text-sm text-gray-500">Try a different search term or browse categories</div>
+                </div>
+            `;
+                    return;
+                }
+
+                // Отображение пользователей
+                if (users.length > 0) {
+                    const usersSection = document.createElement('div');
+                    usersSection.className = 'mb-8';
+                    usersSection.innerHTML = `
+                <h3 class="text-sm font-medium text-gray-500 uppercase tracking-wider mb-3">
+                    PEOPLE (${users.length})
+                </h3>
+                <div class="space-y-3" id="userResults"></div>
+            `;
+                    searchResultsList.appendChild(usersSection);
+
+                    const userResults = usersSection.querySelector('#userResults');
+
+                    users.forEach(user => {
+                        const userItem = document.createElement('div');
+                        userItem.className = 'flex items-center p-3 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors border border-gray-100';
+
+                        const verificationBadge = user.verified
+                            ? `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-500 ml-1" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                    </svg>`
+                            : '';
+
+                        userItem.innerHTML = `
+                    <div class="flex-shrink-0">
+                        <img src="${user.avatar}" alt="Avatar for ${user.username}" class="w-10 h-10 rounded-full object-cover">
+                    </div>
+                    <div class="ml-3 flex-grow">
+                        <div class="flex items-center">
+                            <div class="font-medium text-gray-900">${user.full_name || user.username}</div>
+                            ${verificationBadge}
+                        </div>
+                        <div class="text-sm text-gray-500">@${user.username}</div>
+                    </div>
+                `;
+
+                        userItem.addEventListener('click', () => {
+                            window.location.href = `/${user.username}`;
+                        });
+
+                        userResults.appendChild(userItem);
+                    });
+                }
+
+                // Отображение проектов
+                if (projects.length > 0) {
+                    const projectsSection = document.createElement('div');
+                    projectsSection.className = 'mb-8';
+                    projectsSection.innerHTML = `
+                <h3 class="text-sm font-medium text-gray-500 uppercase tracking-wider mb-3">
+                    PROJECTS (${projects.length})
+                </h3>
+                <div class="space-y-3" id="projectResults"></div>
+            `;
+                    searchResultsList.appendChild(projectsSection);
+
+                    const projectResults = projectsSection.querySelector('#projectResults');
+
+                    projects.forEach(project => {
+                        const projectItem = document.createElement('div');
+                        projectItem.className = 'flex items-center p-3 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors border border-gray-100';
+
+                        const thumbnail = project.thumbnail
+                            ? `<img src="${project.thumbnail}" alt="${project.title}" class="w-12 h-12 rounded-lg object-cover">`
+                            : `<div class="w-12 h-12 rounded-lg bg-gray-200 flex items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                    </div>`;
+
+                        projectItem.innerHTML = `
+                    <div class="flex-shrink-0">
+                        ${thumbnail}
+                    </div>
+                    <div class="ml-3 flex-grow">
+                        <div class="font-medium text-gray-900">${project.title}</div>
+                        <div class="text-sm text-gray-500 line-clamp-1">
+                            ${project.description || 'No description available'}
+                        </div>
+                    </div>
+                `;
+
+                        projectItem.addEventListener('click', () => {
+                            window.location.href = `/view_project/${project.id}`;
+                        });
+
+                        projectResults.appendChild(projectItem);
+                    });
+                }
+            }
+        }
+    </script>
+    <!-- Добавьте этот код в конец вашего файла base.html перед закрывающим тегом </body> -->
+
+    <script>
+        // Скрипт для исправления проблем с поиском
+        document.addEventListener('DOMContentLoaded', function () {
+            // Функция для проверки, работают ли кнопки поиска
+            function checkSearchButtons() {
+                const searchButtons = [
+                    document.getElementById('desktopUserSearch'),
+                    document.getElementById('mobileUserSearch')
+                ].filter(btn => btn);
+
+                // Если кнопок нет, выходим
+                if (searchButtons.length === 0) {
+                    console.log("No search buttons found on page");
+                    return;
+                }
+
+                // Проверяем каждую кнопку
+                searchButtons.forEach(btn => {
+                    // Проверяем, есть ли обработчики событий
+                    const hasClickListener = btn.onclick ||
+                        btn.getAttribute('onclick') ||
+                        btn._events && btn._events.click;
+
+                    // Если нет обработчиков, добавляем свой
+                    if (!hasClickListener) {
+                        console.log("Adding click handler to search button", btn.id);
+
+                        // Удаляем существующие обработчики с помощью клонирования
+                        const newBtn = btn.cloneNode(true);
+                        btn.parentNode.replaceChild(newBtn, btn);
+
+                        // Добавляем новый обработчик
+                        newBtn.addEventListener('click', function (e) {
+                            e.preventDefault();
+                            if (window.openSearchModal) {
+                                window.openSearchModal();
+                            } else {
+                                // Если функция openSearchModal не определена, попробуем открыть модальное окно напрямую
+                                const searchModal = document.getElementById('searchModal');
+                                if (searchModal) {
+                                    searchModal.classList.remove('hidden');
+                                    document.body.style.overflow = 'hidden';
+
+                                    const searchInput = document.getElementById('modalSearchInput');
+                                    if (searchInput) {
+                                        setTimeout(() => searchInput.focus(), 100);
+                                    }
+                                }
+                            }
+                        });
+
+                        // Улучшаем внешний вид кнопки
+                        newBtn.style.cursor = 'pointer';
+                        newBtn.style.pointerEvents = 'auto';
+                    }
+                });
+            }
+
+            // Проверяем кнопки при загрузке страницы
+            checkSearchButtons();
+
+            // Проверяем кнопки еще раз через секунду (на случай динамической загрузки)
+            setTimeout(checkSearchButtons, 1000);
+        });
+
+        // Глобальная функция для открытия модального окна поиска
+        window.openSearchModal = function () {
+            const searchModal = document.getElementById('searchModal');
+            if (!searchModal) return;
+
+            searchModal.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+
+            const searchInput = document.getElementById('modalSearchInput');
+            if (searchInput) {
+                setTimeout(() => searchInput.focus(), 100);
+            }
+
+            console.log("Search modal opened by global function");
+        };
+    </script>
 </body>
 
 </html>
