@@ -304,7 +304,23 @@
                                     </svg>
                                 </button>
                             </p>
-
+                            {% if user_data.school_id %}
+                            <!-- School Information for Student Profile -->
+                            <div class="bg-white rounded-2xl shadow-sm p-8 space-y-6 mb-6">
+                                <div class="flex items-center">
+                                    {% if user_data.school_logo_url %}
+                                    <div class="w-16 h-16 rounded-lg overflow-hidden mr-4">
+                                        <img src="{{ user_data.school_logo_url }}" alt="{{ user_data.school_name }}"
+                                            class="w-full h-full object-cover">
+                                    </div>
+                                    {% endif %}
+                                    <div>
+                                        <h2 class="text-2xl font-bold">{{ user_data.school_name }}</h2>
+                                        <p class="text-gray-600">Class: {{ user_data.class }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
                             <div class="flex flex-wrap justify-center md:justify-start gap-2 mt-4">
                                 <span
                                     class="px-4 py-2 bg-gray-100 rounded-full text-sm font-medium hover:bg-gray-200 transition-colors">
@@ -477,8 +493,14 @@
 
                                 <div class="form-control">
                                     <label class="label font-bold text-gray-700">Education</label>
+                                    {% if user_data.school_id %}
+                                    <div class="bg-gray-100 p-4 rounded-lg">
+                                        <span class="text-gray-800">{{ user_data.school_name }}</span>
+                                    </div>
+                                    {% else %}
                                     <textarea name="education"
                                         class="textarea textarea-bordered bg-gray-50 w-full focus:ring-2 focus:ring-black transition-all">{{ user_data.education if user_data else '' }}</textarea>
+                                    {% endif %}
                                 </div>
 
                                 <h2 class="text-2xl font-bold mt-8 mb-4">Links & Contacts</h2>
@@ -644,8 +666,6 @@
                         </div>
                         {% endif %}
                     </div>
-                    <!-- Add this after the Certificates Section in profile.html -->
-                    <!-- Inside the div with class "lg:col-span-2 space-y-6" after the certificates div -->
 
                     <!-- Projects Section -->
                     <div class="bg-white rounded-xl shadow-sm p-6">
@@ -780,6 +800,7 @@
                         </div>
                         {% else %}
                         <div class="text-center py-12 bg-gray-50 rounded-xl">
+
                             <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24"
                                 stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -850,6 +871,7 @@
                                                 Advanced</option>
                                             <option value="C2" {% if language.level=='C2' %}selected{% endif %}>C2 -
                                                 Mastery</option>
+
                                         </select>
                                         <button type="button" onclick="removeLanguage(this)"
                                             class="btn btn-ghost text-red-500 hover:bg-red-50 transition-colors">
@@ -1492,6 +1514,60 @@
 <script src="{{ url_for('static', filename='js/projects.js') }}"></script>
 <script src="{{ url_for('static', filename='js/recommendations.js') }}"></script>
 
+<script>
+    // Define a global variable with the current username
+    const currentUsername = "{{ user_data.username if user_data else '' }}";
+
+    function copyProfileLink() {
+        if (!currentUsername) {
+            showNotification('Username not found. Please reload the page and try again.', 'error');
+            return;
+        }
+
+        const profileLink = window.location.origin + '/' + currentUsername;
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(profileLink)
+                .then(() => {
+                    showNotification('Profile link copied to clipboard!');
+                })
+                .catch(err => {
+                    console.error('Failed to copy: ', err);
+                    showNotification('Failed to copy link', 'error');
+                });
+        } else {
+            // Create textarea element for fallback
+            const textArea = document.createElement("textarea");
+            textArea.value = profileLink;
+            textArea.style.position = "fixed";
+            textArea.style.left = "-999999px";
+            textArea.style.top = "-999999px";
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+
+            try {
+                document.execCommand('copy');
+                showNotification('Profile link copied to clipboard!');
+            } catch (err) {
+                showNotification('Failed to copy link', 'error');
+            }
+
+            document.body.removeChild(textArea);
+        }
+    }
+
+    // Make sure all copy buttons use this new function
+    document.addEventListener('DOMContentLoaded', function () {
+        const copyBtns = document.querySelectorAll('button[onclick="copyProfileLink()"]');
+        copyBtns.forEach(btn => {
+            btn.onclick = function (e) {
+                e.preventDefault();
+                copyProfileLink();
+            };
+        });
+    });
+</script>
 
 
 {% endblock %}

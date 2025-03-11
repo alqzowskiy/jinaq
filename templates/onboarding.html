@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <title>Welcome to Jinaq</title>
+
+    <!-- Tailwind & DaisyUI -->
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.4.19/dist/full.css" rel="stylesheet" type="text/css" />
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', 'Montserrat', system-ui, sans-serif;
+            background-color: #f9fafb;
+        }
+
+        .onboarding-slide {
+            display: none;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.5s ease, transform 0.5s ease;
+        }
+
+        .onboarding-slide.active {
+            display: block;
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .progress-bar {
+            height: 4px;
+            background-color: #e5e7eb;
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .progress-value {
+            height: 100%;
+            background-color: #000;
+            transition: width 0.5s ease;
+        }
+
+        .feature-card {
+            transition: all 0.3s ease;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+
+        .skill-tag {
+            display: inline-flex;
+            padding: 6px 12px;
+            background-color: #f3f4f6;
+            border-radius: 9999px;
+            margin: 0 5px 5px 0;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .skill-tag:hover {
+            background-color: #e5e7eb;
+        }
+
+        .skill-tag.selected {
+            background-color: #000;
+            color: white;
+            font-weight: 500;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="min-h-screen flex items-center justify-center p-4">
+        <div class="max-w-4xl w-full bg-white rounded-xl shadow-xl overflow-hidden relative">
+            <!-- Step 1: Welcome -->
+            <div id="step1" class="onboarding-slide active">
+                <div class="p-8">
+                    <!-- Header -->
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-xl font-semibold text-gray-700">Welcome to Jinaq</h2>
+                        <button id="skipBtn1" class="text-gray-500 hover:text-gray-800 font-medium">Skip</button>
+                    </div>
+
+                    <!-- Progress bar -->
+                    <div class="progress-bar mb-8">
+                        <div class="progress-value" style="width: 33.33%"></div>
+                    </div>
+
+                    <!-- Content -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <!-- Left column with image -->
+                        <div class="flex items-center justify-center">
+                            <div class="relative">
+                                <div class="w-64 h-64 rounded-full bg-gray-50 absolute"></div>
+                                <div class="relative z-10 flex items-center justify-center w-60 h-60">
+                                    <img src="/static/jinaq_logo.svg" alt="Jinaq" class="w-40 h-40">
+                                </div>
+                                <div
+                                    class="absolute -top-2 -right-2 bg-green-500 text-white rounded-full w-12 h-12 flex items-center justify-center shadow-lg z-20">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none"
+                                        viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M5 13l4 4L19 7" />
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Right column with text -->
+                        <div class="flex flex-col justify-center">
+                            <h1 class="text-3xl md:text-4xl font-bold mb-6">Welcome to the Academic Community!</h1>
+
+                            <p class="text-gray-600 mb-4">
+                                We're excited to have you join Jinaq. This is where you'll create your professional
+                                academic portfolio and connect with peers.
+                            </p>
+
+                            <p class="text-gray-600 mb-8">
+                                Let's take a quick tour of the platform's key features.
+                            </p>
+
+                            <button id="nextBtn1"
+                                class="bg-black text-white px-6 py-3 rounded-xl hover:bg-gray-800 transition-all duration-300">
+                                Get Started
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 2: Features -->
+            <div id="step2" class="onboarding-slide">
+                <div class="p-8">
+                    <!-- Header -->
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-xl font-semibold text-gray-700">Key Features</h2>
+                        <button id="skipBtn2" class="text-gray-500 hover:text-gray-800 font-medium">Skip</button>
+                    </div>
+
+                    <!-- Progress bar -->
+                    <div class="progress-bar mb-8">
+                        <div class="progress-value" style="width: 66.66%"></div>
+                    </div>
+
+                    <!-- Content -->
+                    <h1 class="text-3xl font-bold mb-8 text-center">What You Can Do with Jinaq</h1>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                        <!-- Feature 1 -->
+                        <div class="feature-card bg-gray-50 p-6 rounded-xl">
+                            <div class="w-14 h-14 bg-black rounded-full flex items-center justify-center mb-4">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-white" fill="none"
+                                    viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                            </div>
+                            <h3 class="text-xl font-semibold mb-3">Academic Portfolio</h3>
+                            <p class="text-gray-600">Track your GPA, test scores, certificates, and skills all in one
+                                place. Showcase your academic achievements.</p>
+                        </div>
+
+                        <!-- Feature 2 -->
+                        <div class="feature-card bg-gray-50 p-6 rounded-xl">
+                            <div class="w-14 h-14 bg-black rounded-full flex items-center justify-center mb-4">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-white" fill="none"
+                                    viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                </svg>
+                            </div>
+                            <h3 class="text-xl font-semibold mb-3">Community Connections</h3>
+                            <p class="text-gray-600">Connect with peers, receive feedback through comments, collaborate
+                                on projects, and build your network.</p>
+                        </div>
+
+                        <!-- Feature 3 -->
+                        <div class="feature-card bg-gray-50 p-6 rounded-xl">
+                            <div class="w-14 h-14 bg-black rounded-full flex items-center justify-center mb-4">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-white" fill="none"
+                                    viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                                </svg>
+                            </div>
+                            <h3 class="text-xl font-semibold mb-3">Verification System</h3>
+                            <p class="text-gray-600">Get your academic achievements and certificates verified to build
+                                credibility and trust within the community.</p>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-between">
+                        <button id="backBtn2"
+                            class="px-6 py-3 rounded-xl font-medium text-gray-600 hover:text-black hover:bg-gray-50">
+                            Back
+                        </button>
+                        <button id="nextBtn2"
+                            class="bg-black text-white px-6 py-3 rounded-xl hover:bg-gray-800 transition-all duration-300">
+                            Next Step
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 3: Profile Setup -->
+            <div id="step3" class="onboarding-slide">
+                <div class="p-8">
+                    <!-- Header -->
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-xl font-semibold text-gray-700">Profile Setup</h2>
+                        <button id="skipBtn3" class="text-gray-500 hover:text-gray-800 font-medium">Skip</button>
+                    </div>
+
+                    <!-- Progress bar -->
+                    <div class="progress-bar mb-8">
+                        <div class="progress-value" style="width: 100%"></div>
+                    </div>
+
+                    <!-- Content -->
+                    <h1 class="text-3xl font-bold mb-6 text-center">Set Up Your Profile</h1>
+                    <p class="text-gray-600 mb-8 text-center">Let's personalize your academic presence. This information
+                        will help create your professional profile.</p>
+
+                    <form id="profileForm" class="max-w-2xl mx-auto w-full">
+                        <!-- Basic Info -->
+                        <div class="mb-8">
+                            <h3 class="text-xl font-semibold mb-4">Basic Information</h3>
+
+                            <div class="mb-4">
+                                <label class="block mb-2 font-medium text-gray-700" for="full_name">Full Name</label>
+                                <input
+                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black"
+                                    type="text" id="full_name" name="full_name" placeholder="Enter your full name">
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="mb-4">
+                                    <label class="block mb-2 font-medium text-gray-700"
+                                        for="specialty">Specialty/Field</label>
+                                    <input
+                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black"
+                                        type="text" id="specialty" name="specialty"
+                                        placeholder="e.g., Computer Science">
+                                </div>
+
+                                <div class="mb-4">
+                                    <label class="block mb-2 font-medium text-gray-700"
+                                        for="education">Education</label>
+
+                                    {% if school_data %}
+                                    <!-- Отображение школы для связанных пользователей -->
+                                    <div class="p-3 border border-gray-300 rounded-lg flex items-center bg-gray-50">
+                                        {% if school_data.logo_url %}
+                                        <img src="{{ school_data.logo_url }}" alt="{{ school_data.name }}"
+                                            class="h-8 w-8 mr-3">
+                                        {% else %}
+                                        <div
+                                            class="h-8 w-8 bg-gray-200 rounded-full mr-3 flex items-center justify-center text-gray-500">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20"
+                                                fill="currentColor">
+                                                <path
+                                                    d="M10.394 2.08a1 1 0 00-.788 0l-7 3a1 1 0 000 1.84L5.25 8.051a.999.999 0 01.356-.257l4-1.714a1 1 0 11.788 1.838L7.667 9.088l1.94.831a1 1 0 00.787 0l7-3a1 1 0 000-1.838l-7-3zM3.31 9.397L5 10.12v4.102a8.969 8.969 0 00-1.05-.174 1 1 0 01-.89-.89 11.115 11.115 0 01.25-3.762zM9.3 16.573A9.026 9.026 0 007 14.935v-3.957l1.818.78a3 3 0 002.364 0l5.508-2.361a11.026 11.026 0 01.25 3.762 1 1 0 01-.89.89 8.968 8.968 0 00-5.35 2.524 1 1 0 01-1.4 0zM6 18a1 1 0 001-1v-2.065a8.935 8.935 0 00-2-.712V17a1 1 0 001 1z" />
+                                            </svg>
+                                        </div>
+                                        {% endif %}
+                                        <div>
+                                            <p class="font-medium">{{ school_data.name }}</p>
+                                            <p class="text-xs text-gray-500">Your school account</p>
+                                        </div>
+                                        <input type="hidden" id="education" name="education"
+                                            value="{{ school_data.name }}">
+                                    </div>
+                                    {% else %}
+                                    <!-- Обычное поле ввода для остальных пользователей -->
+                                    <input
+                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black"
+                                        type="text" id="education" name="education"
+                                        placeholder="e.g., University of Cambridge"
+                                        value="{{ user_data.education if user_data else '' }}">
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Skills Section -->
+                        <div class="mb-8">
+                            <h3 class="text-xl font-semibold mb-4">Skills & Expertise</h3>
+                            <p class="text-gray-600 mb-4">Select skills relevant to your academic and professional
+                                background:</p>
+
+                            <div class="flex flex-wrap mb-4" id="skillsContainer">
+                                <div class="skill-tag" data-skill="Programming">Programming</div>
+                                <div class="skill-tag" data-skill="Research">Research</div>
+                                <div class="skill-tag" data-skill="Data Analysis">Data Analysis</div>
+                                <div class="skill-tag" data-skill="Machine Learning">Machine Learning</div>
+                                <div class="skill-tag" data-skill="Academic Writing">Academic Writing</div>
+                                <div class="skill-tag" data-skill="UX/UI Design">UX/UI Design</div>
+                                <div class="skill-tag" data-skill="Public Speaking">Public Speaking</div>
+                                <div class="skill-tag" data-skill="Leadership">Leadership</div>
+                            </div>
+
+                            <div class="mb-4">
+                                <label class="block mb-2 font-medium text-gray-700" for="custom_skill">Add Custom
+                                    Skill</label>
+                                <div class="flex gap-2">
+                                    <input
+                                        class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black"
+                                        type="text" id="custom_skill" placeholder="Enter a custom skill">
+                                    <button type="button" id="addSkillBtn"
+                                        class="px-4 py-2 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors">
+                                        Add
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Bio Section -->
+                        <div class="mb-8">
+                            <h3 class="text-xl font-semibold mb-4">Bio & Goals</h3>
+
+                            <div class="mb-4">
+                                <label class="block mb-2 font-medium text-gray-700" for="bio">Brief Bio</label>
+                                <textarea
+                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black"
+                                    id="bio" name="bio" rows="3"
+                                    placeholder="Tell us about yourself and your academic journey"></textarea>
+                            </div>
+
+                            <div class="mb-4">
+                                <label class="block mb-2 font-medium text-gray-700" for="goals">Academic Goals</label>
+                                <textarea
+                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black"
+                                    id="goals" name="goals" rows="3"
+                                    placeholder="What are your academic or professional goals?"></textarea>
+                            </div>
+                        </div>
+
+                        <div class="flex justify-between">
+                            <button type="button" id="backBtn3"
+                                class="px-6 py-3 rounded-xl font-medium text-gray-600 hover:text-black hover:bg-gray-50">
+                                Back
+                            </button>
+                            <button type="button" id="completeBtn"
+                                class="bg-black text-white px-6 py-3 rounded-xl hover:bg-gray-800 transition-all duration-300">
+                                Complete Setup
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Wait for DOM to be fully loaded
+        document.addEventListener('DOMContentLoaded', function () {
+            // Get all slides
+            const step1 = document.getElementById('step1');
+            const step2 = document.getElementById('step2');
+            const step3 = document.getElementById('step3');
+
+            // Get all buttons
+            const nextBtn1 = document.getElementById('nextBtn1');
+            const nextBtn2 = document.getElementById('nextBtn2');
+            const backBtn2 = document.getElementById('backBtn2');
+            const backBtn3 = document.getElementById('backBtn3');
+            const completeBtn = document.getElementById('completeBtn');
+            const skipBtn1 = document.getElementById('skipBtn1');
+            const skipBtn2 = document.getElementById('skipBtn2');
+            const skipBtn3 = document.getElementById('skipBtn3');
+
+            // Skills functionality
+            const skillTags = document.querySelectorAll('.skill-tag');
+            const addSkillBtn = document.getElementById('addSkillBtn');
+            const customSkillInput = document.getElementById('custom_skill');
+            const skillsContainer = document.getElementById('skillsContainer');
+
+            // Add event listeners for navigation
+            if (nextBtn1) nextBtn1.addEventListener('click', function () {
+                step1.classList.remove('active');
+                step2.classList.add('active');
+            });
+
+            if (nextBtn2) nextBtn2.addEventListener('click', function () {
+                step2.classList.remove('active');
+                step3.classList.add('active');
+            });
+
+            if (backBtn2) backBtn2.addEventListener('click', function () {
+                step2.classList.remove('active');
+                step1.classList.add('active');
+            });
+
+            if (backBtn3) backBtn3.addEventListener('click', function () {
+                step3.classList.remove('active');
+                step2.classList.add('active');
+            });
+
+            // Skip buttons redirect to homepage
+            function skipOnboarding() {
+                // Соберем минимальные данные для отправки
+                let userData = {
+                    'full_name': document.getElementById('full_name')?.value || '',
+                    'specialty': document.getElementById('specialty')?.value || '',
+                    'education': document.getElementById('education')?.value || '',
+                    'bio': document.getElementById('bio')?.value || '',
+                    'goals': document.getElementById('goals')?.value || '',
+                    'skills': []
+                };
+
+                // Сохраняем текущие значения полей при пропуске onboarding
+                fetch('/complete_onboarding', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify(userData)
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            window.location.href = data.redirect || '/profile';
+                        } else {
+                            console.error('Error:', data.error);
+                            window.location.href = '/profile';
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        window.location.href = '/profile';
+                    });
+            }
+
+            // Заменить обработчики для skipBtn1, skipBtn2, skipBtn3
+            if (skipBtn1) skipBtn1.addEventListener('click', skipOnboarding);
+            if (skipBtn2) skipBtn2.addEventListener('click', skipOnboarding);
+            if (skipBtn3) skipBtn3.addEventListener('click', skipOnboarding);
+
+            // Skills selection
+            skillTags.forEach(tag => {
+                tag.addEventListener('click', function () {
+                    this.classList.toggle('selected');
+                });
+            });
+
+            // Add custom skill
+            if (addSkillBtn) {
+                addSkillBtn.addEventListener('click', function () {
+                    if (customSkillInput.value.trim() === '') return;
+
+                    const newSkill = document.createElement('div');
+                    newSkill.className = 'skill-tag selected';
+                    newSkill.textContent = customSkillInput.value.trim();
+                    newSkill.dataset.skill = customSkillInput.value.trim();
+
+                    newSkill.addEventListener('click', function () {
+                        this.classList.toggle('selected');
+                    });
+
+                    skillsContainer.appendChild(newSkill);
+                    customSkillInput.value = '';
+                });
+            }
+
+            // Complete setup
+            if (completeBtn) {
+                completeBtn.addEventListener('click', function () {
+                    // Collect selected skills
+                    const selectedSkills = [];
+                    document.querySelectorAll('.skill-tag.selected').forEach(tag => {
+                        selectedSkills.push(tag.dataset.skill || tag.textContent);
+                    });
+
+                    // Prepare form data
+                    const formData = {
+                        full_name: document.getElementById('full_name').value,
+                        specialty: document.getElementById('specialty').value,
+                        education: document.getElementById('education').value,
+                        bio: document.getElementById('bio').value,
+                        goals: document.getElementById('goals').value,
+                        skills: selectedSkills
+                    };
+
+                    // Send to server
+                    fetch('/complete_onboarding', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        body: JSON.stringify(formData)
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                window.location.href = data.redirect || '/profile';
+                            } else {
+                                alert('Error: ' + (data.error || 'Unknown error occurred'));
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            alert('Failed to complete onboarding. Please try again.');
+                        });
+                });
+            }
+        });
+    </script>
+</body>
+
+</html>

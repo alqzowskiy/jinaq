@@ -1,0 +1,602 @@
+{% extends "base.html" %}
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+    .stat-card {
+        transition: all 0.2s ease;
+        border-radius: 0.75rem;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
+
+    .dashboard-chart {
+        height: 300px;
+    }
+
+    .top-performer-card {
+        background-color: rgba(79, 70, 229, 0.1);
+        border-left: 4px solid rgb(79, 70, 229);
+    }
+
+    .achievement-badge {
+        display: inline-flex;
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
+        font-weight: 500;
+        color: white;
+        background-color: #4F46E5;
+        border-radius: 9999px;
+        margin-right: 0.5rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .metric-comparison {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.5rem 1rem;
+        border-radius: 0.5rem;
+        margin-bottom: 0.5rem;
+        background-color: #F9FAFB;
+    }
+
+    .metric-comparison:hover {
+        background-color: #F3F4F6;
+    }
+
+    .metric-comparison .value {
+        font-weight: 600;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 py-6">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
+            <div class="flex items-center space-x-4">
+                {% if school_data.logo_url %}
+                <div class="w-16 h-16 rounded-lg overflow-hidden">
+                    <img src="{{ school_data.logo_url }}" alt="{{ school_data.name }}"
+                        class="w-full h-full object-cover">
+                </div>
+                {% endif %}
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-900">{{ school_data.name }} Dashboard</h1>
+                    <p class="text-gray-600">{{ school_data.city }}, Kazakhstan</p>
+                </div>
+            </div>
+
+            <div class="mt-4 md:mt-0 flex space-x-2">
+                <a href="{{ url_for('school_students') }}"
+                    class="btn bg-white hover:bg-gray-100 text-gray-800 border border-gray-300">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
+                    Manage Students
+                </a>
+                <a href="{{ url_for('import_students') }}" class="btn bg-black hover:bg-gray-800 text-white">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                    </svg>
+                    Import Students
+                </a>
+            </div>
+        </div>
+
+        <!-- Key Statistics -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div class="bg-white shadow-sm p-6 stat-card">
+                <div class="text-sm font-medium text-gray-500">Total Students</div>
+                <div class="mt-2 flex items-baseline">
+                    <div class="text-3xl font-semibold">{{ total_students }}</div>
+                </div>
+                <div class="mt-4">
+                    <a href="{{ url_for('school_students') }}" class="text-sm text-blue-600 hover:text-blue-800">View
+                        all students →</a>
+                </div>
+            </div>
+
+            <div class="bg-white shadow-sm p-6 stat-card">
+                <div class="text-sm font-medium text-gray-500">Average GPA</div>
+                <div class="mt-2 flex items-baseline">
+                    <div class="text-3xl font-semibold">{{ "%.2f"|format(average_gpa) }}</div>
+                </div>
+                <div class="mt-4">
+                    <span class="inline-flex items-center text-sm">
+                        {% if average_gpa > 3.5 %}
+                        <svg class="h-5 w-5 text-green-500 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                        </svg>
+                        <span class="text-green-600">Above average</span>
+                        {% elif average_gpa < 2.5 %} <svg class="h-5 w-5 text-red-500 mr-1" fill="none"
+                            viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                            </svg>
+                            <span class="text-red-600">Below average</span>
+                            {% else %}
+                            <svg class="h-5 w-5 text-yellow-500 mr-1" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14" />
+                            </svg>
+                            <span class="text-yellow-600">Average</span>
+                            {% endif %}
+                    </span>
+                </div>
+            </div>
+
+            <div class="bg-white shadow-sm p-6 stat-card">
+                <div class="text-sm font-medium text-gray-500">Avg. Certificates per Student</div>
+                <div class="mt-2 flex items-baseline">
+                    <div class="text-3xl font-semibold">{{ "%.1f"|format(average_certificates) }}</div>
+                </div>
+                <div class="mt-4">
+                    <span class="inline-flex items-center text-sm">
+                        <svg class="h-5 w-5 text-blue-500 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span class="text-blue-600">Total certificates: {{ total_certificates }}</span>
+                    </span>
+                </div>
+            </div>
+
+            <div class="bg-white shadow-sm p-6 stat-card">
+                <div class="text-sm font-medium text-gray-500">Number of Classes</div>
+                <div class="mt-2 flex items-baseline">
+                    <div class="text-3xl font-semibold">{{ class_distribution|length }}</div>
+                </div>
+                <div class="mt-4">
+                    <a href="#classStats" class="text-sm text-blue-600 hover:text-blue-800">View class breakdown →</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Top Performers Section -->
+        <div class="bg-white shadow-sm rounded-lg p-6 mb-8">
+            <h2 class="text-lg font-semibold mb-4">Top Performers</h2>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Highest GPA Student -->
+                <div class="p-4 top-performer-card rounded-lg">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <h3 class="text-sm font-semibold text-purple-800">Highest GPA</h3>
+                            <p class="text-lg font-bold mt-1">{{ highest_gpa_student.name }}</p>
+                            <p class="text-sm text-gray-600">Class {{ highest_gpa_student.class }}</p>
+                        </div>
+                        <div class="bg-purple-100 px-3 py-1 rounded-full text-purple-800 font-bold">
+                            {{ "%.2f"|format(highest_gpa_student.gpa) }}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Most Certificates -->
+                <div class="p-4 top-performer-card rounded-lg">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <h3 class="text-sm font-semibold text-purple-800">Most Certificates</h3>
+                            <p class="text-lg font-bold mt-1">{{ most_certs_student.name }}</p>
+                            <p class="text-sm text-gray-600">Class {{ most_certs_student.class }}</p>
+                        </div>
+                        <div class="bg-purple-100 px-3 py-1 rounded-full text-purple-800 font-bold">
+                            {{ most_certs_student.count }}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Most Languages -->
+                <div class="p-4 top-performer-card rounded-lg">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <h3 class="text-sm font-semibold text-purple-800">Most Languages</h3>
+                            <p class="text-lg font-bold mt-1">{{ most_langs_student.name }}</p>
+                            <p class="text-sm text-gray-600">Class {{ most_langs_student.class }}</p>
+                        </div>
+                        <div class="bg-purple-100 px-3 py-1 rounded-full text-purple-800 font-bold">
+                            {{ most_langs_student.count }}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Most Achievements -->
+                <div class="p-4 top-performer-card rounded-lg">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <h3 class="text-sm font-semibold text-purple-800">Most Achievements</h3>
+                            <p class="text-lg font-bold mt-1">{{ most_achievements_student.name }}</p>
+                            <p class="text-sm text-gray-600">Class {{ most_achievements_student.class }}</p>
+                        </div>
+                        <div class="bg-purple-100 px-3 py-1 rounded-full text-purple-800 font-bold">
+                            {{ most_achievements_student.count }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Top Classes Section -->
+        <div class="bg-white shadow-sm rounded-lg p-6 mb-8">
+            <h2 class="text-lg font-semibold mb-4">Class Performance</h2>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- GPA by Class -->
+                <div>
+                    <h3 class="text-sm font-medium text-gray-700 mb-3">GPA by Class</h3>
+                    <div class="p-4 bg-gray-50 rounded-lg">
+                        <div class="text-center mb-3">
+                            <div class="text-xs text-gray-500">Top Class</div>
+                            <div class="text-lg font-bold">Class {{ top_gpa_class[0] }}</div>
+                            <div class="text-sm">Avg GPA: {{ "%.2f"|format(top_gpa_class[1].avg_gpa) }}</div>
+                        </div>
+
+                        <div class="space-y-2 mt-4">
+                            {% for class_name, stats in class_stats.items() %}
+                            <div class="metric-comparison">
+                                <span>Class {{ class_name }}</span>
+                                <span class="value">{{ "%.2f"|format(stats.avg_gpa) }}</span>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Certificates by Class -->
+                <div>
+                    <h3 class="text-sm font-medium text-gray-700 mb-3">Certificates by Class</h3>
+                    <div class="p-4 bg-gray-50 rounded-lg">
+                        <div class="text-center mb-3">
+                            <div class="text-xs text-gray-500">Top Class</div>
+                            <div class="text-lg font-bold">Class {{ top_certs_class[0] }}</div>
+                            <div class="text-sm">Avg Certificates: {{ "%.1f"|format(top_certs_class[1].avg_certificates)
+                                }}</div>
+                        </div>
+
+                        <div class="space-y-2 mt-4">
+                            {% for class_name, stats in class_stats.items() %}
+                            <div class="metric-comparison">
+                                <span>Class {{ class_name }}</span>
+                                <span class="value">{{ "%.1f"|format(stats.avg_certificates) }}</span>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Languages by Class -->
+                <div>
+                    <h3 class="text-sm font-medium text-gray-700 mb-3">Languages by Class</h3>
+                    <div class="p-4 bg-gray-50 rounded-lg">
+                        <div class="text-center mb-3">
+                            <div class="text-xs text-gray-500">Top Class</div>
+                            <div class="text-lg font-bold">Class {{ top_langs_class[0] }}</div>
+                            <div class="text-sm">Avg Languages: {{ "%.1f"|format(top_langs_class[1].avg_languages) }}
+                            </div>
+                        </div>
+
+                        <div class="space-y-2 mt-4">
+                            {% for class_name, stats in class_stats.items() %}
+                            <div class="metric-comparison">
+                                <span>Class {{ class_name }}</span>
+                                <span class="value">{{ "%.1f"|format(stats.avg_languages) }}</span>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Achievements by Class -->
+                <div>
+                    <h3 class="text-sm font-medium text-gray-700 mb-3">Achievements by Class</h3>
+                    <div class="p-4 bg-gray-50 rounded-lg">
+                        <div class="text-center mb-3">
+                            <div class="text-xs text-gray-500">Top Class</div>
+                            <div class="text-lg font-bold">Class {{ top_achievements_class[0] }}</div>
+                            <div class="text-sm">Avg Achievements: {{
+                                "%.1f"|format(top_achievements_class[1].avg_achievements) }}</div>
+                        </div>
+
+                        <div class="space-y-2 mt-4">
+                            {% for class_name, stats in class_stats.items() %}
+                            <div class="metric-comparison">
+                                <span>Class {{ class_name }}</span>
+                                <span class="value">{{ "%.1f"|format(stats.avg_achievements) }}</span>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+
+        <!-- Class Statistics -->
+        <div id="classStats" class="bg-white shadow-sm rounded-lg overflow-hidden mb-8">
+            <div class="px-6 py-4 border-b">
+                <h2 class="text-lg font-semibold">Class Statistics</h2>
+                <p class="text-sm text-gray-500 mt-1">Detailed performance metrics by class</p>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th scope="col"
+                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Class</th>
+                            <th scope="col"
+                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Students</th>
+                            <th scope="col"
+                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Average GPA</th>
+                            <th scope="col"
+                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Avg. Certificates</th>
+                            <th scope="col"
+                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Avg. Languages</th>
+                            <th scope="col"
+                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Top Specialty</th>
+                            <th scope="col"
+                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        {% for class_name, stats in class_stats.items() %}
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="text-sm font-medium text-gray-900">{{ class_name }}</div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="text-sm text-gray-900">{{ stats.count }} students</div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="text-sm text-gray-900">{{ "%.2f"|format(stats.avg_gpa) }}</div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="text-sm text-gray-900">{{ "%.1f"|format(stats.avg_certificates) }}</div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="text-sm text-gray-900">{{ "%.1f"|format(stats.avg_languages) }}</div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="text-sm text-gray-900">{{ stats.top_specialty }}</div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <a href="{{ url_for('download_excel_class', class_name=class_name) }}"
+                                    class="text-blue-600 hover:text-blue-900 mr-3">
+                                    Download Excel
+                                </a>
+                                <a href="{{ url_for('school_students') }}?class={{ class_name }}"
+                                    class="text-gray-600 hover:text-gray-900">
+                                    View Students
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Download Reports Section -->
+        <div class="bg-white shadow-sm rounded-lg p-6">
+            <h2 class="text-lg font-semibold mb-4">Download Reports</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <a href="{{ url_for('download_excel_master') }}"
+                    class="p-4 border rounded-lg hover:bg-gray-50 flex items-center justify-between transition-colors">
+                    <div class="flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-green-600 mr-3" fill="none"
+                            viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <div>
+                            <div class="font-medium">All Students</div>
+                            <div class="text-xs text-gray-500">Excel spreadsheet with login credentials</div>
+                        </div>
+                    </div>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none"
+                        viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                </a>
+
+                <a href="#" onclick="generatePerformanceReport()"
+                    class="p-4 border rounded-lg hover:bg-gray-50 flex items-center justify-between transition-colors">
+                    <div class="flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-600 mr-3" fill="none"
+                            viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                        </svg>
+                        <div>
+                            <div class="font-medium">Performance Report</div>
+                            <div class="text-xs text-gray-500">PDF with charts</div>
+                        </div>
+                    </div>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none"
+                        viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                </a>
+
+                <a href="{{ url_for('download_import_template') }}"
+                    class="p-4 border rounded-lg hover:bg-gray-50 flex items-center justify-between transition-colors">
+                    <div class="flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-purple-600 mr-3" fill="none"
+                            viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
+                        </svg>
+                        <div>
+                            <div class="font-medium">Import Template</div>
+                            <div class="text-xs text-gray-500">For adding new students</div>
+                        </div>
+                    </div>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none"
+                        viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Class Distribution Chart
+        const classCtx = document.getElementById('classDistributionChart').getContext('2d');
+        const classChart = new Chart(classCtx, {
+            type: 'bar',
+            data: {
+                labels: {{ class_chart_data| map(attribute = 'class') | list | tojson }},
+        datasets: [{
+            label: 'Number of Students',
+            data: {{ class_chart_data| map(attribute = 'count') | list | tojson }},
+        backgroundColor: 'rgba(79, 70, 229, 0.8)',
+        borderColor: 'rgba(79, 70, 229, 1)',
+        borderWidth: 1
+                }]
+            },
+        options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    precision: 0
+                }
+            }
+        }
+    }
+        });
+
+    // Profession Distribution Chart
+    const professionCtx = document.getElementById('professionDistributionChart').getContext('2d');
+    const professionChart = new Chart(professionCtx, {
+        type: 'pie',
+        data: {
+            labels: {{ profession_chart_data| map(attribute = 'profession') | list | tojson }},
+    datasets: [{
+        data: {{ profession_chart_data| map(attribute = 'count') | list | tojson }},
+        backgroundColor: [
+        'rgba(79, 70, 229, 0.8)',
+        'rgba(59, 130, 246, 0.8)',
+        'rgba(16, 185, 129, 0.8)',
+        'rgba(245, 158, 11, 0.8)',
+        'rgba(239, 68, 68, 0.8)'
+    ],
+        borderWidth: 1
+                }]
+            },
+    options: {
+        responsive: true,
+            maintainAspectRatio: false,
+                plugins: {
+            legend: {
+                position: 'right'
+            }
+        }
+    }
+        });
+
+    // Language Distribution Chart
+    const languageCtx = document.getElementById('languageDistributionChart').getContext('2d');
+    const languageChart = new Chart(languageCtx, {
+        type: 'bar',
+        data: {
+            labels: {{ language_chart_data| map(attribute = 'language') | list | tojson }},
+    datasets: [{
+        label: 'Number of Students',
+        data: {{ language_chart_data| map(attribute = 'count') | list | tojson }},
+        backgroundColor: 'rgba(16, 185, 129, 0.8)',
+        borderColor: 'rgba(16, 185, 129, 1)',
+        borderWidth: 1
+                }]
+            },
+    options: {
+        responsive: true,
+            maintainAspectRatio: false,
+                scales: {
+            y: {
+                beginAtZero: true,
+                    ticks: {
+                    precision: 0
+                }
+            }
+        }
+    }
+        });
+
+    // Achievement Distribution Chart
+    const achievementCtx = document.getElementById('achievementDistributionChart').getContext('2d');
+    const achievementChart = new Chart(achievementCtx, {
+        type: 'doughnut',
+        data: {
+            labels: {{ achievement_chart_data| map(attribute = 'achievement') | list | tojson }},
+    datasets: [{
+        data: {{ achievement_chart_data| map(attribute = 'count') | list | tojson }},
+        backgroundColor: [
+        'rgba(239, 68, 68, 0.8)',
+        'rgba(245, 158, 11, 0.8)',
+        'rgba(16, 185, 129, 0.8)',
+        'rgba(59, 130, 246, 0.8)',
+        'rgba(79, 70, 229, 0.8)'
+    ],
+        borderWidth: 1
+                }]
+            },
+    options: {
+        responsive: true,
+            maintainAspectRatio: false,
+                plugins: {
+            legend: {
+                position: 'right'
+            }
+        }
+    }
+        });
+    });
+
+    function generatePerformanceReport() {
+        // This would normally generate and download a PDF report
+        // For this example, we'll just show a notification
+        showNotification('Performance report feature coming soon!', 'info');
+    }
+
+    function showNotification(message, type = 'info') {
+        const notification = document.createElement('div');
+        notification.className = `fixed bottom-4 right-4 px-6 py-3 rounded-xl shadow-lg z-50 ${type === 'success' ? 'bg-green-600' :
+            type === 'error' ? 'bg-red-600' :
+                'bg-blue-600'
+            } text-white`;
+        notification.textContent = message;
+        document.body.appendChild(notification);
+
+        setTimeout(() => {
+            notification.style.opacity = '0';
+            notification.style.transition = 'opacity 0.3s ease-out';
+            setTimeout(() => notification.remove(), 300);
+        }, 3000);
+    }
+</script>
+{% endblock %}

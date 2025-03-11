@@ -1,0 +1,468 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="min-h-screen bg-gray-50 py-6">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-bold text-gray-900">School Management</h1>
+            <a href="{{ url_for('admin_dashboard') }}" class="btn btn-ghost">
+                Back to Dashboard
+            </a>
+        </div>
+
+        <div class="bg-white shadow-sm rounded-lg p-6 mb-6">
+            <h2 class="text-xl font-semibold mb-4">Generate School Account</h2>
+            <p class="text-gray-600 mb-4">Create a new school admin account with randomly generated credentials.</p>
+            <button id="generateAccountBtn" class="btn bg-black hover:bg-gray-800 text-white">
+                Generate New School Account
+            </button>
+
+            <div id="accountDetails" class="mt-4 p-4 bg-gray-50 rounded-lg hidden">
+                <div class="text-sm font-medium text-gray-500 mb-2">New School Account Generated</div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs text-gray-500">Username</label>
+                        <div class="flex items-center mt-1">
+                            <input id="usernameField" type="text" class="input input-bordered bg-white w-full" readonly>
+                            <button onclick="copyToClipboard('usernameField')"
+                                class="ml-2 p-2 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-700" fill="none"
+                                    viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-500">Password</label>
+                        <div class="flex items-center mt-1">
+                            <input id="passwordField" type="text" class="input input-bordered bg-white w-full" readonly>
+                            <button onclick="copyToClipboard('passwordField')"
+                                class="ml-2 p-2 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-700" fill="none"
+                                    viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <div class="text-sm text-gray-500">Share these credentials with the school administrator. They will
+                        need to complete the onboarding process.</div>
+                    <div class="text-sm text-gray-500 mt-2">Login URL: <span class="font-medium">{{ request.host_url
+                            }}login</span></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white shadow-sm rounded-lg overflow-hidden">
+            <div class="px-6 py-4 border-b">
+                <h2 class="text-xl font-semibold">Registered Schools</h2>
+            </div>
+
+            {% if schools %}
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th scope="col"
+                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                School Name</th>
+                            <th scope="col"
+                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                City</th>
+                            <th scope="col"
+                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Students</th>
+                            <th scope="col"
+                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Onboarding Status</th>
+                            <th scope="col"
+                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Created</th>
+                            <th scope="col"
+                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Actions</th>
+                            <th scope="col"
+                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Login Info</th>
+
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        {% for school in schools %}
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="flex items-center">
+                                    {% if school.logo_url %}
+                                    <div class="flex-shrink-0 h-10 w-10 rounded-lg overflow-hidden mr-4">
+                                        <img src="{{ school.logo_url }}" alt="{{ school.name }}"
+                                            class="h-10 w-10 object-cover">
+                                    </div>
+                                    {% endif %}
+                                    <div>
+                                        <div class="text-sm font-medium text-gray-900">{{ school.name or 'Not completed'
+                                            }}</div>
+                                        <div class="text-sm text-gray-500">{{ school.username }}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="text-sm text-gray-900">{{ school.city or 'Not set' }}</div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="text-sm text-gray-900">{{ school.students_count }}</div>
+                            </td>
+
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                {% if school.onboarding_completed %}
+                                <span
+                                    class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                    Completed
+                                </span>
+                                {% else %}
+                                <span
+                                    class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                    Pending
+                                </span>
+                                {% endif %}
+                            </td>
+
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {{ school.created_at.strftime('%Y-%m-%d') }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <div class="flex space-x-2">
+
+                                    <button onclick="viewSchoolDetails('{{ school.id }}')"
+                                        class="text-gray-600 hover:text-black">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
+                                            viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                        </svg>
+                                    </button>
+                                    <button onclick="resetSchoolPassword('{{ school.id }}')"
+                                        class="text-gray-600 hover:text-black">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
+                                            viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                                        </svg>
+                                    </button>
+                                    <button
+                                        onclick="confirmDeleteSchool('{{ school.id }}', '{{ school.name|default('this school') }}')"
+                                        class="text-red-600 hover:text-red-800">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
+                                            viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                {% if school.password %}
+                                <div class="group relative inline-block">
+                                    <button onclick="viewPassword('{{ school.id }}')"
+                                        class="text-blue-600 hover:text-blue-800 focus:outline-none">
+                                        Show Password
+                                    </button>
+                                </div>
+                                {% else %}
+                                <span class="text-gray-400">Not available</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="px-6 py-4 text-center">
+                <p class="text-gray-500">No schools registered yet.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+    document.getElementById('generateAccountBtn').addEventListener('click', function () {
+        fetch('{{ url_for("generate_school_account") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('usernameField').value = data.username;
+                    document.getElementById('passwordField').value = data.password;
+                    document.getElementById('accountDetails').classList.remove('hidden');
+
+                    // Show success notification
+                    showNotification('School account generated successfully', 'success');
+
+                    // Reload page after 5 seconds to show the new school
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 5000);
+                } else {
+                    showNotification('Error generating school account: ' + data.error, 'error');
+                }
+            })
+            .catch(error => {
+                showNotification('Error: ' + error, 'error');
+            });
+    });
+
+    function copyToClipboard(elementId) {
+        const element = document.getElementById(elementId);
+        element.select();
+        document.execCommand('copy');
+        showNotification('Copied to clipboard', 'success');
+    }
+
+    function viewSchoolDetails(schoolId) {
+        // Redirect to school details page or show a modal
+        // Implementation depends on your specific requirements
+        showNotification('View school details functionality not implemented yet', 'info');
+    }
+
+    function resetSchoolPassword(schoolId) {
+        // Reset school password functionality
+        // Implementation depends on your specific requirements
+        showNotification('Reset password functionality not implemented yet', 'info');
+    }
+
+    function showNotification(message, type = 'info') {
+        const notification = document.createElement('div');
+        notification.className = `fixed bottom-4 right-4 px-6 py-3 rounded-xl shadow-lg z-50 ${type === 'success' ? 'bg-green-600' :
+            type === 'error' ? 'bg-red-600' :
+                'bg-blue-600'
+            } text-white`;
+        notification.textContent = message;
+        document.body.appendChild(notification);
+
+        setTimeout(() => {
+            notification.style.opacity = '0';
+            notification.style.transition = 'opacity 0.3s ease-out';
+            setTimeout(() => notification.remove(), 300);
+        }, 3000);
+    }
+    function viewPassword(schoolId) {
+        fetch(`/admin/view_school_password/${schoolId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('schoolEmail').value = data.email;
+                    document.getElementById('schoolPassword').value = data.password;
+                    document.getElementById('passwordModal').classList.add('modal-open');
+                } else {
+                    showNotification(data.error || 'Could not retrieve password', 'error');
+                }
+            })
+            .catch(error => {
+                showNotification('Error: ' + error, 'error');
+            });
+    }
+
+    function closePasswordModal() {
+        document.getElementById('passwordModal').classList.remove('modal-open');
+    }
+    function confirmDeleteSchool(schoolId, schoolName) {
+        document.getElementById('schoolIdToDelete').value = schoolId;
+        document.getElementById('schoolNameToDelete').textContent = schoolName;
+        document.getElementById('deleteConfirmCheckbox').checked = false;
+        document.getElementById('confirmDeleteSchoolBtn').disabled = true;
+        document.getElementById('deleteSchoolModal').classList.add('modal-open');
+
+        // Make sure the event listener is attached when the modal opens
+        setupCheckboxListener();
+    }
+
+    function closeDeleteSchoolModal() {
+        document.getElementById('deleteSchoolModal').classList.remove('modal-open');
+    }
+
+    // Separate function to setup the checkbox listener
+    function setupCheckboxListener() {
+        const checkbox = document.getElementById('deleteConfirmCheckbox');
+        const deleteBtn = document.getElementById('confirmDeleteSchoolBtn');
+
+        // Remove any existing listeners first to avoid duplicates
+        checkbox.removeEventListener('change', toggleDeleteButton);
+
+        // Add the listener
+        checkbox.addEventListener('change', toggleDeleteButton);
+
+        // Initial setup based on current state
+        deleteBtn.disabled = !checkbox.checked;
+
+        // Update button style based on disabled state
+        updateButtonStyle();
+    }
+
+    // Function to toggle the delete button state
+    function toggleDeleteButton() {
+        const checkbox = document.getElementById('deleteConfirmCheckbox');
+        const deleteBtn = document.getElementById('confirmDeleteSchoolBtn');
+
+        deleteBtn.disabled = !checkbox.checked;
+
+        // Update button style based on disabled state
+        updateButtonStyle();
+    }
+
+    // Function to update button visual style
+    function updateButtonStyle() {
+        const deleteBtn = document.getElementById('confirmDeleteSchoolBtn');
+
+        if (deleteBtn.disabled) {
+            deleteBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            deleteBtn.classList.remove('hover:bg-red-700');
+        } else {
+            deleteBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            deleteBtn.classList.add('hover:bg-red-700');
+        }
+    }
+
+    function deleteSchool() {
+        const schoolId = document.getElementById('schoolIdToDelete').value;
+
+        // Disable button and show loading state
+        const deleteBtn = document.getElementById('confirmDeleteSchoolBtn');
+        const originalText = deleteBtn.textContent;
+        deleteBtn.disabled = true;
+        deleteBtn.innerHTML = '<span class="loading loading-spinner loading-sm mr-2"></span> Deleting...';
+
+        // Send delete request
+        fetch(`/admin/delete_school/${schoolId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+            .then(response => response.json())
+            .then(data => {
+                closeDeleteSchoolModal();
+
+                if (data.success) {
+                    showNotification(data.message, 'success');
+                    // Reload page after a short delay
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 2000);
+                } else {
+                    showNotification('Error: ' + (data.error || 'Failed to delete school'), 'error');
+                    // Reset button
+                    deleteBtn.disabled = false;
+                    deleteBtn.textContent = originalText;
+                }
+            })
+            .catch(error => {
+                closeDeleteSchoolModal();
+                showNotification('Error: ' + error, 'error');
+                // Reset button
+                deleteBtn.disabled = false;
+                deleteBtn.textContent = originalText;
+            });
+    }
+
+    // Run this when the page loads to set up initial listeners
+    document.addEventListener('DOMContentLoaded', function () {
+        // Add this line to make sure the button style reflects its state when the page loads
+        const deleteConfirmCheckbox = document.getElementById('deleteConfirmCheckbox');
+        if (deleteConfirmCheckbox) {
+            setupCheckboxListener();
+        }
+    });
+</script>
+<div id="passwordModal" class="modal">
+    <div class="modal-box p-6">
+        <h3 class="font-bold text-lg mb-6">School Login Details</h3>
+        <div class="space-y-4">
+            <div class="form-control">
+                <label class="label text-sm text-gray-500">Username/Email</label>
+                <div class="flex items-center">
+                    <input id="schoolEmail" type="text" class="input input-bordered bg-white w-full" readonly>
+                    <button onclick="copyToClipboard('schoolEmail')"
+                        class="ml-2 p-2 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors">
+                        <svg class="h-5 w-5 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <div class="form-control">
+                <label class="label text-sm text-gray-500">Password</label>
+                <div class="flex items-center">
+                    <input id="schoolPassword" type="text" class="input input-bordered bg-white w-full" readonly>
+                    <button onclick="copyToClipboard('schoolPassword')"
+                        class="ml-2 p-2 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors">
+                        <svg class="h-5 w-5 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="modal-action mt-6">
+            <button class="btn" onclick="closePasswordModal()">Close</button>
+        </div>
+    </div>
+</div>
+<div id="deleteSchoolModal" class="modal">
+    <div class="modal-box p-6">
+        <h3 class="font-bold text-lg mb-4 text-red-600">Confirm School Deletion</h3>
+        <p class="text-gray-700 mb-4">Are you sure you want to delete <span id="schoolNameToDelete"
+                class="font-semibold"></span>?</p>
+
+        <div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <svg class="h-5 w-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                </div>
+                <div class="ml-3">
+                    <h3 class="text-sm font-medium text-red-800">Warning: This action cannot be undone</h3>
+                    <div class="mt-2 text-sm text-red-700">
+                        <p>This will permanently delete:</p>
+                        <ul class="list-disc pl-5 mt-1 space-y-1">
+                            <li>The school account</li>
+                            <li>All student accounts associated with this school</li>
+                            <li>All related data (certificates, comments, etc.)</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-control mb-6">
+            <label class="flex items-center">
+                <input type="checkbox" id="deleteConfirmCheckbox" class="checkbox checkbox-sm mr-2">
+                <span class="text-sm">I understand that this action is permanent and cannot be undone</span>
+            </label>
+        </div>
+
+        <input type="hidden" id="schoolIdToDelete">
+
+        <div class="modal-action">
+            <button class="btn btn-ghost" onclick="closeDeleteSchoolModal()">Cancel</button>
+            <button id="confirmDeleteSchoolBtn" disabled class="btn bg-red-600 hover:bg-red-700 text-white"
+                onclick="deleteSchool()">Delete School</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
