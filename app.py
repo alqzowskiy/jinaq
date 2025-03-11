@@ -1135,11 +1135,12 @@ def profile():
                         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                             return jsonify({
                                 'success': True,
-                                'certificate': {
-                                    'id': cert_ref[1].id,
-                                    **cert_data
-                                }
+                                'user_data': user_data  # Include the updated user data
                             })
+                        
+                        # Regular form submission (non-AJAX)
+                        flash('Profile updated successfully!')
+                        return redirect(url_for('profile'))
 
                 # Handle avatar upload
                 if 'avatar' in request.files:
@@ -4896,6 +4897,250 @@ def get_unread_notifications_count(user_id):
     except Exception as e:
         print(f"Error getting unread notifications count: {e}")
         return 0
+
+
+@app.route('/get-university-details', methods=['POST'])
+@login_required
+def get_university_details():
+    """Generate detailed information about a specific university using Gemini AI"""
+    try:
+        data = request.json
+        university_name = data.get('university')
+        country = data.get('country')
+        
+        if not university_name:
+            return jsonify({'error': 'University name is required'}), 400
+            
+        # Get user profile data for personalization
+        user_id = session['user_id']
+        user_doc = db.collection('users').document(user_id).get()
+        user_data = user_doc.to_dict() or {}
+        
+        # Extract profile information
+        specialty = data.get('profile', {}).get('specialty') or user_data.get('specialty', '')
+        goals = data.get('profile', {}).get('goals') or user_data.get('goals', '')
+        skills = data.get('profile', {}).get('skills') or user_data.get('skills', [])
+        
+        # Academic info
+        gpa = data.get('academic', {}).get('gpa') or user_data.get('academic_info', {}).get('gpa', '')
+        toefl_score = data.get('academic', {}).get('toeflScore') or user_data.get('academic_info', {}).get('toefl_score', '')
+        ielts_score = data.get('academic', {}).get('ieltsScore') or user_data.get('academic_info', {}).get('ielts_score', '')
+        
+        # Check if we have cached data for this university
+        cache_ref = db.collection('university_details_cache').document(f"{university_name}_{country}")
+        cache_doc = cache_ref.get()
+        
+        if cache_doc.exists:
+            # Check if cache is still valid (less than 7 days old)
+            cache_data = cache_doc.to_dict()
+            timestamp = cache_data.get('timestamp')
+            
+            if isinstance(timestamp, datetime.datetime):
+                age = datetime.datetime.now(tz=datetime.timezone.utc) - timestamp
+                if age.days < 7:
+                    print(f"Using cached details for {university_name}")
+                    return jsonify({
+                        'details': cache_data.get('details', {}),
+                        'from_cache': True
+                    })
+        
+        # Create prompt for the Gemini model - Note: Using double curly braces to escape them in f-string
+        model = genai.GenerativeModel('gemini-1.5-pro-latest')
+        
+        # Build prompt parts separately to avoid f-string formatting issues
+        prompt_intro = f"""Generate comprehensive, detailed information about {university_name} in {country} for a student considering applying there.
+
+STUDENT PROFILE:
+- Specialty/Interests: {specialty}
+- Academic Goals: {goals}
+- Skills: {", ".join(skills) if skills else "Various skills"}
+- GPA: {gpa or "Not specified"}
+- TOEFL Score: {toefl_score or "Not specified"}
+- IELTS Score: {ielts_score or "Not specified"}
+
+I need detailed university information organized into these specific categories:
+
+1. ADMISSIONS & SELECTIVITY
+Please provide 5-8 specific points focusing on:
+- Exact admissions rates and statistics
+- Detailed application requirements
+- Standardized test score ranges for accepted students
+- Average GPA requirements
+- Application deadlines
+- Special admissions programs
+- Tips for strengthening applications
+
+2. COSTS & FINANCIAL AID
+Please provide 5-8 specific points focusing on:
+- Exact tuition costs in local currency AND USD
+- Detailed breakdown of living expenses
+- Available scholarships and financial aid
+- Work-study opportunities
+- International student funding
+- Payment plans
+- Cost comparison to peer institutions
+
+3. NOTABLE ACADEMIC PROGRAMS
+Please provide 5-8 specific points focusing on:
+- Strongest departments and programs
+- Specialized degree offerings relevant to the student
+- Faculty highlights and notable professors
+- Research opportunities
+- Industry connections
+- Internship programs
+- Unique academic features
+
+4. CAMPUS LIFE & STUDENT EXPERIENCE
+Please provide 5-8 specific points focusing on:
+- Housing options and costs
+- Dining facilities
+- Student organizations
+- Sports and recreation
+- Campus size and facilities
+- Transportation
+- International student support services
+
+5. CAREER OUTCOMES & JOB PLACEMENT
+Please provide 5-8 specific points focusing on:
+- Employment rates after graduation
+- Top employers
+- Average starting salaries
+- Career services offered
+- Alumni network strength
+- Industry connections
+- Internship placement rates
+
+6. WHY THIS UNIVERSITY IS FOR YOU
+Please provide 3-6 personalized points explaining why this university would be a good fit for this specific student based on their profile.
+
+IMPORTANT REQUIREMENTS:
+- All information must be SPECIFIC and DETAILED (exact numbers, names, dates)
+- Each section should contain 5-8 bullet points (except the personalized section which needs 3-6)
+- Information should be accurate and current
+- No general statements - every point should provide unique, actionable information
+- Format all responses as structured JSON with these exact keys: "admissions", "costs", "programs", "campusLife", "careers", "personalized"
+- Each key should contain an array of strings (the bullet points)
+- DO NOT include any text outside of the JSON structure
+"""
+
+        # Add example format separately (not as part of f-string)
+        example_format = """
+Example response format:
+{
+  "admissions": [
+    "Specific admission point 1",
+    "Specific admission point 2"
+  ],
+  "costs": [
+    "Specific cost point 1",
+    "Specific cost point 2"
+  ],
+  "programs": ["Program point 1", "Program point 2"],
+  "campusLife": ["Campus life point 1", "Campus life point 2"],
+  "careers": ["Career point 1", "Career point 2"],
+  "personalized": ["Personalized point 1", "Personalized point 2"]
+}
+"""
+
+        # Combine prompt parts
+        full_prompt = prompt_intro + example_format
+
+        # Get response from Gemini
+        response = model.generate_content(full_prompt)
+        result_text = response.text
+        
+        # Parse JSON from response
+        try:
+            # Find JSON in response (in case there's any extra text)
+            import re
+            json_match = re.search(r'(\{[\s\S]*\})', result_text)
+            if json_match:
+                json_str = json_match.group(1)
+                details = json.loads(json_str)
+            else:
+                details = json.loads(result_text)
+                
+            # Ensure all required keys exist
+            required_keys = ["admissions", "costs", "programs", "campusLife", "careers", "personalized"]
+            for key in required_keys:
+                if key not in details:
+                    details[key] = [f"Information about {key.replace('C', ' c').lower()} is not available"]
+            
+            # Cache the results
+            cache_data = {
+                'details': details,
+                'timestamp': datetime.datetime.now(tz=datetime.timezone.utc),
+                'university': university_name,
+                'country': country
+            }
+            cache_ref.set(cache_data)
+            
+            return jsonify({
+                'details': details,
+                'from_cache': False
+            })
+            
+        except json.JSONDecodeError as e:
+            print(f"Error parsing JSON from Gemini response: {e}")
+            print(f"Raw response: {result_text}")
+            
+            # Create a fallback response with basic information
+            fallback_details = {
+                "admissions": [
+                    f"The admission process at {university_name} typically requires standardized test scores and academic transcripts.",
+                    "Most universities require a personal statement or essay.",
+                    "International students may need to demonstrate language proficiency.",
+                    "Contact the admissions office directly for the most current requirements.",
+                    "Application deadlines vary by program and semester."
+                ],
+                "costs": [
+                    f"Tuition costs at {university_name} vary by program and residency status.",
+                    "International students typically pay higher tuition rates than domestic students.",
+                    "Many universities offer scholarships specifically for international students.",
+                    "Consider additional costs such as housing, meals, books, and insurance.",
+                    "Financial aid options may be available."
+                ],
+                "programs": [
+                    f"{university_name} offers a variety of undergraduate and graduate programs.",
+                    "Research the specific department you're interested in for more details.",
+                    "Consider faculty expertise and research opportunities in your field.",
+                    "Some programs may have additional application requirements.",
+                    "Check the university website for a complete list of offered programs."
+                ],
+                "campusLife": [
+                    "Most universities offer on-campus housing options for students.",
+                    "Student organizations provide opportunities to connect with peers.",
+                    "Many campuses have dedicated resources for international students.",
+                    "Consider the surrounding community and available amenities.",
+                    "Campus tours (virtual or in-person) can give you a better sense of the environment."
+                ],
+                "careers": [
+                    "University career centers can help with job placement and internship opportunities.",
+                    "Research the alumni network in your field of interest.",
+                    "Consider post-graduation work visa options in your destination country.",
+                    "Internship opportunities during study can improve job prospects.",
+                    "Some programs include practical training or work experience components."
+                ],
+                "personalized": [
+                    f"Based on your interest in {specialty}, {university_name} might be a good fit.",
+                    "Consider how the university's strengths align with your academic goals.",
+                    "Research specific professors or research groups in your area of interest.",
+                    "Connect with current international students to learn about their experience."
+                ]
+            }
+            
+            return jsonify({
+                'details': fallback_details,
+                'from_cache': False,
+                'fallback': True
+            })
+            
+    except Exception as e:
+        print(f"Error getting university details: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
 
 @app.before_request
 def make_session_permanent():

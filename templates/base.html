@@ -1130,7 +1130,6 @@
                 </svg>
                 <span>Search users, projects, and more...</span>
             </button>
-            {% endif %}
             <!-- Also update the mobile menu notifications link -->
             <a href="{{ url_for('notifications_page') }}"
                 class="flex items-center justify-between px-4 py-3 hover:bg-gray-100 rounded-lg">
@@ -1148,6 +1147,8 @@
                 </span>
                 {% endif %}
             </a>
+            {% endif %}
+
             {% if 'user_id' in session %}
             <a href="{{ url_for('profile') }}" class="block px-4 py-3 rounded-lg hover:bg-gray-100">
                 My Portfolio
