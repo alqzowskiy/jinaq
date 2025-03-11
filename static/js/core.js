@@ -79,17 +79,137 @@ function closeModal(modalId) {
 }
 
 // Функция для копирования ссылки на профиль
+// Add this to your profile.js file or directly in a <script> tag at the end of profile.html
+
+// Ensure copyProfileLink is properly defined and accessible
 function copyProfileLink() {
-    const username = document.querySelector('meta[name="current-username"]')?.content;
-    if (!username) return;
+    // Check for the meta tag first
+    const usernameMeta = document.querySelector('meta[name="current-username"]');
+    let username;
+
+    if (usernameMeta && usernameMeta.content) {
+        username = usernameMeta.content;
+    } else {
+        // Fallback: Try to extract username from the page content
+        // Look for the username display in the profile content
+        const usernameElement = document.querySelector('p.text-gray-600 > span') ||
+            document.querySelector('p.text-gray-600');
+
+        if (usernameElement) {
+            // Extract text that starts with @ symbol
+            const text = usernameElement.textContent.trim();
+            const matches = text.match(/@([a-zA-Z0-9_]+)/);
+            if (matches && matches[1]) {
+                username = matches[1];
+            }
+        }
+
+        // If still no username, try to get it from URL
+        if (!username) {
+            const pathParts = window.location.pathname.split('/');
+            // Assume the last part of the URL path is the username if on profile page
+            if (pathParts.length > 1 && pathParts[1]) {
+                username = pathParts[1];
+            }
+        }
+    }
+
+    if (!username) {
+        showNotification('Username not found. Please reload the page and try again.', 'error');
+        return;
+    }
 
     const profileLink = window.location.origin + '/' + username;
-    navigator.clipboard.writeText(profileLink).then(() => {
-        showNotification('Profile link copied!');
-    }).catch(err => {
-        showNotification('Failed to copy link', 'error');
-    });
+
+    // Use modern clipboard API with fallback
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(profileLink)
+            .then(() => {
+                showNotification('Profile link copied to clipboard!');
+            })
+            .catch(err => {
+                console.error('Failed to copy: ', err);
+                showNotification('Failed to copy link', 'error');
+                fallbackCopyTextToClipboard(profileLink);
+            });
+    } else {
+        fallbackCopyTextToClipboard(profileLink);
+    }
 }
+
+// Fallback for browsers that don't support clipboard API
+function fallbackCopyTextToClipboard(text) {
+    const textArea = document.createElement("textarea");
+    textArea.value = text;
+
+    // Make the textarea out of viewport
+    textArea.style.position = "fixed";
+    textArea.style.left = "-999999px";
+    textArea.style.top = "-999999px";
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+
+    try {
+        const successful = document.execCommand('copy');
+        if (successful) {
+            showNotification('Profile link copied to clipboard!');
+        } else {
+            showNotification('Failed to copy link', 'error');
+        }
+    } catch (err) {
+        console.error('Fallback: Oops, unable to copy', err);
+        showNotification('Failed to copy link', 'error');
+    }
+
+    document.body.removeChild(textArea);
+}
+
+// Make sure the showNotification function is available
+if (typeof showNotification !== 'function') {
+    function showNotification(message, type = 'success') {
+        // Remove existing notifications
+        const existingToasts = document.querySelectorAll('.toast-notification');
+        existingToasts.forEach(toast => toast.remove());
+
+        // Create notification element
+        const toast = document.createElement('div');
+        toast.className = `toast-notification fixed bottom-4 right-4 z-50 px-6 py-3 rounded-lg shadow-lg 
+                     ${type === 'error' ? 'bg-red-500' : 'bg-black'} text-white
+                     opacity-0 transform translate-y-4 transition-all duration-300`;
+        toast.textContent = message;
+
+        // Add to DOM
+        document.body.appendChild(toast);
+
+        // Trigger animation
+        setTimeout(() => {
+            toast.classList.remove('opacity-0');
+            toast.classList.remove('translate-y-4');
+        }, 10);
+
+        // Automatically remove after 3 seconds
+        setTimeout(() => {
+            toast.classList.add('opacity-0');
+            toast.classList.add('translate-y-4');
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+}
+
+// Ensure that all click handlers are properly attached after DOM is loaded
+document.addEventListener('DOMContentLoaded', function () {
+    // Attach click handler to all elements with the functionality
+    const copyBtns = document.querySelectorAll('button[onclick="copyProfileLink()"]');
+    copyBtns.forEach(btn => {
+        btn.addEventListener('click', function (e) {
+            e.preventDefault();
+            copyProfileLink();
+        });
+    });
+
+    console.log('Copy profile link handlers attached');
+});
 function setupModalSystem() {
     // Generic open modal function
     window.openModal = function (modalId) {

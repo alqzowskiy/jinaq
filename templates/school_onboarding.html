@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="min-h-screen bg-gray-50 py-6">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center mb-12">
+            <h1 class="text-3xl font-bold text-gray-900 mb-2">Welcome to Jinaq for Schools!</h1>
+            <p class="text-lg text-gray-600">Let's set up your school's profile to get started.</p>
+        </div>
+
+        <div class="bg-white shadow-sm rounded-lg overflow-hidden">
+            <div class="px-6 py-4 border-b">
+                <h2 class="text-xl font-semibold">School Registration</h2>
+                <p class="text-sm text-gray-500 mt-1">Complete the following information to set up your school's
+                    profile.</p>
+            </div>
+
+            <div class="p-6">
+                <form action="{{ url_for('school_onboarding') }}" method="POST" enctype="multipart/form-data"
+                    class="space-y-6">
+                    <div class="form-control">
+                        <label for="school_name" class="block text-sm font-medium text-gray-700 mb-1">School Name <span
+                                class="text-red-500">*</span></label>
+                        <input type="text" id="school_name" name="school_name"
+                            class="input input-bordered bg-white w-full" required
+                            placeholder="Enter your school's official name">
+                    </div>
+
+                    <div class="form-control">
+                        <label for="city" class="block text-sm font-medium text-gray-700 mb-1">City <span
+                                class="text-red-500">*</span></label>
+                        <select id="city" name="city" class="select select-bordered bg-white w-full" required>
+                            <option value="">Select a city</option>
+                            {% for city in cities %}
+                            <option value="{{ city }}">{{ city }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-control">
+                        <label for="school_logo" class="block text-sm font-medium text-gray-700 mb-1">School
+                            Logo</label>
+                        <div class="flex items-center">
+                            <div
+                                class="w-24 h-24 bg-gray-100 rounded-lg flex items-center justify-center mr-4 overflow-hidden">
+                                <img id="logoPreview" src="{{ url_for('static', filename='placeholder-logo.png') }}"
+                                    class="max-h-full max-w-full object-contain">
+                            </div>
+                            <div class="flex-1">
+                                <input type="file" id="school_logo" name="school_logo"
+                                    class="file-input file-input-bordered w-full bg-white" accept="image/*"
+                                    onchange="previewLogo(this)">
+                                <p class="text-xs text-gray-500 mt-1">Recommended size: 200x200px. Maximum 2MB.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="border-t pt-6 flex justify-end">
+                        <button type="submit" class="btn bg-black hover:bg-gray-800 text-white">
+                            Complete Registration
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="mt-8 bg-blue-50 rounded-lg p-4">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <svg class="h-5 w-5 text-blue-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"
+                        fill="currentColor">
+                        <path fill-rule="evenodd"
+                            d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                            clip-rule="evenodd" />
+                    </svg>
+                </div>
+                <div class="ml-3">
+                    <h3 class="text-sm font-medium text-blue-800">What happens next?</h3>
+                    <div class="mt-2 text-sm text-blue-700">
+                        <p>After completing registration, you'll be able to:</p>
+                        <ul class="list-disc pl-5 mt-1 space-y-1">
+                            <li>Upload student data using Excel spreadsheets</li>
+                            <li>View detailed student analytics</li>
+                            <li>Track student progress and performance</li>
+                            <li>Generate statistical reports</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function previewLogo(input) {
+        if (input.files && input.files[0]) {
+            var reader = new FileReader();
+
+            reader.onload = function (e) {
+                document.getElementById('logoPreview').src = e.target.result;
+            }
+
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+</script>
+{% endblock %}

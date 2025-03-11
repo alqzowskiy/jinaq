@@ -25,6 +25,29 @@ import os
 import datetime
 import uuid
 from flask import request, jsonify, url_for, redirect, flash, session, render_template, abort
+import random
+import string
+import pandas as pd
+import openpyxl
+from openpyxl.styles import Font, Alignment, PatternFill
+import io
+from io import BytesIO
+from datetime import datetime
+import matplotlib.pyplot as plt
+import base64
+from werkzeug.security import generate_password_hash
+from flask import send_file
+import datetime
+from datetime import timedelta
+import pandas as pd
+import transliterate
+import random
+import string
+from transliterate.base import TranslitLanguagePack, registry
+from transliterate.discover import autodiscover
+
+
+
 
 app = Flask(__name__)
 app.secret_key = 'mega-secret-key-yeah'  
@@ -432,6 +455,80 @@ def index():
 
 
 
+@app.route('/onboarding')
+@login_required
+def onboarding():
+    user_id = session['user_id']
+    
+    # Check if user has already completed onboarding
+    user_doc = db.collection('users').document(user_id).get()
+    user_data = user_doc.to_dict() or {}
+    
+    if user_data.get('onboarding_completed', False):
+        # If onboarding already done, redirect to profile
+        return redirect(url_for('profile'))
+    
+    # Check if this is a student with a school_id
+    school_data = None
+    if user_data.get('school_id'):
+        try:
+            school_id = user_data.get('school_id')
+            school_doc = db.collection('schools').document(school_id).get()
+            
+            if school_doc.exists:
+                school_data = {
+                    'id': school_id,
+                    'name': school_doc.to_dict().get('name', 'Unknown School'),
+                    'logo_url': school_doc.to_dict().get('logo_url')
+                }
+        except Exception as e:
+            print(f"Error getting school data: {e}")
+    
+    # Render the onboarding template with school data
+    return render_template('onboarding.html', user_data=user_data, school_data=school_data)
+@app.route('/complete_onboarding', methods=['POST'])
+@login_required
+def complete_onboarding():
+    user_id = session['user_id']
+    
+    try:
+        # Get form data from request
+        data = request.get_json()
+        
+        # Process the onboarding data
+        profile_data = {
+            'full_name': data.get('full_name', ''),
+            'specialty': data.get('specialty', ''),
+            'education': data.get('education', ''),
+            'bio': data.get('bio', ''),
+            'goals': data.get('goals', ''),
+            'skills': data.get('skills', []),
+            'onboarding_completed': True,  # This is crucial
+            'updated_at': datetime.datetime.now(tz=datetime.timezone.utc)
+        }
+        
+        # Update user document with onboarding data
+        db.collection('users').document(user_id).update(profile_data)
+        
+        # Create a welcome notification
+        create_notification(
+            user_id, 
+            'system', 
+            {
+                'message': 'Welcome to Jinaq! Your profile has been set up successfully.',
+                'action': 'onboarding_completed'
+            }
+        )
+        
+        # Log successful completion
+        print(f"User {user_id} completed onboarding successfully")
+        
+        return jsonify({'success': True, 'redirect': url_for('profile')})
+        
+    except Exception as e:
+        print(f"Error completing onboarding: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+# Modify the register route to redirect to onboarding
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
@@ -441,19 +538,21 @@ def register():
         username = display_username.lower()
 
         try:
-            # Проверка уникальности username
+            # Check username uniqueness
             users_ref = db.collection('users')
             username_query = users_ref.where('username', '==', username).get()
             if len(list(username_query)) > 0:
                 flash('Username already taken')
                 return redirect(url_for('register'))
 
+            # Create user in Firebase Auth
             user = auth.create_user(
                 email=email,
                 password=password,
                 display_name=display_username
             )
 
+            # Create user document in Firestore
             user_data = {
                 'username': username,
                 'display_username': display_username, 
@@ -464,6 +563,7 @@ def register():
                 'verification_type': None,
                 'verified_by': None,
                 'verified_at': None,
+                'onboarding_completed': False,  # Новые пользователи должны пройти онбординг
                 'academic_info': {
                     'gpa': '',
                     'sat_score': '',
@@ -475,13 +575,53 @@ def register():
             }
             db.collection('users').document(user.uid).set(user_data)
 
-            flash('Registration successful! Please log in.')
-            return redirect(url_for('login'))
+            # Log the user in
+            session['user_id'] = user.uid
+            session['username'] = display_username
+            
+            # Redirect to onboarding
+            return redirect(url_for('onboarding'))
+            
         except Exception as e:
             flash(f'Error: {str(e)}')
             return redirect(url_for('register'))
 
     return render_template('register.html')
+def check_onboarding_required():
+    """Middleware to check if user needs to complete onboarding"""
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            # Skip check for onboarding, static, and certain other routes
+            if (request.path.startswith('/onboarding') or 
+                request.path.startswith('/static') or
+                request.path == '/complete_onboarding' or
+                request.path == '/logout'):
+                return f(*args, **kwargs)
+                
+            if 'user_id' in session:
+                user_id = session['user_id']
+                
+                # Skip for school admins
+                user_doc = db.collection('schools').document(user_id).get()
+                if user_doc.exists:
+                    return f(*args, **kwargs)
+                
+                # Check if regular user has completed onboarding
+                user_doc = db.collection('users').document(user_id).get()
+                if user_doc.exists:
+                    user_data = user_doc.to_dict()
+                    if not user_data.get('onboarding_completed', False):
+                        return redirect(url_for('onboarding'))
+            
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
+@app.before_request
+def check_user_onboarding():
+    # Skip the onboarding check entirely - make it optional
+    return    
+
 @app.route('/<username>/comments/<comment_id>/reply', methods=['POST'])
 @login_required
 def reply_to_comment(username, comment_id):
@@ -629,49 +769,96 @@ def login():
         password = request.form['password']
         
         try:
-
+            # Debugging
+            print(f"Login attempt with identifier: {identifier}")
+            
+            # First try to find by email
             try:
                 user = auth.get_user_by_email(identifier)
                 email = identifier
-            except:
-
+                print(f"Found user by email: {user.uid}")
+            except Exception as e:
+                print(f"Email lookup failed: {e}")
+                
+                # Next try to find by username in users collection
                 users_ref = db.collection('users')
                 query = users_ref.where('username', '==', identifier.lower()).limit(1).get()
                 
-                if not query:
-                    flash('User not found')
-                    return redirect(url_for('login'))
-                
-                user_data = query[0].to_dict()
-                email = user_data['email']
+                if not query or len(query) == 0:
+                    print("Username not found in users collection, checking schools collection")
+                    
+                    # Try to find in schools collection
+                    schools_ref = db.collection('schools')
+                    school_query = schools_ref.where('username', '==', identifier).limit(1).get()
+                    
+                    if not school_query or len(school_query) == 0:
+                        print("Username not found in schools collection either")
+                        flash('User not found')
+                        return redirect(url_for('login'))
+                    
+                    school_data = school_query[0].to_dict()
+                    email = school_data['email']
+                    print(f"Found school by username, email: {email}")
+                else:
+                    user_data = query[0].to_dict()
+                    email = user_data['email']
+                    print(f"Found user by username, email: {email}")
 
+                # Now get the user from Firebase Auth
                 user = auth.get_user_by_email(email)
             
-
-            user_doc = db.collection('users').document(user.uid).get()
-            user_data = user_doc.to_dict()
-
-
-            if user_data.get('blocked', False):
-                flash('This account has been blocked. Please contact support.')
-                return redirect(url_for('login'))
-
-            if user_data:
-
+            # Try to authenticate with Firebase Auth (validation happens with Firebase)
+            # Since we can't verify password directly, we'll rely on Firebase's auth methods
+            # For additional security, you would implement sign-in with Firebase SDK
+            
+            # Check if user is a school
+            school_doc = db.collection('schools').document(user.uid).get()
+            if school_doc.exists:
+                print(f"User {user.uid} is a school account")
+                school_data = school_doc.to_dict()
+                
+                # Check if school is blocked
+                if school_data.get('blocked', False):
+                    flash('This account has been blocked. Please contact support.')
+                    return redirect(url_for('login'))
+                
+                # Set session data for school
+                session['user_id'] = user.uid
+                session['username'] = school_data.get('name', 'School Admin')
+                session['is_school'] = True
+                
+                # Redirect to appropriate page based on onboarding status
+                if school_data.get('onboarding_completed', False):
+                    return redirect(url_for('school_dashboard'))
+                else:
+                    return redirect(url_for('school_onboarding'))
+            else:
+                # Regular user login
+                user_doc = db.collection('users').document(user.uid).get()
+                user_data = user_doc.to_dict()
+                
+                if not user_data:
+                    flash('User data not found')
+                    return redirect(url_for('login'))
+                
+                if user_data.get('blocked', False):
+                    flash('This account has been blocked. Please contact support.')
+                    return redirect(url_for('login'))
+                
                 session['user_id'] = user.uid
                 session['username'] = user_data.get('display_username', user_data['username'])
+                session['is_school'] = False
+                
                 return redirect(url_for('profile'))
-            else:
-                flash('User data not found')
-                return redirect(url_for('login'))
 
         except Exception as e:
-            print(f"Login error: {str(e)}")
+            print(f"Login error (detailed): {str(e)}")
+            import traceback
+            traceback.print_exc()
             flash('Login failed: Invalid credentials')
             return redirect(url_for('login'))
 
     return render_template('login.html')
-
 @app.route('/delete-certificate/<cert_id>', methods=['DELETE'])
 @login_required
 def delete_certificate(cert_id):
@@ -943,6 +1130,35 @@ def test_maintenance_mode():
         return jsonify(maintenance_data)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+@app.route('/admin/migrate_all_users_onboarding', methods=['GET'])
+@login_required
+def migrate_all_users_onboarding():
+    # Ensure only admin can access
+    if session.get('user_id') != 'vVbXL4LKGidXtrKnvqa21gWRY3V2':  # Your admin ID
+        return "Unauthorized", 403
+    
+    try:
+        # Get all users
+        users_ref = db.collection('users')
+        users = users_ref.stream()
+        
+        updated_count = 0
+        
+        for user_doc in users:
+            user_data = user_doc.to_dict()
+            
+            # Only update if onboarding_completed is False or missing
+            if not user_data.get('onboarding_completed', False):
+                db.collection('users').document(user_doc.id).update({
+                    'onboarding_completed': True
+                })
+                updated_count += 1
+        
+        return f"Successfully updated {updated_count} users. All existing users now have onboarding_completed set to True."
+    
+    except Exception as e:
+        return f"Error during migration: {str(e)}", 500    
 @app.route('/admin/dashboard')
 @login_required
 def admin_dashboard():
@@ -1027,7 +1243,9 @@ def profile():
         # Check if user is blocked
         if user_data.get('blocked', False):
             abort(404)
-
+        if not user_data.get('onboarding_completed', False):
+            print(f"User {user_id} redirected to onboarding from profile page")
+            return redirect(url_for('onboarding'))
         current_user_avatar = avatar_url
         if not user_data.get('location'):
             location = get_user_location()
@@ -1036,7 +1254,24 @@ def profile():
                 db.collection('users').document(user_id).update({
                     'location': location
                 })
+                user_doc = db.collection('users').document(user_id).get()
         
+        # Check if user is a student of a school
+        if user_data.get('school_id'):
+            school_id = user_data.get('school_id')
+            school_doc = db.collection('schools').document(school_id).get()
+            
+            if school_doc.exists:
+                school_data = school_doc.to_dict()
+                user_data['school_name'] = school_data.get('name', 'Unknown School')
+                user_data['school_logo_url'] = school_data.get('logo_url')
+                
+                # Automatically set education field if not already set
+                if not user_data.get('education'):
+                    user_data['education'] = user_data['school_name']
+                    db.collection('users').document(user_id).update({
+                        'education': user_data['school_name']
+                    })
         # Initialize academic info if not present
         if 'academic_info' not in user_data:
             user_data['academic_info'] = {
@@ -1480,27 +1715,46 @@ def update_username():
     display_username = request.json.get('username') 
     
     try:
-
+        # First check if this is a student account
+        user_doc = db.collection('users').document(user_id).get()
+        user_data = user_doc.to_dict() if user_doc.exists else {}
+        
+        is_student = user_data.get('school_id') is not None
+        
+        # Check if username already exists
         users_ref = db.collection('users')
         username_query = users_ref.where('username', '==', new_username).get()
         if len(list(username_query)) > 0:
             return jsonify({'error': 'Username already taken'}), 400
-            
-
+        
         user_ref = db.collection('users').document(user_id)
-        user_ref.update({
-            'username': new_username,
-            'display_username': display_username,
-            'updated_at': datetime.datetime.now(tz=datetime.timezone.utc)
-        })
         
-
-        session['username'] = display_username
-        
-        return jsonify({'success': True, 'message': 'Username updated successfully'})
+        # If it's a student, we handle differently
+        if is_student:
+            # Update username but keep the base part for school records
+            user_ref.update({
+                'username': new_username,
+                'display_username': display_username,
+                'updated_at': datetime.datetime.now(tz=datetime.timezone.utc)
+            })
+            
+            # Update session with new display name
+            session['username'] = display_username
+            
+            return jsonify({'success': True, 'message': 'Username updated successfully'})
+        else:
+            # Regular user - normal update
+            user_ref.update({
+                'username': new_username,
+                'display_username': display_username,
+                'updated_at': datetime.datetime.now(tz=datetime.timezone.utc)
+            })
+            
+            session['username'] = display_username
+            
+            return jsonify({'success': True, 'message': 'Username updated successfully'})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-
 @app.route('/update-profile', methods=['POST'])
 @login_required
 def update_profile():
@@ -1512,14 +1766,28 @@ def update_profile():
         
         if 'full_name' in data:
             profile_data['full_name'] = data['full_name']
-
             profile_data['full_name_lower'] = data['full_name'].lower()
+            
+            # Check if this is a student account
+            user_doc = db.collection('users').document(user_id).get()
+            user_data = user_doc.to_dict()
+            
+            # If this is a student, only update display name but keep original name for school
+            if user_data and user_data.get('school_id'):
+                # We don't update 'original_full_name' - it stays the same for school records
+                pass
         
         if 'bio' in data:
             profile_data['bio'] = data['bio']
             
         if 'education' in data:
-            profile_data['education'] = data['education']
+            # Check if this is a student account before allowing education update
+            user_doc = db.collection('users').document(user_id).get()
+            user_data = user_doc.to_dict()
+            
+            if not user_data or not user_data.get('school_id'):
+                # Only update education if not a student account
+                profile_data['education'] = data['education']
             
         profile_data['updated_at'] = datetime.datetime.now(tz=datetime.timezone.utc)
         
@@ -1528,7 +1796,6 @@ def update_profile():
         return jsonify({'success': True, 'message': 'Profile updated successfully'})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-    
 
 @app.route('/update-password', methods=['POST'])
 @login_required
@@ -1648,11 +1915,65 @@ def search_users():
         
         # Если есть запрос и он достаточно длинный, или указана категория/подкатегория
         if (query and len(query) >= 2) or subcategory:
-            # Сначала пробуем найти по имени пользователя
+            # Ищем по всем возможным полям, если есть запрос
             if query and len(query) >= 2:
-                username_query = users_ref.where('username', '>=', query).where('username', '<=', query + '\uf8ff').limit(10).stream()
+                # Подготовим список для хранения всех найденных документов
+                all_user_docs = []
                 
-                for user_doc in username_query:
+                # 1. Поиск по username (который должен быть в латинице и строчными буквами)
+                username_query = users_ref.where('username', '>=', query).where('username', '<=', query + '\uf8ff').limit(20).stream()
+                all_user_docs.extend(list(username_query))
+                
+                # 2. Поиск по display_username (может содержать кириллицу)
+                # Приведем запрос к нижнему регистру для поиска
+                display_username_query = []
+                try:
+                    # Попробуем найти пользователей, где display_username содержит запрос
+                    # Это сложнее, так как Firestore не поддерживает поиск по подстроке
+                    # Поэтому мы получим больше пользователей и отфильтруем их на стороне сервера
+                    all_users = users_ref.limit(100).stream()  # Ограничим выборку для производительности
+                    for user_doc in all_users:
+                        user_data = user_doc.to_dict()
+                        display_username = user_data.get('display_username', '').lower()
+                        if query in display_username:
+                            display_username_query.append(user_doc)
+                except Exception as e:
+                    print(f"Error in display_username search: {e}")
+                
+                all_user_docs.extend(display_username_query)
+                
+                # 3. Поиск по full_name_lower, если такое поле существует
+                try:
+                    # Получим первый документ, чтобы проверить наличие поля
+                    first_user = next(users_ref.limit(1).stream(), None)
+                    if first_user and 'full_name_lower' in first_user.to_dict():
+                        full_name_query = users_ref.where('full_name_lower', '>=', query).where('full_name_lower', '<=', query + '\uf8ff').limit(20).stream()
+                        all_user_docs.extend(list(full_name_query))
+                except Exception as e:
+                    print(f"Error in full_name search: {e}")
+                
+                # 4. Если ищем по имени/фамилии, но поля full_name_lower нет, 
+                # попробуем поискать через полную выборку (для небольших наборов данных)
+                if not any('full_name_lower' in doc.to_dict() for doc in all_user_docs if doc):
+                    try:
+                        # Получим всех пользователей и отфильтруем на стороне сервера
+                        all_users = users_ref.limit(100).stream()  # Ограничим выборку для производительности
+                        for user_doc in all_users:
+                            user_data = user_doc.to_dict()
+                            full_name = user_data.get('full_name', '').lower()
+                            if query in full_name:
+                                all_user_docs.append(user_doc)
+                    except Exception as e:
+                        print(f"Error in fallback full_name search: {e}")
+                
+                # Удаляем дубликаты, используя ID документа
+                unique_docs = {}
+                for doc in all_user_docs:
+                    if doc and doc.id not in unique_docs:
+                        unique_docs[doc.id] = doc
+                
+                # Обрабатываем каждый уникальный документ
+                for doc_id, user_doc in unique_docs.items():
                     user_data = user_doc.to_dict()
                     
                     # Пропускаем заблокированных пользователей
@@ -1670,9 +1991,11 @@ def search_users():
                         elif subcategory == 'verified' and not user_data.get('verified', False):
                             continue
                     
+                    # Добавляем пользователя в результаты с правильными полями
                     results.append({
-                        'user_id': user_doc.id,
-                        'username': user_data.get('display_username', user_data.get('username', '')),
+                        'user_id': doc_id,
+                        'username': user_data.get('username', ''),  # Для @username
+                        'display_username': user_data.get('display_username', ''),  # Отображаемое имя (может быть на кириллице)
                         'full_name': user_data.get('full_name', ''),
                         'avatar': generate_avatar_url(user_data),
                         'verified': user_data.get('verified', False)
@@ -1701,7 +2024,8 @@ def search_users():
                     
                     results.append({
                         'user_id': user_doc.id,
-                        'username': user_data.get('display_username', user_data.get('username', '')),
+                        'username': user_data.get('username', ''),
+                        'display_username': user_data.get('display_username', ''),
                         'full_name': user_data.get('full_name', ''),
                         'avatar': generate_avatar_url(user_data),
                         'verified': user_data.get('verified', False)
@@ -1721,18 +2045,58 @@ def search_users():
                 
                 results.append({
                     'user_id': user_doc.id,
-                    'username': user_data.get('display_username', user_data.get('username', '')),
+                    'username': user_data.get('username', ''),
+                    'display_username': user_data.get('display_username', ''),
                     'full_name': user_data.get('full_name', ''),
                     'avatar': generate_avatar_url(user_data),
                     'verified': user_data.get('verified', False)
                 })
         
-        # Сортируем результаты по релевантности
-        results.sort(key=lambda x: (
-            0 if query and x['username'].lower().startswith(query) else 1,
-            0 if query and x.get('full_name', '').lower().startswith(query) else 1,
-            x['username'].lower()
-        ))
+        # Улучшенная сортировка результатов по релевантности
+        def sort_key(user):
+            username = user.get('username', '').lower()
+            display_username = user.get('display_username', '').lower()
+            full_name = user.get('full_name', '').lower()
+            
+            # Создаем числовой вес для сортировки (меньше = выше в результатах)
+            score = 100  # Начальное значение
+            
+            # Проверяем точные совпадения
+            if query and username == query:
+                score -= 50
+            elif query and display_username == query:
+                score -= 40
+            elif query and full_name == query:
+                score -= 30
+                
+            # Проверяем совпадения по началу строки
+            elif query and username.startswith(query):
+                score -= 25
+            elif query and display_username.startswith(query):
+                score -= 20
+            elif query and full_name.startswith(query):
+                score -= 15
+                
+            # Проверяем вхождения где-либо в строке
+            elif query and query in username:
+                score -= 10
+            elif query and query in display_username:
+                score -= 8
+            elif query and query in full_name:
+                score -= 5
+                
+            # Верифицированные пользователи показываются выше
+            if user.get('verified', False):
+                score -= 3
+                
+            return score
+        
+        # Применяем сортировку
+        if query:
+            results.sort(key=sort_key)
+        else:
+            # Если нет запроса, сортируем по имени
+            results.sort(key=lambda x: x.get('display_username', '').lower())
         
         return jsonify(results[:20])  # Ограничиваем до 20 результатов
     
@@ -1742,6 +2106,78 @@ def search_users():
         traceback.print_exc()
         return jsonify([]), 500
 
+@app.before_request
+def check_user_exists():
+    """Проверяет, существует ли пользователь перед каждым запросом"""
+    # Пропускаем для публичных маршрутов и статических файлов
+    public_routes = ['login', 'register', 'index', 'logout']
+    if (request.endpoint in public_routes or 
+        request.endpoint is None or 
+        request.path.startswith('/static')):
+        return
+    
+    # Если пользователь в сессии, проверяем, существует ли он
+    if 'user_id' in session:
+        user_id = session['user_id']
+        
+        try:
+            # Проверяем существование пользователя в Firebase Auth
+            try:
+                # Пробуем получить пользователя в Firebase Auth
+                auth.get_user(user_id)
+            except auth.UserNotFoundError:
+                # Если пользователь не найден в Firebase Auth, выходим из системы
+                print(f"User {user_id} not found in Firebase Auth, logging out")
+                session.clear()
+                flash('Your account has been deleted or disabled. Please log in again.')
+                return redirect(url_for('login'))
+            
+            # Также проверяем существование документа пользователя
+            if session.get('is_school'):
+                # Для школьных аккаунтов проверяем коллекцию schools
+                school_doc = db.collection('schools').document(user_id).get()
+                if not school_doc.exists:
+                    print(f"School {user_id} document not found, logging out")
+                    session.clear()
+                    flash('Your school account has been deleted. Please contact support.')
+                    return redirect(url_for('login'))
+            else:
+                # Для обычных пользователей проверяем коллекцию users
+                user_doc = db.collection('users').document(user_id).get()
+                if not user_doc.exists:
+                    print(f"User {user_id} document not found, logging out")
+                    session.clear()
+                    flash('Your account data has been deleted. Please log in again.')
+                    return redirect(url_for('login'))
+                
+                # Проверяем, не заблокирован ли пользователь
+                user_data = user_doc.to_dict()
+                if user_data.get('blocked', False):
+                    print(f"User {user_id} is blocked, logging out")
+                    session.clear()
+                    flash('Your account has been blocked. Please contact support.')
+                    return redirect(url_for('login'))
+            
+        except Exception as e:
+            # В случае любых ошибок при проверке, выходим из системы
+            print(f"Error checking user {user_id} existence: {e}")
+            session.clear()
+            flash('Session expired. Please log in again.')
+            return redirect(url_for('login'))
+@app.errorhandler(500)
+def internal_server_error(e):
+    # Если ошибка связана с отсутствием пользователя, очищаем сессию
+    error_msg = str(e)
+    if 'auth/user-not-found' in error_msg or 'No such user' in error_msg:
+        session.clear()
+        flash('Your session has expired. Please log in again.')
+        return redirect(url_for('login'))
+    
+    print(f"500 Error: {e}")
+    print(f"Request URL: {request.url}")
+    print(f"Request Method: {request.method}")
+    
+    return render_template('500.html'), 500        
 @app.route('/admin/migrate_fullnames', methods=['GET'])
 @login_required
 def migrate_fullnames():
@@ -5140,6 +5576,1199 @@ Example response format:
         import traceback
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
+
+
+
+
+
+
+
+
+
+# Kazakhstan cities list for dropdown
+KAZAKHSTAN_CITIES = [
+    "Almaty", "Astana", "Shymkent", "Aktobe", "Karaganda", "Taraz", 
+    "Pavlodar", "Ust-Kamenogorsk", "Semey", "Atyrau", "Kostanay", 
+    "Kyzylorda", "Uralsk", "Petropavlovsk", "Aktau", "Temirtau", 
+    "Kokshetau", "Taldykorgan", "Ekibastuz", "Rudny", "Zhanaozen"
+]
+
+# Define new database schemas for schools
+def create_school_collections():
+    """Create necessary Firestore collections for school management"""
+    try:
+        schools_ref = db.collection('schools')
+        return True
+    except Exception as e:
+        print(f"Error creating school collections: {e}")
+        return False
+
+# Routes for school management system
+@app.route('/admin/schools', methods=['GET'])
+@login_required
+def admin_schools():
+    # Ensure only admin can access
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('admin_login'))
+    
+    try:
+        # Fetch all schools
+        schools_ref = db.collection('schools')
+        schools = schools_ref.stream()
+        
+        school_list = []
+        for school_doc in schools:
+            school_data = school_doc.to_dict()
+            school_data['id'] = school_doc.id
+            
+            # Get student count for this school
+            students_count = len(list(db.collection('users').where('school_id', '==', school_doc.id).get()))
+            school_data['students_count'] = students_count
+            
+            school_list.append(school_data)
+        
+        return render_template('admin_schools.html', 
+            schools=school_list,
+            cities=KAZAKHSTAN_CITIES
+        )
+    except Exception as e:
+        print(f"Error in admin_schools: {e}")
+        flash('Error loading schools')
+        return redirect(url_for('admin_dashboard'))
+
+@app.route('/admin/generate_school_account', methods=['POST'])
+@login_required
+def generate_school_account():
+    # Ensure only admin can access
+    if not session.get('admin_logged_in'):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    try:
+        # Generate random username and password
+        username = 'school_' + ''.join(random.choices(string.ascii_lowercase + string.digits, k=8))
+        password = ''.join(random.choices(string.ascii_letters + string.digits + string.punctuation, k=12))
+        
+        # Create account in Firebase Auth
+        user = auth.create_user(
+            email=f"{username}@placeholder.edu",
+            password=password,
+            display_name=f"School Admin {username}"
+        )
+        
+        # Create school document in Firestore with password stored (encrypted)
+        # Note: In production, use a more secure method for sensitive data
+        school_data = {
+            'username': username,
+            'email': f"{username}@placeholder.edu",
+            'created_at': datetime.datetime.now(tz=datetime.timezone.utc),
+            'uid': user.uid,
+            'is_school': True,
+            'onboarding_completed': False,
+            'created_by_admin': session['user_id'],
+            'password': password  # Store the password for admin access
+        }
+        
+        db.collection('schools').document(user.uid).set(school_data)
+        
+        # Log action
+        log_admin_action('create_school_account', {
+            'school_username': username,
+            'school_uid': user.uid
+        })
+        
+        return jsonify({
+            'success': True,
+            'username': username,
+            'password': password,
+            'school_id': user.uid
+        })
+    
+    except Exception as e:
+        print(f"Error generating school account: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/school/onboarding', methods=['GET', 'POST'])
+@login_required
+def school_onboarding():
+    user_id = session['user_id']
+    
+    # Check if this is a school account
+    school_doc = db.collection('schools').document(user_id).get()
+    if not school_doc.exists:
+        flash('This account is not authorized for school management')
+        return redirect(url_for('index'))
+    
+    school_data = school_doc.to_dict()
+    
+    # If already completed onboarding, redirect to dashboard
+    if school_data.get('onboarding_completed', False):
+        return redirect(url_for('school_dashboard'))
+    
+    if request.method == 'POST':
+        try:
+            school_name = request.form.get('school_name')
+            city = request.form.get('city')
+            
+            if not school_name or not city:
+                flash('School name and city are required')
+                return redirect(url_for('school_onboarding'))
+            
+            # Handle logo upload
+            logo_url = None
+            if 'school_logo' in request.files:
+                logo_file = request.files['school_logo']
+                if logo_file and logo_file.filename:
+                    # Create a unique filename
+                    file_extension = logo_file.filename.rsplit('.', 1)[1].lower()
+                    filename = f"schools/logos/{user_id}/logo.{file_extension}"
+                    
+                    # Upload to Firebase Storage
+                    blob = bucket.blob(filename)
+                    blob.upload_from_string(
+                        logo_file.read(),
+                        content_type=logo_file.content_type
+                    )
+                    
+                    # Make public and get URL
+                    blob.make_public()
+                    logo_url = blob.public_url
+            
+            # Update school document
+            db.collection('schools').document(user_id).update({
+                'name': school_name,
+                'city': city,
+                'logo_url': logo_url,
+                'onboarding_completed': True,
+                'updated_at': datetime.datetime.now(tz=datetime.timezone.utc)
+            })
+            
+            flash('School registration completed successfully')
+            return redirect(url_for('school_dashboard'))
+            
+        except Exception as e:
+            print(f"Error in school onboarding: {e}")
+            flash(f'Error: {str(e)}')
+            return redirect(url_for('school_onboarding'))
+    
+    return render_template('school_onboarding.html', 
+                          cities=KAZAKHSTAN_CITIES, 
+                          school_data=school_data)
+                          
+@app.route('/school/dashboard')
+@login_required
+def school_dashboard():
+    user_id = session['user_id']
+    
+    # Check if this is a school account
+    school_doc = db.collection('schools').document(user_id).get()
+    if not school_doc.exists:
+        flash('This account is not authorized for school management')
+        return redirect(url_for('index'))
+    
+    school_data = school_doc.to_dict()
+    
+    # If onboarding not completed, redirect to onboarding
+    if not school_data.get('onboarding_completed', False):
+        return redirect(url_for('school_onboarding'))
+    
+    try:
+        # Get all students for this school
+        students_ref = db.collection('users').where('school_id', '==', user_id)
+        students = list(students_ref.stream())
+        
+        total_students = len(students)
+        
+        # Initialize statistics variables
+        class_distribution = {}
+        average_gpa = 0
+        total_gpa_count = 0
+        total_certificates = 0
+        profession_distribution = {}
+        language_distribution = {}
+        total_languages = 0
+        achievement_counts = {}
+        total_achievements = 0
+        
+        # For checking highest performing students
+        highest_gpa_student = {'gpa': 0, 'name': 'None', 'class': 'None'}
+        most_certs_student = {'count': 0, 'name': 'None', 'class': 'None'}
+        most_langs_student = {'count': 0, 'name': 'None', 'class': 'None'}
+        most_achievements_student = {'count': 0, 'name': 'None', 'class': 'None'}
+        
+        # Process student data
+        for student_doc in students:
+            student_data = student_doc.to_dict()
+            student_name = student_data.get('original_full_name', student_data.get('full_name', 'Unknown'))
+            
+            # Normalize and count by class
+            student_class = normalize_class_name(student_data.get('class', 'Unassigned'))
+            
+            # Update student class to normalized version if needed
+            if student_data.get('class') != student_class:
+                db.collection('users').document(student_doc.id).update({
+                    'class': student_class
+                })
+                
+            if student_class in class_distribution:
+                class_distribution[student_class] += 1
+            else:
+                class_distribution[student_class] = 1
+            
+            # Calculate GPA average
+            if student_data.get('academic_info', {}).get('gpa'):
+                try:
+                    gpa = float(student_data['academic_info']['gpa'])
+                    average_gpa += gpa
+                    total_gpa_count += 1
+                    
+                    # Check if highest GPA
+                    if gpa > highest_gpa_student['gpa']:
+                        highest_gpa_student = {
+                            'gpa': gpa,
+                            'name': student_name,
+                            'class': student_class
+                        }
+                except:
+                    pass
+            
+            # Count certificates
+            certs_query = db.collection('users').document(student_doc.id).collection('certificates').stream()
+            student_cert_count = len(list(certs_query))
+            total_certificates += student_cert_count
+            
+            # Check if most certificates
+            if student_cert_count > most_certs_student['count']:
+                most_certs_student = {
+                    'count': student_cert_count,
+                    'name': student_name,
+                    'class': student_class
+                }
+            
+            # Count profession choices
+            specialty = student_data.get('specialty', 'Not specified')
+            if specialty in profession_distribution:
+                profession_distribution[specialty] += 1
+            else:
+                profession_distribution[specialty] = 1
+            
+            # Process languages
+            student_languages = student_data.get('academic_info', {}).get('languages', [])
+            languages_count = len(student_languages)
+            total_languages += languages_count
+            
+            # Check if most languages
+            if languages_count > most_langs_student['count']:
+                most_langs_student = {
+                    'count': languages_count,
+                    'name': student_name,
+                    'class': student_class
+                }
+            
+            # Count languages distribution
+            for lang_data in student_languages:
+                lang_name = lang_data.get('name', 'Unknown')
+                if lang_name in language_distribution:
+                    language_distribution[lang_name] += 1
+                else:
+                    language_distribution[lang_name] = 1
+            
+            # Process achievements
+            student_achievements = student_data.get('academic_info', {}).get('achievements', [])
+            achievements_count = len(student_achievements)
+            total_achievements += achievements_count
+            
+            # Check if most achievements
+            if achievements_count > most_achievements_student['count']:
+                most_achievements_student = {
+                    'count': achievements_count,
+                    'name': student_name,
+                    'class': student_class
+                }
+            
+            # Count achievement types
+            for achievement in student_achievements:
+                achievement_title = achievement.get('title', 'Unknown')
+                # Simplify by taking just the first word (category)
+                achievement_category = achievement_title.split()[0] if achievement_title.split() else 'Unknown'
+                if achievement_category in achievement_counts:
+                    achievement_counts[achievement_category] += 1
+                else:
+                    achievement_counts[achievement_category] = 1
+        
+        # Calculate averages
+        if total_gpa_count > 0:
+            average_gpa = average_gpa / total_gpa_count
+        average_certificates = total_certificates / total_students if total_students > 0 else 0
+        average_languages = total_languages / total_students if total_students > 0 else 0
+        average_achievements = total_achievements / total_students if total_students > 0 else 0
+        
+        # Get class-specific statistics
+        class_stats = {}
+        for class_name, count in class_distribution.items():
+            class_students = db.collection('users').where('school_id', '==', user_id).where('class', '==', class_name).stream()
+            
+            class_gpa_total = 0
+            class_gpa_count = 0
+            class_cert_total = 0
+            class_languages_total = 0
+            class_achievements_total = 0
+            class_specialties = {}
+            
+            for student in class_students:
+                student_data = student.to_dict()
+                
+                # Calculate class GPA
+                if student_data.get('academic_info', {}).get('gpa'):
+                    try:
+                        gpa = float(student_data['academic_info']['gpa'])
+                        class_gpa_total += gpa
+                        class_gpa_count += 1
+                    except:
+                        pass
+                
+                # Count class certificates
+                certs = db.collection('users').document(student.id).collection('certificates').stream()
+                student_certs = len(list(certs))
+                class_cert_total += student_certs
+                
+                # Count languages
+                student_languages = student_data.get('academic_info', {}).get('languages', [])
+                class_languages_total += len(student_languages)
+                
+                # Count achievements
+                student_achievements = student_data.get('academic_info', {}).get('achievements', [])
+                class_achievements_total += len(student_achievements)
+                
+                # Track specialties
+                specialty = student_data.get('specialty', 'Not specified')
+                if specialty in class_specialties:
+                    class_specialties[specialty] += 1
+                else:
+                    class_specialties[specialty] = 1
+            
+            class_avg_gpa = class_gpa_total / class_gpa_count if class_gpa_count > 0 else 0
+            class_avg_certs = class_cert_total / count if count > 0 else 0
+            class_avg_languages = class_languages_total / count if count > 0 else 0
+            class_avg_achievements = class_achievements_total / count if count > 0 else 0
+            
+            # Get top specialty for this class
+            top_specialty = max(class_specialties.items(), key=lambda x: x[1]) if class_specialties else ('None', 0)
+            
+            class_stats[class_name] = {
+                'count': count,
+                'avg_gpa': class_avg_gpa,
+                'avg_certificates': class_avg_certs,
+                'avg_languages': class_avg_languages,
+                'avg_achievements': class_avg_achievements,
+                'top_specialty': top_specialty[0]
+            }
+
+        # Prepare chart data for class distribution
+        class_chart_data = []
+        for class_name, count in sorted(class_distribution.items()):
+            class_chart_data.append({
+                'class': class_name,
+                'count': count
+            })
+        
+        # Create chart data for profession distribution (top 5)
+        profession_chart_data = []
+        for profession, count in sorted(profession_distribution.items(), key=lambda x: x[1], reverse=True)[:5]:
+            profession_chart_data.append({
+                'profession': profession if profession != 'Not specified' else 'Undecided',
+                'count': count
+            })
+        
+        # Create language distribution chart data
+        language_chart_data = []
+        for language, count in sorted(language_distribution.items(), key=lambda x: x[1], reverse=True)[:5]:
+            language_chart_data.append({
+                'language': language,
+                'count': count
+            })
+        
+        # Create achievement distribution chart data
+        achievement_chart_data = []
+        for achievement, count in sorted(achievement_counts.items(), key=lambda x: x[1], reverse=True)[:5]:
+            achievement_chart_data.append({
+                'achievement': achievement,
+                'count': count
+            })
+        
+        # Calculate top performing class
+        if class_stats:
+            top_gpa_class = max(class_stats.items(), key=lambda x: x[1]['avg_gpa'])
+            top_certs_class = max(class_stats.items(), key=lambda x: x[1]['avg_certificates'])
+            top_langs_class = max(class_stats.items(), key=lambda x: x[1]['avg_languages'])
+            top_achievements_class = max(class_stats.items(), key=lambda x: x[1]['avg_achievements'])
+        else:
+            top_gpa_class = ('None', {'avg_gpa': 0})
+            top_certs_class = ('None', {'avg_certificates': 0})
+            top_langs_class = ('None', {'avg_languages': 0})
+            top_achievements_class = ('None', {'avg_achievements': 0})
+        
+        return render_template('school_dashboard.html',
+                             school_data=school_data,
+                             total_students=total_students,
+                             class_distribution=class_distribution,
+                             average_gpa=average_gpa,
+                             average_certificates=average_certificates,
+                             average_languages=average_languages,
+                             average_achievements=average_achievements,
+                             class_stats=class_stats,
+                             class_chart_data=class_chart_data,
+                             profession_chart_data=profession_chart_data,
+                             language_chart_data=language_chart_data,
+                             achievement_chart_data=achievement_chart_data,
+                             highest_gpa_student=highest_gpa_student,
+                             most_certs_student=most_certs_student,
+                             most_langs_student=most_langs_student,
+                             most_achievements_student=most_achievements_student,
+                             top_gpa_class=top_gpa_class,
+                             top_certs_class=top_certs_class,
+                             top_langs_class=top_langs_class,
+                             top_achievements_class=top_achievements_class)
+                             
+    except Exception as e:
+        print(f"Error in school dashboard: {e}")
+        import traceback
+        traceback.print_exc()
+        flash(f'Error loading dashboard: {str(e)}')
+        return redirect(url_for('index'))
+
+
+@app.route('/admin/delete_school/<school_id>', methods=['POST'])
+@login_required
+def delete_school(school_id):
+    # Ensure only admin can access
+    if not session.get('admin_logged_in'):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    try:
+        # Get school document
+        school_doc = db.collection('schools').document(school_id).get()
+        
+        if not school_doc.exists:
+            return jsonify({'success': False, 'error': 'School not found'}), 404
+            
+        school_data = school_doc.to_dict()
+        school_name = school_data.get('name', 'Unknown School')
+        
+        # Get all students associated with this school
+        students_ref = db.collection('users').where('school_id', '==', school_id)
+        students = list(students_ref.stream())
+        
+        student_count = len(students)
+        deleted_count = 0
+        
+        # Delete all student accounts
+        for student_doc in students:
+            student_id = student_doc.id
+            student_data = student_doc.to_dict()
+            
+            try:
+                # Delete student from Firebase Auth
+                auth.delete_user(student_id)
+                
+                # Delete student's certificates collection
+                certificates_ref = db.collection('users').document(student_id).collection('certificates')
+                delete_collection(certificates_ref, 100)
+                
+                # Delete student's comments collection
+                comments_ref = db.collection('users').document(student_id).collection('comments')
+                delete_collection(comments_ref, 100)
+                
+                # Delete student's notifications collection
+                notifications_ref = db.collection('users').document(student_id).collection('notifications')
+                delete_collection(notifications_ref, 100)
+                
+                # Delete student document
+                db.collection('users').document(student_id).delete()
+                
+                deleted_count += 1
+            except Exception as e:
+                print(f"Error deleting student {student_id}: {e}")
+                continue
+        
+        # Delete school's logo from Storage if it exists
+        if school_data.get('logo_url'):
+            try:
+                # Extract filename from URL
+                logo_path = f"schools/logos/{school_id}"
+                blobs = bucket.list_blobs(prefix=logo_path)
+                for blob in blobs:
+                    blob.delete()
+            except Exception as e:
+                print(f"Error deleting school logo: {e}")
+        
+        # Delete the school from Firebase Auth
+        try:
+            auth.delete_user(school_id)
+        except Exception as e:
+            print(f"Error deleting school from Firebase Auth: {e}")
+        
+        # Delete school document
+        db.collection('schools').document(school_id).delete()
+        
+        # Log the action
+        log_admin_action('delete_school', {
+            'school_id': school_id,
+            'school_name': school_name,
+            'students_deleted': deleted_count,
+            'total_students': student_count
+        })
+        
+        return jsonify({
+            'success': True,
+            'message': f"School '{school_name}' deleted successfully with {deleted_count} associated student accounts."
+        })
+        
+    except Exception as e:
+        print(f"Error deleting school: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# Helper function to delete a collection
+def delete_collection(collection_ref, batch_size):
+    docs = collection_ref.limit(batch_size).stream()
+    deleted = 0
+    
+    for doc in docs:
+        doc.reference.delete()
+        deleted += 1
+        
+    if deleted >= batch_size:
+        return delete_collection(collection_ref, batch_size)
+@app.route('/school/students')
+@login_required
+def school_students():
+    user_id = session['user_id']
+    
+    # Check if this is a school account
+    school_doc = db.collection('schools').document(user_id).get()
+    if not school_doc.exists:
+        flash('This account is not authorized for school management')
+        return redirect(url_for('index'))
+    
+    school_data = school_doc.to_dict()
+    
+    # If onboarding not completed, redirect to onboarding
+    if not school_data.get('onboarding_completed', False):
+        return redirect(url_for('school_onboarding'))
+    
+    try:
+        # Check if filtering by class
+        class_filter = request.args.get('class')
+        
+        # Get students for this school
+        students_ref = db.collection('users').where('school_id', '==', user_id)
+        
+        # Apply class filter if provided
+        if class_filter:
+            normalized_class = normalize_class_name(class_filter)
+            students_ref = students_ref.where('class', '==', normalized_class)
+            
+        students = students_ref.stream()
+        
+        student_list = []
+        for student_doc in students:
+            student_data = student_doc.to_dict()
+            student_data['id'] = student_doc.id
+            
+            # Always use original name for school dashboard
+            if 'original_full_name' in student_data:
+                student_data['school_display_name'] = student_data['original_full_name']
+            else:
+                student_data['school_display_name'] = student_data.get('full_name', '')
+            
+            # Get certificate count
+            certs_query = db.collection('users').document(student_doc.id).collection('certificates').stream()
+            student_data['certificate_count'] = len(list(certs_query))
+            
+            student_list.append(student_data)
+        
+        # Sort students by class and last name
+        student_list.sort(key=lambda x: (x.get('class', ''), x.get('school_display_name', '')))
+        
+        return render_template('school_students.html',
+                             school_data=school_data,
+                             students=student_list,
+                             class_filter=class_filter)
+                             
+    except Exception as e:
+        print(f"Error in school students: {e}")
+        flash(f'Error loading students: {str(e)}')
+        return redirect(url_for('school_dashboard'))  
+@app.route('/school/normalize-classes', methods=['POST'])
+@login_required
+def normalize_school_classes():
+    user_id = session['user_id']
+    
+    # Check if this is a school account
+    school_doc = db.collection('schools').document(user_id).get()
+    if not school_doc.exists:
+        flash('This account is not authorized for school management')
+        return redirect(url_for('index'))
+    
+    try:
+        # Get all students for this school
+        students_ref = db.collection('users').where('school_id', '==', user_id)
+        students = students_ref.stream()
+        
+        updated_count = 0
+        class_mapping = {}  # Keep track of class name changes
+        
+        for student_doc in students:
+            student_data = student_doc.to_dict()
+            original_class = student_data.get('class', 'Unassigned')
+            normalized_class = normalize_class_name(original_class)
+            
+            # Only update if there's a difference
+            if original_class != normalized_class:
+                db.collection('users').document(student_doc.id).update({
+                    'class': normalized_class
+                })
+                updated_count += 1
+                
+                # Track changes for reporting
+                if (original_class, normalized_class) in class_mapping:
+                    class_mapping[(original_class, normalized_class)] += 1
+                else:
+                    class_mapping[(original_class, normalized_class)] = 1
+        
+        # Prepare result message
+        if updated_count > 0:
+            message = f"Updated {updated_count} student records. Changes made:<br>"
+            for (old_class, new_class), count in class_mapping.items():
+                message += f"• {old_class} → {new_class}: {count} students<br>"
+            flash(message)
+        else:
+            flash("All class names are already normalized.")
+        
+        return redirect(url_for('school_dashboard'))
+    
+    except Exception as e:
+        print(f"Error normalizing class names: {e}")
+        flash(f'Error: {str(e)}')
+        return redirect(url_for('school_dashboard'))    
+@app.route('/school/import-students', methods=['GET', 'POST'])
+@login_required
+def import_students():
+    user_id = session['user_id']
+    
+    # Check if this is a school account
+    school_doc = db.collection('schools').document(user_id).get()
+    if not school_doc.exists:
+        flash('This account is not authorized for school management')
+        return redirect(url_for('index'))
+    
+    school_data = school_doc.to_dict()
+    
+    # If onboarding not completed, redirect to onboarding
+    if not school_data.get('onboarding_completed', False):
+        return redirect(url_for('school_onboarding'))
+    
+    if request.method == 'POST':
+        try:
+            # Check if file was uploaded
+            if 'students_file' not in request.files:
+                flash('No file uploaded')
+                return redirect(url_for('import_students'))
+            
+            file = request.files['students_file']
+            if not file or file.filename == '':
+                flash('No file selected')
+                return redirect(url_for('import_students'))
+            
+            # Verify it's an Excel file
+            if not file.filename.endswith(('.xlsx', '.xls')):
+                flash('File must be an Excel spreadsheet (.xlsx or .xls)')
+                return redirect(url_for('import_students'))
+            
+            # Read Excel file
+            df = pd.read_excel(file)
+            
+            # Verify required columns
+            required_columns = ['Full Name', 'Class']
+            for col in required_columns:
+                if col not in df.columns:
+                    flash(f'Missing required column: {col}')
+                    return redirect(url_for('import_students'))
+            
+            # Get optional columns if they exist
+            has_languages = 'Languages' in df.columns
+            has_achievements = 'Achievements' in df.columns
+            
+            # Process students
+            school_name = school_data.get('name', 'Unknown School')
+            created_students = []
+            class_groups = {}
+            
+            for _, row in df.iterrows():
+                full_name = row['Full Name'].strip()
+                # Normalize class name here
+                student_class = normalize_class_name(str(row['Class']).strip())
+                
+                if not full_name:
+                    continue
+                
+                # Process languages if available
+                languages = []
+                if has_languages and not pd.isna(row['Languages']):
+                    # Format: "English:B2,Russian:Native,Kazakh:C1"
+                    lang_str = str(row['Languages']).strip()
+                    if lang_str:
+                        for lang_entry in lang_str.split(','):
+                            if ':' in lang_entry:
+                                lang, level = lang_entry.split(':', 1)
+                                languages.append({
+                                    'name': lang.strip(),
+                                    'level': level.strip()
+                                })
+                
+                # Process achievements if available
+                achievements = []
+                if has_achievements and not pd.isna(row['Achievements']):
+                    # Format: "Math Olympiad 2022|First Place|2022-05-15,Science Fair|Honorable Mention|2021-11-10"
+                    achieve_str = str(row['Achievements']).strip()
+                    if achieve_str:
+                        for achieve_entry in achieve_str.split(','):
+                            parts = achieve_entry.split('|')
+                            if len(parts) >= 1:
+                                achievement = {
+                                    'title': parts[0].strip()
+                                }
+                                if len(parts) >= 2:
+                                    achievement['description'] = parts[1].strip()
+                                if len(parts) >= 3:
+                                    achievement['date'] = parts[2].strip()
+                                achievements.append(achievement)
+                
+                # Generate username from full name - handling Cyrillic properly
+                transliterated_name = transliterate_name(full_name)
+                username_base = transliterated_name
+                display_username = full_name  # Keep original name for display
+                
+                # Generate random suffix to ensure uniqueness
+                random_suffix = ''.join(random.choices(string.ascii_uppercase + string.digits, k=7))
+                username = f"{username_base}{random_suffix}"
+                
+                # Generate random password
+                password = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
+                
+                try:
+                    # Create user in Firebase Auth
+                    user = auth.create_user(
+                        email=f"{username}@student.{school_name.lower().replace(' ', '')}.edu",
+                        password=password,
+                        display_name=full_name
+                    )
+                    
+                    # Create user document with enhanced data
+                    user_data = {
+                        'username': username.lower(),
+                        'display_username': display_username,
+                        'email': f"{username}@student.{school_name.lower().replace(' ', '')}.edu",
+                        'full_name': full_name,
+                        'original_full_name': full_name,  # Store original name for school tracking
+                        'school_id': user_id,
+                        'school_name': school_name,
+                        'school_logo_url': school_data.get('logo_url'),
+                        'class': student_class,  # Normalized class name
+                        'created_at': datetime.datetime.now(tz=datetime.timezone.utc),
+                        'uid': user.uid,
+                        'education': school_name,
+                        'location': {
+                            'city': school_data.get('city', 'Unknown'),
+                            'country': 'Kazakhstan'
+                        },
+                        'academic_info': {
+                            'gpa': '',
+                            'sat_score': '',
+                            'toefl_score': '',
+                            'ielts_score': '',
+                            'languages': languages,
+                            'achievements': achievements
+                        },
+                        'student_password': password  # Store password for school admin access
+                    }
+                    
+                    db.collection('users').document(user.uid).set(user_data)
+                    
+                    # Add student to result
+                    student_info = {
+                        'full_name': full_name,
+                        'class': student_class,
+                        'username': username,
+                        'password': password,
+                        'id': user.uid
+                    }
+                    created_students.append(student_info)
+                    
+                    # Group by class
+                    if student_class not in class_groups:
+                        class_groups[student_class] = []
+                    class_groups[student_class].append(student_info)
+                    
+                except Exception as e:
+                    print(f"Error creating student {full_name}: {e}")
+                    continue
+            
+            # Generate master Excel file
+            master_excel = create_student_excel(created_students, school_name)
+            
+            # Generate class-specific Excel files
+            class_excel_files = {}
+            for class_name, students in class_groups.items():
+                class_excel_files[class_name] = create_student_excel(students, school_name, class_name)
+            
+            # Return the results page with download links
+            return render_template('import_results.html', 
+                                 school_data=school_data,
+                                 created_students=created_students,
+                                 class_groups=class_groups)
+            
+        except Exception as e:
+            print(f"Error importing students: {e}")
+            flash(f'Error: {str(e)}')
+            return redirect(url_for('import_students'))
+    
+    return render_template('import_students.html', school_data=school_data)
+
+@app.route('/school/download-excel/master', methods=['GET'])
+@login_required
+def download_excel_master():
+    user_id = session['user_id']
+    
+    # Check if this is a school account
+    school_doc = db.collection('schools').document(user_id).get()
+    if not school_doc.exists:
+        flash('This account is not authorized for school management')
+        return redirect(url_for('index'))
+    
+    school_data = school_doc.to_dict()
+    school_name = school_data.get('name', 'School')
+    
+    try:
+        # Fetch all students
+        students_ref = db.collection('users').where('school_id', '==', user_id)
+        students = students_ref.stream()
+        
+        student_list = []
+        for student_doc in students:
+            student_data = student_doc.to_dict()
+            student_list.append({
+                'full_name': student_data.get('original_full_name', student_data.get('full_name', '')),
+                'class': student_data.get('class', ''),
+                'username': student_data.get('username', ''),
+                'password': student_data.get('student_password', '********')  # Use stored password if available
+            })
+        
+        # Create Excel
+        excel_file = create_student_excel(student_list, school_name)
+        
+        # Return the Excel file
+        return send_file(
+            BytesIO(excel_file.getvalue()),
+            as_attachment=True,
+            download_name=f"{school_name}_students.xlsx",
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        
+    except Exception as e:
+        print(f"Error downloading Excel: {e}")
+        flash(f'Error: {str(e)}')
+        return redirect(url_for('school_students'))
+    
+
+@app.route('/school/download-excel/class/<class_name>', methods=['GET'])
+@login_required
+def download_excel_class(class_name):
+    user_id = session['user_id']
+    
+    # Check if this is a school account
+    school_doc = db.collection('schools').document(user_id).get()
+    if not school_doc.exists:
+        flash('This account is not authorized for school management')
+        return redirect(url_for('index'))
+    
+    school_data = school_doc.to_dict()
+    school_name = school_data.get('name', 'School')
+    
+    try:
+        # Normalize the class name parameter
+        normalized_class_name = normalize_class_name(class_name)
+        
+        # Fetch students for this class
+        students_ref = db.collection('users').where('school_id', '==', user_id).where('class', '==', normalized_class_name)
+        students = students_ref.stream()
+        
+        student_list = []
+        for student_doc in students:
+            student_data = student_doc.to_dict()
+            student_list.append({
+                'full_name': student_data.get('original_full_name', student_data.get('full_name', '')),
+                'class': student_data.get('class', ''),
+                'username': student_data.get('username', ''),
+                'password': student_data.get('student_password', '********')  # Use stored password if available
+            })
+        
+        # Create Excel
+        excel_file = create_student_excel(student_list, school_name, normalized_class_name)
+        
+        # Return the Excel file
+        return send_file(
+            BytesIO(excel_file.getvalue()),
+            as_attachment=True,
+            download_name=f"{school_name}_class_{normalized_class_name}_students.xlsx",
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        
+    except Exception as e:
+        print(f"Error downloading Excel: {e}")
+        flash(f'Error: {str(e)}')
+        return redirect(url_for('school_students'))   
+
+@app.route('/school/download-import-template', methods=['GET'])
+def download_import_template():
+    """Provide an enhanced template Excel file for student imports with languages and achievements"""
+    try:
+        # Create an Excel file in memory
+        output = io.BytesIO()
+        workbook = openpyxl.Workbook()
+        
+        # Get the active worksheet
+        worksheet = workbook.active
+        worksheet.title = "Students Import Template"
+        
+        # Add headers
+        headers = ["Full Name", "Class", "Languages", "Achievements"]
+        for col_num, header in enumerate(headers, 1):
+            cell = worksheet.cell(row=1, column=col_num)
+            cell.value = header
+            cell.font = Font(bold=True)
+            cell.fill = PatternFill(start_color="DDDDDD", end_color="DDDDDD", fill_type="solid")
+        
+        # Add sample data
+        sample_data = [
+            ["Иван Иванов", "10A", "English:B2,Russian:Native,Kazakh:C1", "Math Olympiad|First Place|2022-05-15"],
+            ["Анна Смирнова", "11B", "English:C1,Russian:Native", "Science Fair|Honorable Mention|2021-11-10"],
+            ["Айнур Ахметова", "9C", "Kazakh:Native,Russian:C1,English:B1", "Spelling Bee|Second Place|2023-03-25"]
+        ]
+        
+        for row_num, row_data in enumerate(sample_data, 2):
+            for col_num, cell_value in enumerate(row_data, 1):
+                cell = worksheet.cell(row=row_num, column=col_num)
+                cell.value = cell_value
+        
+        # Add instructions in a separate sheet
+        instructions_sheet = workbook.create_sheet(title="Instructions")
+        
+        instructions = [
+            ["Student Import Instructions"],
+            [""],
+            ["1. Fill out the 'Students Import Template' sheet with your students' information."],
+            ["2. Required Columns:"],
+            ["   - Full Name: Student's full name (can be in Cyrillic)"],
+            ["   - Class: Student's class (e.g., '10A', '11B')"],
+            ["3. Optional Columns:"],
+            ["   - Languages: Format as 'Language:Level,Language:Level' (e.g., 'English:B2,Russian:Native')"],
+            ["   - Achievements: Format as 'Title|Description|Date' (e.g., 'Math Olympiad|First Place|2022-05-15')"],
+            ["4. Usernames will be automatically generated using transliterated names + random string for uniqueness."],
+            ["5. Do not change the column headers."],
+            ["6. Save the file and upload it to the student import page."]
+        ]
+        
+        for row_num, row_data in enumerate(instructions, 1):
+            for col_num, cell_value in enumerate(row_data, 1):
+                cell = instructions_sheet.cell(row=row_num, column=col_num)
+                cell.value = cell_value
+                if row_num == 1:
+                    cell.font = Font(bold=True, size=14)
+        
+        # Adjust column widths
+        for worksheet in workbook.worksheets:
+            for col in worksheet.columns:
+                max_length = 0
+                for cell in col:
+                    if cell.value:
+                        max_length = max(max_length, len(str(cell.value)))
+                adjusted_width = (max_length + 2)
+                worksheet.column_dimensions[openpyxl.utils.get_column_letter(col[0].column)].width = adjusted_width
+        
+        # Save the workbook to the BytesIO object
+        workbook.save(output)
+        output.seek(0)
+        
+        return send_file(
+            output,
+            as_attachment=True,
+            download_name="student_import_template.xlsx",
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+    
+    except Exception as e:
+        print(f"Error creating template: {e}")
+        flash('Error creating template file')
+        return redirect(url_for('import_students'))
+def create_student_excel(students, school_name, class_name=None):
+    """Create an Excel file with student account information - now with real passwords"""
+    output = io.BytesIO()
+    
+    # Create a workbook and add a worksheet
+    workbook = openpyxl.Workbook()
+    worksheet = workbook.active
+    
+    # Set worksheet title
+    if class_name:
+        worksheet.title = f"Class {class_name} Students"
+    else:
+        worksheet.title = "All Students"
+    
+    # Add title
+    if class_name:
+        worksheet.merge_cells('A1:D1')
+        title_cell = worksheet.cell(row=1, column=1)
+        title_cell.value = f"{school_name} - Class {class_name} Student Accounts"
+    else:
+        worksheet.merge_cells('A1:D1')
+        title_cell = worksheet.cell(row=1, column=1)
+        title_cell.value = f"{school_name} - Student Accounts"
+    
+    title_cell.font = Font(bold=True, size=14)
+    title_cell.alignment = Alignment(horizontal='center')
+    
+    # Add headers
+    headers = ["Full Name", "Class", "Username", "Password"]
+    header_row = 3
+    for col_num, header in enumerate(headers, 1):
+        cell = worksheet.cell(row=header_row, column=col_num)
+        cell.value = header
+        cell.font = Font(bold=True)
+        cell.fill = PatternFill(start_color="DDDDDD", end_color="DDDDDD", fill_type="solid")
+    
+    # Add data - now including real passwords
+    for row_num, student in enumerate(students, header_row + 1):
+        worksheet.cell(row=row_num, column=1).value = student.get('full_name', '')
+        worksheet.cell(row=row_num, column=2).value = student.get('class', '')
+        worksheet.cell(row=row_num, column=3).value = student.get('username', '')
+        
+        # Include the real password instead of asterisks
+        password_value = student.get('password', '')
+        worksheet.cell(row=row_num, column=4).value = password_value
+    
+    # Add instructions
+    instruction_row = len(students) + header_row + 2
+    worksheet.merge_cells(f'A{instruction_row}:D{instruction_row}')
+    instruction_cell = worksheet.cell(row=instruction_row, column=1)
+    instruction_cell.value = "Instructions: Share the username and password with each student. Students should log in at the website and change their password."
+    instruction_cell.font = Font(italic=True)
+    
+    # Adjust column widths
+    for col in worksheet.columns:
+        max_length = 0
+        for cell in col:
+            if cell.value:
+                max_length = max(max_length, len(str(cell.value)))
+        adjusted_width = (max_length + 2)
+        worksheet.column_dimensions[openpyxl.utils.get_column_letter(col[0].column)].width = adjusted_width
+    
+    # Save the workbook to the BytesIO object
+    workbook.save(output)
+    output.seek(0)
+    
+    return output
+
+
+
+# Helper function to check if user is a school admin
+def is_school_admin():
+    """Check if current user is a school admin"""
+    if 'user_id' not in session:
+        return False
+    
+    try:
+        school_doc = db.collection('schools').document(session['user_id']).get()
+        return school_doc.exists
+    except:
+        return False
+
+# Inject school admin status into all templates
+@app.context_processor
+def inject_school_admin_status():
+    return {
+        'is_school_admin': is_school_admin()
+    }
+@app.route('/admin/view_school_password/<school_id>', methods=['GET'])
+@login_required
+def view_school_password(school_id):
+    # Ensure only admin can access
+    if not session.get('admin_logged_in'):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    try:
+        # Get school document
+        school_doc = db.collection('schools').document(school_id).get()
+        
+        if not school_doc.exists:
+            return jsonify({'success': False, 'error': 'School not found'}), 404
+            
+        school_data = school_doc.to_dict()
+        
+        # Return password if available
+        if 'password' in school_data:
+            return jsonify({
+                'success': True,
+                'username': school_data.get('username', ''),
+                'email': school_data.get('email', ''),
+                'password': school_data.get('password', '')
+            })
+        else:
+            return jsonify({'success': False, 'error': 'Password not available'}), 404
+            
+    except Exception as e:
+        print(f"Error viewing school password: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+def transliterate_name(name):
+    try:
+        # Check if the name contains Cyrillic characters
+        if any(ord(char) > 127 for char in name):
+            # Transliterate to Latin alphabet
+            latin_name = transliterate.translit(name, 'ru', reversed=True)
+            # Remove spaces and special characters
+            latin_name = ''.join(c for c in latin_name if c.isalnum())
+            return latin_name.lower()
+        else:
+            # Name is already in Latin alphabet
+            return ''.join(c for c in name if c.isalnum()).lower()
+    except Exception as e:
+        print(f"Transliteration error: {e}")
+        # Return simplified version of name if transliteration fails
+        return ''.join(c for c in name if c.isalnum() and ord(c) < 128).lower()
+
+# Add this helper function to normalize class names
+def normalize_class_name(class_name):
+    """Normalize class name to ensure consistent formatting"""
+    if not class_name:
+        return ""
+    
+    # Convert string representation if needed
+    class_name = str(class_name).strip()
+    
+    # Split into numeric and letter parts (e.g., "10B" -> "10" and "B")
+    import re
+    match = re.match(r'(\d+)([a-zA-Zа-яА-Я]+)', class_name)
+    
+    if match:
+        number, letter = match.groups()
+        # Keep the number as is and capitalize the letter part
+        return f"{number}{letter.upper()}"
+    else:
+        # If it doesn't match the pattern, just uppercase it
+        return class_name.upper()
 
 
 @app.before_request

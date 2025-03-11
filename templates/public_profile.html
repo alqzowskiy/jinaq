@@ -214,20 +214,63 @@
                     <!-- Left Sidebar -->
                     <div class="space-y-6">
                         <!-- About Section -->
-                        {% if user_data.bio or user_data.goals %}
+                        {% if user_data.bio or user_data.goals or user_data.education %}
                         <div class="bg-white rounded-xl shadow-sm p-6">
-
-
                             {% if user_data.bio %}
                             <div class="space-y-4">
-                                <h2 class="text-lg font-semibold text-gray-900">Bio</h2>
+                                <h2 class="text-lg font-semibold text-gray-900 flex items-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-gray-700"
+                                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                        stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                                        <circle cx="12" cy="7" r="4"></circle>
+                                    </svg>
+                                    Bio
+                                </h2>
                                 <p class="text-gray-600 text-sm leading-relaxed">{{ user_data.bio }}</p>
                             </div>
                             {% endif %}
+                            {% if user_data.school_id %}
+                            <!-- School Information for Public Profile -->
+                            <div class="space-y-4">
+                                <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-gray-700"
+                                        fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path d="M12 14l9-5-9-5-9 5 9 5z" />
+                                        <path
+                                            d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222" />
+                                    </svg>
+                                    School Information
+                                </h3>
 
+                                <div class="flex items-center mb-4">
+                                    {% if user_data.school_logo_url %}
+                                    <div class="w-12 h-12 rounded-lg overflow-hidden mr-3">
+                                        <img src="{{ user_data.school_logo_url }}" alt="{{ user_data.school_name }}"
+                                            class="w-full h-full object-cover">
+                                    </div>
+                                    {% endif %}
+                                    <div>
+                                        <div class="font-medium">{{ user_data.school_name }}</div>
+                                        <div class="text-sm text-gray-500">Class: {{ user_data.class }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
                             {% if user_data.goals %}
                             <div class="mt-6">
-                                <h3 class="text-lg font-semibold text-gray-900">Goals</h3>
+                                <h3 class="text-lg font-semibold text-gray-900 flex items-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-gray-700"
+                                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                        stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M12 2L19 9L12 16L5 9L12 2Z"></path>
+                                        <path d="M19 15L19 22L5 22L5 15"></path>
+                                        <path d="M2 15L22 15"></path>
+                                    </svg>
+                                    Goals
+                                </h3>
                                 <div class="bg-gray-50 rounded-lg p-4">
                                     <p class="text-sm text-gray-600">{{ user_data.goals }}</p>
                                 </div>
@@ -237,7 +280,16 @@
                         {% endif %}
                         {% if user_data.skills %}
                         <div class="bg-white rounded-xl shadow-sm p-4">
-                            <h3 class="text-lg font-semibold text-gray-900 mb-3">Skills</h3>
+                            <h3 class="text-lg font-semibold text-gray-900 mb-3 flex items-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-gray-700"
+                                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                    stroke-linecap="round" stroke-linejoin="round">
+                                    <path
+                                        d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z">
+                                    </path>
+                                </svg>
+                                Skills
+                            </h3>
                             <div class="flex flex-wrap gap-2">
                                 {% for skill in user_data.skills %}
                                 <span class="px-3 py-1 text-sm font-medium bg-purple-50 text-purple-700 rounded-full">
@@ -247,21 +299,19 @@
                             </div>
                         </div>
                         {% endif %}
-                        <!-- Education Section -->
-                        {% if user_data.education %}
 
-                        <div class="bg-white rounded-xl shadow-sm p-6">
-                            <h3 class="text-lg font-semibold text-gray-900 mb-4">Education</h3>
-                            <div class="prose prose-sm text-gray-600">
-                                {{ user_data.education }}
-                            </div>
-                        </div>
-
-                        {% endif %}
                         <!-- Links Section -->
                         {% if user_data.links %}
                         <div class="bg-white rounded-xl shadow-sm p-6">
-                            <h2 class="text-lg font-semibold text-gray-900 mb-6">Links & Contacts</h2>
+                            <h2 class="text-lg font-semibold text-gray-900 mb-6 flex items-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-gray-700"
+                                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                    stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                                    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                                </svg>
+                                Links & Contacts
+                            </h2>
                             <div class="space-y-3">
                                 {% for link in user_data.links %}
                                 <a href="{{ link.url }}" target="_blank"
@@ -304,16 +354,36 @@
                     </div>
 
                     <!-- Main Content Area -->
+                    <!-- Main Content Area -->
                     <div class="lg:col-span-2 space-y-6">
                         <!-- Academic Profile -->
                         {% if user_data.academic_info %}
                         <div class="bg-white rounded-xl shadow-sm p-6">
-                            <h2 class="text-lg font-semibold text-gray-900 mb-6">Academic Profile</h2>
+                            <h2 class="text-lg font-semibold text-gray-900 mb-6 flex items-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-gray-700"
+                                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                    stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+                                    <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+                                </svg>
+                                Academic Profile
+                            </h2>
 
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <!-- Academic Metrics -->
                                 <div class="space-y-4">
-                                    <h3 class="text-sm font-medium text-gray-700">Academic Metrics</h3>
+                                    <h3 class="text-sm font-medium text-gray-700 flex items-center">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1 text-gray-500"
+                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M12 22V8"></path>
+                                            <path
+                                                d="M20 2H4a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2z">
+                                            </path>
+                                            <path d="M18 14H6a2 2 0 1 0 0 4h12a2 2 0 1 0 0-4z"></path>
+                                        </svg>
+                                        Academic Metrics
+                                    </h3>
                                     <div class="grid grid-cols-2 gap-4">
                                         {% for metric, value in [
                                         ('GPA', user_data.academic_info.gpa),
@@ -332,7 +402,19 @@
 
                                 <!-- Languages -->
                                 <div class="space-y-4">
-                                    <h3 class="text-sm font-medium text-gray-700">Languages</h3>
+                                    <h3 class="text-sm font-medium text-gray-700 flex items-center">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1 text-gray-500"
+                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M5 8l6 6"></path>
+                                            <path d="M4 14l6-6 2-3"></path>
+                                            <path d="M2 5h12"></path>
+                                            <path d="M7 2h1"></path>
+                                            <path d="M22 22l-5-10-5 10"></path>
+                                            <path d="M14 18h6"></path>
+                                        </svg>
+                                        Languages
+                                    </h3>
                                     <div class="space-y-2">
                                         {% for lang in user_data.academic_info.languages %}
                                         <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
@@ -350,7 +432,15 @@
                             <!-- Achievements -->
                             {% if user_data.academic_info.achievements %}
                             <div class="mt-8">
-                                <h3 class="text-sm font-medium text-gray-700 mb-4">Achievements</h3>
+                                <h3 class="text-sm font-medium text-gray-700 mb-4 flex items-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1 text-gray-500"
+                                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                        stroke-linecap="round" stroke-linejoin="round">
+                                        <circle cx="12" cy="8" r="6"></circle>
+                                        <path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"></path>
+                                    </svg>
+                                    Achievements
+                                </h3>
                                 <div class="space-y-4">
                                     {% for achievement in user_data.academic_info.achievements %}
                                     <div class="relative bg-gray-50 p-4 rounded-lg group">
@@ -368,7 +458,17 @@
                         <!-- Certificates Section -->
                         {% if certificates %}
                         <div class="bg-white rounded-xl shadow-sm p-6">
-                            <h2 class="text-lg font-semibold text-gray-900 mb-6">Certificates</h2>
+                            <h2 class="text-lg font-semibold text-gray-900 mb-6 flex items-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-gray-700"
+                                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                    stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M17 3H7a4 4 0 0 0-4 4v10a4 4 0 0 0 4 4h10a4 4 0 0 0 4-4V7a4 4 0 0 0-4-4Z">
+                                    </path>
+                                    <circle cx="9" cy="9" r="2"></circle>
+                                    <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"></path>
+                                </svg>
+                                Certificates
+                            </h2>
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 {% for cert_doc in certificates %}
                                 {% set cert = cert_doc.to_dict() %}
@@ -411,8 +511,6 @@
                             </div>
                         </div>
                         {% endif %}
-                        <!-- Add this to public_profile.html after the certificates section -->
-                        <!-- Inside the main content area <div class="lg:col-span-2 space-y-6"> -->
 
                         <!-- Projects Section for Public Profile -->
                         <div class="bg-white rounded-xl shadow-sm p-6">
@@ -536,7 +634,17 @@
                         <!-- Comments Section -->
                         <div class="bg-white rounded-xl shadow-sm p-6">
                             <div class="flex items-center justify-between mb-6">
-                                <h2 class="text-lg font-semibold text-gray-900">Comments</h2>
+                                <h2 class="text-lg font-semibold text-gray-900 flex items-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-gray-700"
+                                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                        stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                                        <path d="M8 10h.01"></path>
+                                        <path d="M12 10h.01"></path>
+                                        <path d="M16 10h.01"></path>
+                                    </svg>
+                                    Comments
+                                </h2>
                                 <span id="commentCount" class="text-sm text-gray-500">(0)</span>
                             </div>
 
@@ -545,13 +653,13 @@
                                 <form id="commentForm">
                                     <div class="relative">
                                         <textarea id="commentText" class="w-full min-h-[120px] p-4 border border-gray-200 rounded-xl bg-gray-50 
-                                         focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-y"
+                     focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-y"
                                             placeholder="Share your thoughts..." maxlength="500"></textarea>
 
                                         <div class="absolute bottom-4 right-4 flex items-center gap-4">
                                             <span id="charCount" class="text-sm text-gray-500">0 / 500</span>
                                             <button type="submit" class="inline-flex items-center px-4 py-2 rounded-lg bg-purple-600 text-white hover:bg-purple-700 
-                                           transition-colors">
+                       transition-colors">
                                                 <svg class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24"
                                                     stroke="currentColor">
                                                     <path stroke-linecap="round" stroke-linejoin="round"

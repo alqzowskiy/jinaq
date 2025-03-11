@@ -8,3 +8,7 @@ requests
 geopy
 google-search-results
 google.generativeai
+pandas
+openpyxl
+matplotlib
+transliterate
