@@ -1,0 +1,206 @@
+<!-- career_test_question.html -->
+{% extends "base.html" %}
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="max-w-3xl mx-auto bg-white rounded-lg shadow-lg overflow-hidden">
+        <div class="p-8">
+            <div class="mb-8">
+                <div class="w-full bg-gray-200 rounded-full h-2 mb-2">
+                    <div class="bg-black h-2 rounded-full"
+                        style="width: {{ (question_number / total_questions) * 100 }}%"></div>
+                </div>
+                <div class="flex justify-between text-sm text-gray-600">
+                    <span>Basic test</span>
+                    <span>Test №1</span>
+                    <span>Your Results</span>
+                </div>
+            </div>
+
+            <h2 class="text-2xl font-bold mb-6">{{ question_number }}. {{ question.question_text }}</h2>
+
+            <form action="{{ url_for('submit_answer') }}" method="post">
+                <div class="space-y-3 mb-8">
+                    {% if question.type == 'multiple_choice' %}
+                    {% for option in question.options %}
+                    <label class="block bg-gray-50 p-4 rounded-lg hover:bg-gray-100 cursor-pointer">
+                        <div class="flex items-center">
+                            <input type="radio" name="answer" value="{{ option }}" class="mr-3" required>
+                            <span>{{ option }}</span>
+                        </div>
+                    </label>
+                    {% endfor %}
+                    {% elif question.type == 'rating_scale' %}
+                    <div class="flex space-x-4 justify-between">
+                        {% for i in range(1, 6) %}
+                        <label
+                            class="block bg-gray-50 p-3 rounded-lg hover:bg-gray-100 cursor-pointer text-center flex-1">
+                            <input type="radio" name="answer" value="{{ i }}" class="hidden" required>
+                            <div class="text-xl font-bold">{{ i }}</div>
+                            <div class="text-sm text-gray-500">
+                                {% if i == 1 %}Strongly Disagree
+                                {% elif i == 2 %}Disagree
+                                {% elif i == 3 %}Neutral
+                                {% elif i == 4 %}Agree
+                                {% else %}Strongly Agree
+                                {% endif %}
+                            </div>
+                        </label>
+                        {% endfor %}
+                    </div>
+                    {% elif question.type == 'ranking' %}
+                    <div class="space-y-2">
+                        {% for option in question.options %}
+                        <div class="flex items-center bg-gray-50 p-3 rounded-lg">
+                            <select name="answer[{{ loop.index }}]" class="ml-2 p-2 border rounded">
+                                {% for i in range(1, question.options|length + 1) %}
+                                <option value="{{ i }}">{{ i }}</option>
+                                {% endfor %}
+                            </select>
+                            <span class="ml-3">{{ option }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="flex justify-between">
+                    {% if can_go_back %}
+                    <button type="submit" name="go_back" value="true"
+                        class="bg-gray-200 text-gray-800 py-2 px-6 rounded-lg hover:bg-gray-300 transition duration-300">
+                        Back
+                    </button>
+                    {% else %}
+                    <div></div>
+                    {% endif %}
+
+                    <button type="submit"
+                        class="bg-black text-white py-2 px-6 rounded-lg hover:bg-gray-800 transition duration-300">
+                        Next
+                    </button>
+                </div>
+                <div id="test-mode-controls" class="mt-8 pt-6 border-t text-sm text-gray-500" style="display: none;">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <span class="font-medium">Test Mode:</span>
+                            <span
+                                class="ml-2 bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-xs">Enabled</span>
+                        </div>
+                        <div class="space-x-2">
+                            <a href="{{ url_for('skip_to_results') }}"
+                                class="bg-gray-200 text-gray-800 px-3 py-1 rounded hover:bg-gray-300 transition">
+                                Skip to Results
+                            </a>
+                            <button id="auto-answer-btn"
+                                class="bg-gray-200 text-gray-800 px-3 py-1 rounded hover:bg-gray-300 transition">
+                                Auto-answer 5 Questions
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div id="loading-overlay" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center">
+    <div class="bg-white rounded-lg p-8 max-w-md w-full text-center">
+        <div class="animate-pulse mb-4">
+            <div class="w-16 h-16 border-4 border-gray-200 border-t-black rounded-full mx-auto animate-spin"></div>
+        </div>
+        <h3 class="text-xl font-bold mb-2 loading-text">Analyzing your answer...</h3>
+        <p class="text-gray-600 loading-subtext">Our AI is processing your response to generate the most relevant next
+            question.</p>
+    </div>
+</div>
+<script>
+    // Add this to the existing DOMContentLoaded event in career_test_question.html
+    document.addEventListener('DOMContentLoaded', function () {
+        // Check if test mode is enabled via URL parameter
+        const urlParams = new URLSearchParams(window.location.search);
+        const testMode = urlParams.get('test_mode') === 'true';
+
+        if (testMode) {
+            // Show test mode controls
+            document.getElementById('test-mode-controls').style.display = 'block';
+
+            // Add test mode parameter to form submission
+            const form = document.querySelector('form');
+            form.addEventListener('submit', function (e) {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'test_mode';
+                input.value = 'true';
+                this.appendChild(input);
+            });
+
+            // Auto-answer functionality
+            document.getElementById('auto-answer-btn').addEventListener('click', function () {
+                const autoAnswer = async () => {
+                    for (let i = 0; i < 5; i++) {
+                        // Select a random answer
+                        const options = document.querySelectorAll('input[name="answer"]');
+                        if (options.length) {
+                            const randomOption = options[Math.floor(Math.random() * options.length)];
+                            randomOption.checked = true;
+
+                            // Submit the form
+                            const submitBtn = document.querySelector('button[type="submit"]:not([name="go_back"])');
+                            submitBtn.click();
+
+                            // Wait for page to load
+                            await new Promise(resolve => setTimeout(resolve, 1500));
+                        }
+                    }
+                };
+
+                autoAnswer();
+            });
+        }
+
+        // Add keyboard shortcut (Shift+T) to toggle test mode
+        document.addEventListener('keydown', function (e) {
+            if (e.shiftKey && e.key === 'T') {
+                const currentUrl = new URL(window.location.href);
+
+                if (testMode) {
+                    currentUrl.searchParams.delete('test_mode');
+                } else {
+                    currentUrl.searchParams.set('test_mode', 'true');
+                }
+
+                window.location.href = currentUrl.toString();
+            }
+        });
+    });
+</script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const form = document.querySelector('form');
+        const loadingOverlay = document.getElementById('loading-overlay');
+        const loadingTexts = [
+            "Analyzing your answer...",
+            "Generating your next question...",
+            "Processing your preferences...",
+            "Adapting to your profile...",
+            "Refining your career path..."
+        ];
+        const loadingSubtexts = [
+            "Our AI is processing your response to generate the most relevant next question.",
+            "We're tailoring follow-up questions based on your unique preferences.",
+            "Your answers help us understand your ideal work environment.",
+            "Identifying patterns in your career preferences.",
+            "Building a comprehensive profile of your strengths and interests."
+        ];
+
+        form.addEventListener('submit', function (e) {
+            if (!e.submitter || !e.submitter.name || e.submitter.name !== 'go_back') {
+                // Show loading overlay only when going forward, not back
+                const randomIndex = Math.floor(Math.random() * loadingTexts.length);
+                document.querySelector('.loading-text').textContent = loadingTexts[randomIndex];
+                document.querySelector('.loading-subtext').textContent = loadingSubtexts[randomIndex];
+                loadingOverlay.classList.remove('hidden');
+            }
+        });
+    });
+</script>
+{% endblock %}

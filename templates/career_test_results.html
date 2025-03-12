@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="max-w-4xl mx-auto">
+        <div class="bg-white rounded-lg shadow-lg overflow-hidden mb-8">
+            <div class="p-8">
+                <h1 class="text-3xl font-bold mb-6">Rate the following professions</h1>
+                <p class="mb-8 text-gray-600">
+                    Based on your answers, we've selected professions that might be a good match.
+                    Please rate each profession from 1-5 stars to help us narrow down your best options.
+                </p>
+
+                <div class="space-y-6">
+                    {% for profession in recommendations %}
+                    <div class="bg-gray-50 rounded-lg p-6 profession-card"
+                        data-profession-id="{{ profession.profession_id }}">
+                        <div class="flex flex-col md:flex-row">
+                            <div class="md:w-1/2 mb-4 md:mb-0">
+                                <h3 class="text-xl font-bold mb-2">{{ profession.profession_name }}</h3>
+                                <div class="text-sm text-gray-500 mb-2">Compatibility: {{ profession.compatibility_score
+                                    }}%</div>
+                                <p class="text-gray-600">{{ profession.explanation }}</p>
+                            </div>
+                            <div class="md:w-1/2 md:pl-6 flex flex-col justify-between">
+                                <div class="mb-4">
+                                    <div class="font-medium text-gray-700 mb-1">Rate your interest:</div>
+                                    <div class="star-rating" data-profession-id="{{ profession.profession_id }}">
+                                        <span class="star" data-value="1">★</span>
+                                        <span class="star" data-value="2">★</span>
+                                        <span class="star" data-value="3">★</span>
+                                        <span class="star" data-value="4">★</span>
+                                        <span class="star" data-value="5">★</span>
+                                    </div>
+                                </div>
+                                <div class="mt-auto text-right">
+                                    <a href="{{ url_for('profession_details', profession_id=profession.profession_id) }}"
+                                        class="text-black font-medium hover:underline">
+                                        View Details →
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <div class="mt-8 text-center">
+                    <p class="mb-4 text-gray-600">Once you've rated at least 5 professions, we can provide you with more
+                        personalized recommendations.</p>
+                    <a href="{{ url_for('final_recommendations') }}"
+                        class="bg-black text-white py-3 px-8 rounded-lg hover:bg-gray-800 transition duration-300 inline-block">
+                        Get Final Recommendations
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Handle star ratings
+        const starRatings = document.querySelectorAll('.star-rating');
+
+        starRatings.forEach(ratingContainer => {
+            const stars = ratingContainer.querySelectorAll('.star');
+            const professionId = ratingContainer.dataset.professionId;
+
+            stars.forEach(star => {
+                // Hover effect
+                star.addEventListener('mouseover', function () {
+                    const value = this.dataset.value;
+                    highlightStars(stars, value);
+                });
+
+                // Reset on mouseout
+                ratingContainer.addEventListener('mouseout', function () {
+                    resetStars(stars, ratingContainer.dataset.rating || 0);
+                });
+
+                // Click to rate
+                star.addEventListener('click', function () {
+                    const value = this.dataset.value;
+                    ratingContainer.dataset.rating = value;
+                    highlightStars(stars, value);
+                    saveRating(professionId, value);
+                });
+            });
+        });
+
+        function highlightStars(stars, value) {
+            stars.forEach(star => {
+                star.classList.toggle('active', star.dataset.value <= value);
+            });
+        }
+
+        function resetStars(stars, rating) {
+            stars.forEach(star => {
+                star.classList.toggle('active', star.dataset.value <= rating);
+            });
+        }
+
+        function saveRating(professionId, rating) {
+            // Send rating to server via AJAX
+            fetch('{{ url_for("rate_profession") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: `profession_id=${professionId}&rating=${rating}`
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Flash success indicator
+                        const card = document.querySelector(`.profession-card[data-profession-id="${professionId}"]`);
+                        card.classList.add('rated');
+                        setTimeout(() => card.classList.remove('rated'), 1000);
+                    }
+                })
+                .catch(error => console.error('Error saving rating:', error));
+        }
+    });
+</script>
+
+<style>
+    .star-rating {
+        font-size: 24px;
+        direction: rtl;
+        unicode-bidi: bidi-override;
+        display: inline-block;
+    }
+
+    .star {
+        color: #ddd;
+        display: inline-block;
+        cursor: pointer;
+        padding: 0 2px;
+        transition: color 0.2s;
+    }
+
+    .star:hover,
+    .star.active {
+        color: #ffb400;
+    }
+
+    .star-rating:hover .star:hover~.star {
+        color: #ddd;
+    }
+
+    .profession-card {
+        transition: all 0.3s ease;
+    }
+
+    .profession-card.rated {
+        background-color: #f0fff4;
+    }
+</style>
+{% endblock %}

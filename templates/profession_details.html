@@ -1,0 +1,241 @@
+<!-- profession_details.html -->
+{% extends "base.html" %}
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="max-w-4xl mx-auto">
+        <div class="bg-white rounded-lg shadow-lg overflow-hidden mb-8">
+            <div class="bg-gray-100 p-6">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h1 class="text-3xl font-bold">{{ profession.name }}</h1>
+                        {% if current_rating > 0 %}
+                        <div class="mt-2">
+                            <span class="text-sm text-gray-600">Your rating:</span>
+                            <span class="ml-1">
+                                {% for i in range(1, 6) %}
+                                {% if i <= current_rating %} <span class="text-yellow-500">★</span>
+                            {% else %}
+                            <span class="text-gray-300">★</span>
+                            {% endif %}
+                            {% endfor %}
+                            </span>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="flex">
+                        <a href="{{ url_for('career_test_results') }}"
+                            class="bg-gray-200 text-gray-800 py-2 px-4 rounded-lg hover:bg-gray-300 transition duration-300">
+                            Back to Results
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-8">
+                <!-- Tabs -->
+                <div class="border-b mb-6">
+                    <ul class="flex">
+                        <li class="mr-2">
+                            <button class="tab-btn active py-2 px-4 border-b-2 border-black" data-tab="compatibility">
+                                Compatibility
+                            </button>
+                        </li>
+                        <li class="mr-2">
+                            <button class="tab-btn py-2 px-4 border-b-2 border-transparent" data-tab="overview">
+                                Overview
+                            </button>
+                        </li>
+                        <li>
+                            <button class="tab-btn py-2 px-4 border-b-2 border-transparent" data-tab="salary">
+                                Salary
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Tab content -->
+                <div>
+                    <!-- Compatibility tab -->
+                    <div id="compatibility-tab" class="tab-content">
+                        <h2 class="text-2xl font-bold mb-4">Compatibility Report</h2>
+
+                        <div class="mb-6">
+                            <p class="mb-4">The following are qualities that you measure high in that make you a good
+                                match. These qualities are important for {{ profession.name }}s:</p>
+
+                            <ul class="list-disc pl-6 space-y-1">
+                                {% for strength in details.compatibility.strengths %}
+                                <li>{{ strength }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+
+                        <div class="mb-6">
+                            <p class="mb-4">The following are qualities that you do not measure high in, but this also
+                                makes you a good match. These qualities are not as important for {{ profession.name }}s:
+                            </p>
+
+                            {% for trait in details.compatibility.personality_traits[:3] %}
+                            <div class="mb-6">
+                                <h3 class="font-medium mb-2">{{ trait }}</h3>
+                                <div class="relative w-full h-2 bg-gray-200 rounded-full">
+                                    {% set rating = range(30, 90) | random %}
+                                    <div class="absolute top-0 left-0 h-2 bg-black rounded-full"
+                                        style="width: {{ rating }}%"></div>
+                                </div>
+                                <div class="flex justify-between text-xs text-gray-500 mt-1">
+                                    <span>No desire</span>
+                                    <span>High desire</span>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- Overview tab -->
+                    <div id="overview-tab" class="tab-content hidden">
+                        <h2 class="text-2xl font-bold mb-4">{{ profession.name }} overview</h2>
+
+                        <div class="mb-6">
+                            <h3 class="text-lg font-semibold mb-2">What is a {{ profession.name }}?</h3>
+                            <p class="mb-4">{{ details.overview }}</p>
+                        </div>
+
+                        <div class="border border-gray-200 bg-gray-50 rounded-lg p-6 my-8">
+                            <!-- Placeholder for image -->
+                            <div class="border border-gray-300 bg-white h-64 flex items-center justify-center mb-4">
+                                <span class="text-gray-400">Image placeholder</span>
+                            </div>
+
+                            <p>{{ details.overview }}</p>
+                        </div>
+                    </div>
+
+                    <!-- Salary tab -->
+                    <div id="salary-tab" class="tab-content hidden">
+                        <h2 class="text-2xl font-bold mb-4">{{ profession.name }}'s salary</h2>
+
+                        <div class="mb-6">
+                            <h3 class="font-semibold mb-2">Worldwide</h3>
+
+                            <h4 class="text-lg font-medium mt-4 mb-2">Salary and Countries</h4>
+                            <div class="border border-gray-200 bg-gray-50 rounded-lg p-6 mb-6">
+                                <!-- Placeholder for chart -->
+                                <div class="border border-gray-300 bg-white h-64 flex items-center justify-center">
+                                    <span class="text-gray-400">Salary chart placeholder</span>
+                                </div>
+                            </div>
+
+                            <h4 class="text-lg font-medium mt-4 mb-2">Kazakhstan</h4>
+                            <div class="border border-gray-200 bg-gray-50 rounded-lg p-6">
+                                <!-- Placeholder for chart -->
+                                <div class="border border-gray-300 bg-white h-64 flex items-center justify-center">
+                                    <span class="text-gray-400">Kazakhstan salary chart placeholder</span>
+                                </div>
+                            </div>
+
+                            <div class="mt-6">
+                                <h4 class="font-medium mb-2">Average Salary:</h4>
+                                <p>{{ details.salary.worldwide_average }}</p>
+
+                                <h4 class="font-medium mt-4 mb-2">Salary by Experience Level:</h4>
+                                <ul class="list-disc pl-6 space-y-1">
+                                    <li><strong>Entry-level:</strong> {{ details.salary.entry_level }}</li>
+                                    <li><strong>Mid-level:</strong> {{ details.salary.mid_level }}</li>
+                                    <li><strong>Senior-level:</strong> {{ details.salary.senior_level }}</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Additional sections -->
+                <div class="mt-10 space-y-8">
+                    <div class="border-t pt-6">
+                        <h2 class="text-2xl font-bold mb-4">Education & Training</h2>
+                        <p class="mb-4">{{ details.education.required_education }}</p>
+
+                        <h3 class="font-medium mt-4 mb-2">Recommended Degrees:</h3>
+                        <ul class="list-disc pl-6 space-y-1">
+                            {% for degree in details.education.recommended_degrees %}
+                            <li>{{ degree }}</li>
+                            {% endfor %}
+                        </ul>
+
+                        <h3 class="font-medium mt-4 mb-2">Certifications:</h3>
+                        <ul class="list-disc pl-6 space-y-1">
+                            {% for cert in details.education.certifications %}
+                            <li>{{ cert }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+
+                    <div class="border-t pt-6">
+                        <h2 class="text-2xl font-bold mb-4">Skills Required</h2>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <h3 class="font-medium mb-2">Technical Skills:</h3>
+                                <ul class="list-disc pl-6 space-y-1">
+                                    {% for skill in details.skills.technical_skills %}
+                                    <li>{{ skill }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                            <div>
+                                <h3 class="font-medium mb-2">Soft Skills:</h3>
+                                <ul class="list-disc pl-6 space-y-1">
+                                    {% for skill in details.skills.soft_skills %}
+                                    <li>{{ skill }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="border-t pt-6">
+                        <h2 class="text-2xl font-bold mb-4">Career Growth & Advancement</h2>
+                        <p class="mb-4">{{ details.growth.career_path }}</p>
+
+                        <h3 class="font-medium mt-4 mb-2">Advancement Opportunities:</h3>
+                        <p>{{ details.growth.advancement_opportunities }}</p>
+
+                        <h3 class="font-medium mt-4 mb-2">Related Fields:</h3>
+                        <ul class="list-disc pl-6 space-y-1">
+                            {% for field in details.growth.related_fields %}
+                            <li>{{ field }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Tab functionality
+        const tabButtons = document.querySelectorAll('.tab-btn');
+        const tabContents = document.querySelectorAll('.tab-content');
+
+        tabButtons.forEach(button => {
+            button.addEventListener('click', function () {
+                const tabName = this.dataset.tab;
+
+                // Update active button
+                tabButtons.forEach(btn => btn.classList.remove('active', 'border-black'));
+                this.classList.add('active', 'border-black');
+
+                // Show active content
+                tabContents.forEach(content => {
+                    content.classList.add('hidden');
+                    if (content.id === `${tabName}-tab`) {
+                        content.classList.remove('hidden');
+                    }
+                });
+            });
+        });
+    });
+</script>
+{% endblock %}

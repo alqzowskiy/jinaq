@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="max-w-4xl mx-auto">
+        <div class="bg-white rounded-lg shadow-lg overflow-hidden mb-8">
+            <div class="p-8">
+                <h1 class="text-3xl font-bold mb-6">Your Career Recommendations</h1>
+                <p class="mb-8 text-gray-600">
+                    Based on your test results and ratings, we've identified these career paths as your best matches.
+                    Each recommendation includes a compatibility score and suggested education path.
+                </p>
+
+                <div class="space-y-8">
+                    {% for recommendation in recommendations %}
+                    <div class="border border-gray-200 rounded-lg p-6 hover:border-gray-400 transition duration-300">
+                        <div class="flex flex-col md:flex-row">
+                            <div class="md:w-1/2 mb-4 md:mb-0">
+                                <div class="flex items-center mb-3">
+                                    <h3 class="text-2xl font-bold">{{ recommendation.profession_name }}</h3>
+                                    <div class="ml-3 bg-black text-white text-sm px-2 py-1 rounded-full">
+                                        {{ recommendation.compatibility_score }}% Match
+                                    </div>
+                                </div>
+
+                                <p class="text-gray-700 mb-4">{{ recommendation.explanation }}</p>
+
+                                <h4 class="font-medium text-gray-800 mt-4 mb-2">Recommended Study Path:</h4>
+                                <p class="text-gray-700">{{ recommendation.study_path }}</p>
+
+                                <h4 class="font-medium text-gray-800 mt-4 mb-2">Suggested Degrees:</h4>
+                                <ul class="list-disc pl-6 space-y-1 text-gray-700">
+                                    {% for degree in recommendation.recommended_degrees %}
+                                    <li>{{ degree }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+
+                            <div class="md:w-1/2 md:pl-6 flex flex-col justify-between">
+                                <div class="bg-gray-50 p-4 rounded-lg mb-4">
+                                    <h4 class="font-medium text-gray-800 mb-2">Why this is a good match:</h4>
+                                    <p class="text-gray-600">{{ recommendation.explanation }}</p>
+                                </div>
+
+                                <div class="mt-auto text-right">
+                                    <a href="{{ url_for('profession_details', profession_id=recommendation.profession_id) }}"
+                                        class="bg-black text-white py-2 px-4 rounded-lg hover:bg-gray-800 transition duration-300 inline-block">
+                                        View Complete Details
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <div class="mt-10 pt-6 border-t text-center">
+                    <h2 class="text-xl font-bold mb-4">What's Next?</h2>
+                    <p class="mb-6 text-gray-600">
+                        To continue your career exploration, consider taking these steps:
+                    </p>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <h3 class="font-medium text-gray-800 mb-2">Research Programs</h3>
+                            <p class="text-gray-600 text-sm">Look into education programs related to your recommended
+                                careers</p>
+                        </div>
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <h3 class="font-medium text-gray-800 mb-2">Connect with Professionals</h3>
+                            <p class="text-gray-600 text-sm">Reach out to people working in these fields for advice</p>
+                        </div>
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <h3 class="font-medium text-gray-800 mb-2">Update Your Profile</h3>
+                            <p class="text-gray-600 text-sm">Add your career interests to your profile to connect with
+                                peers</p>
+                        </div>
+                    </div>
+
+                    <a href="{{ url_for('profile') }}"
+                        class="bg-black text-white py-3 px-8 rounded-lg hover:bg-gray-800 transition duration-300 inline-block">
+                        Return to Profile
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
