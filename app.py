@@ -57,7 +57,7 @@ ADMIN_IDS = os.getenv("ADMIN_IDS")
 
 load_dotenv()
 
-
+password_reset_tokens = {}
 try:
     firebase_creds_str = os.getenv('FIREBASE_PRIVATE_KEY')
     firebase_credentials = json.loads(firebase_creds_str)
@@ -1866,42 +1866,75 @@ def delete_account():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@app.route('/reset-password', methods=['POST'])
-def reset_password():
+import requests
+import os
+from dotenv import load_dotenv
+
+# Make sure load_dotenv() is called at the beginning of your app.py
+load_dotenv()
+
+
+import uuid
+import time
+
+# Import necessary Firebase modules
+from firebase_admin import auth
+
+# Modify the custom reset handler to work with Firebase's reset link
+@app.route('/custom-reset-handler')
+def custom_reset_handler():
     try:
-        email = request.json.get('email')
-        if not email:
-            return jsonify({
-                'success': False,
-                'error': 'Email is required'
-            }), 400
-
-
-        action_code_settings = auth.ActionCodeSettings(
-            url=f"{request.host_url}login",
-            handle_code_in_app=False
-        )
+        # Get the oobCode parameter from the URL (Firebase's password reset code)
+        oob_code = request.args.get('oobCode')
+        mode = request.args.get('mode')
         
-
-        reset_link = auth.generate_password_reset_link(
-            email,
-            action_code_settings
-        )
+        print(f"Reset handler called with mode: {mode}, code: {oob_code}")
         
-
-        print(f"Generated reset link for {email}")
+        if not oob_code or mode != 'resetPassword':
+            flash('Invalid or missing reset code')
+            return redirect(url_for('login'))
         
-        return jsonify({
-            'success': True,
-            'message': 'If an account exists with this email, password reset instructions have been sent.'
-        })
-        
+        # Verify the code is valid (will throw exception if not)
+        try:
+            email = auth.verify_password_reset_code(oob_code)
+            print(f"Valid reset code for email: {email}")
+            
+            # Redirect to our custom reset page with the code
+            return render_template('custom_reset_password.html', 
+                                   oob_code=oob_code, 
+                                   email=email)
+            
+        except Exception as verify_error:
+            print(f"Error verifying reset code: {verify_error}")
+            flash('Invalid or expired reset link')
+            return redirect(url_for('login'))
+            
     except Exception as e:
-        print(f"Error in reset_password: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': 'An error occurred. Please try again later.'
-        }), 500
+        print(f"Error in custom reset handler: {e}")
+        flash('Error processing reset link')
+        return redirect(url_for('login'))
+
+@app.route('/custom-reset-password')
+def custom_reset_password_page():
+    # Get token from URL
+    token = request.args.get('token')
+    
+    # Check if token exists and hasn't expired
+    if not token or token not in password_reset_tokens:
+        flash('Invalid or expired password reset link')
+        return redirect(url_for('login'))
+    
+    # Check token expiration
+    token_data = password_reset_tokens[token]
+    if token_data['expires_at'] < time.time():
+        # Remove expired token
+        del password_reset_tokens[token]
+        flash('Password reset link has expired')
+        return redirect(url_for('login'))
+    
+    # Pass token to template
+    return render_template('custom_reset_password.html', token=token)
+
 
 @app.route('/search_users')
 def search_users():
@@ -5239,6 +5272,10 @@ def notifications_page():
                 notification = notification_doc.to_dict()
                 notification['id'] = notification_doc.id
                 
+                # Ensure consistent notification structure
+                if 'content' not in notification:
+                    notification['content'] = {}
+                
                 # Process notification type info
                 notification_type = notification.get('type', 'system')
                 notification_type_info = ENHANCED_NOTIFICATION_TYPES.get(notification_type, {})
@@ -5264,19 +5301,7 @@ def notifications_page():
                             'username': sender_info.get('username', 'User')
                         })
                 
-                # Process specific notification types
-                if notification_type == 'project_collaboration':
-                    # Try to get project details if not included
-                    if 'project_title' not in notification.get('content', {}) and notification.get('content', {}).get('project_id'):
-                        try:
-                            project_doc = db.collection('projects').document(notification['content']['project_id']).get()
-                            if project_doc.exists:
-                                project_data = project_doc.to_dict()
-                                notification['content']['project_title'] = project_data.get('title', 'Unknown Project')
-                        except Exception as e:
-                            print(f"Error fetching project details: {e}")
-                
-                # Add to items
+                # Add items to the list
                 items.append(notification)
             
             # Mark notifications as read in batches
@@ -5322,6 +5347,7 @@ def notifications_page():
         traceback.print_exc()
         flash('Error loading notifications')
         return redirect(url_for('index'))
+
 def get_unread_notifications_count(user_id):
     try:
         if not user_id:
