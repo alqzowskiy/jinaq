@@ -201,7 +201,7 @@
                             <div class="mt-1">
                                 <p class="text-gray-800 text-sm">
                                     <span class="font-medium">Project Update:</span>
-                                    {% if item.content.message %}
+                                    {% if item.content and item.content.get('message') %}
                                     {{ item.content.message }}
                                     {% else %}
                                     Project "{{ item.content.project_title }}" has been updated
@@ -248,7 +248,7 @@
                             <div class="mt-1">
                                 <p class="text-gray-800 text-sm">
                                     <span class="font-medium">Account Update:</span>
-                                    {% if item.content.message %}
+                                    {% if item.content and item.content.get('message') %}
                                     {{ item.content.message }}
                                     {% elif item.content.action == 'email_updated' %}
                                     Your email has been updated to {{ item.content.new_email }}
@@ -278,7 +278,7 @@
                             <div class="mt-1">
                                 <p class="text-gray-800 text-sm">
                                     <span class="font-medium">System Notification:</span>
-                                    {% if item.content.message %}
+                                    {% if item.content and item.content.get('message') %}
                                     {{ item.content.message }}
                                     {% else %}
                                     test
@@ -383,7 +383,7 @@
                             <!-- Default display for other notification types -->
                             <div class="mt-1">
                                 <p class="text-gray-800 text-sm">
-                                    {% if item.content.message %}
+                                    {% if item.content and item.content.get('message') %}
                                     {{ item.content.message }}
                                     {% else %}
                                     {{ item.type_label }}
