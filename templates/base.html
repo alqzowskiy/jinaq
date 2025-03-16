@@ -61,7 +61,15 @@
             }
         }
 
+        /* Add to your existing style section */
+        @supports (-webkit-touch-callout: none) {
 
+            /* Safari-specific CSS */
+            .safari-notification-link {
+                cursor: pointer !important;
+                -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+            }
+        }
 
         .animate-pulse {
             animation: pulse 0.3s ease-in-out;
@@ -2698,6 +2706,38 @@
                 childList: true,
                 subtree: true
             });
+        });
+    </script>
+    <script>
+        // Fix for Safari notifications issue
+        document.addEventListener('DOMContentLoaded', function () {
+            // Get all notification links (both desktop and mobile)
+            const notificationLinks = document.querySelectorAll('a[href*="notifications_page"]');
+
+            // Add explicit click handlers to each link
+            notificationLinks.forEach(link => {
+                link.addEventListener('click', function (e) {
+                    // Prevent any possible event interference
+                    e.preventDefault();
+                    // Explicitly navigate to the notifications page
+                    window.location.href = this.getAttribute('href');
+                });
+            });
+
+            // Check if we're on iOS/Safari for additional fixes
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+            const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+
+            if (isIOS || isSafari) {
+                // Make notification icons more tappable on Safari
+                notificationLinks.forEach(link => {
+                    // Increase the tap target size
+                    link.style.padding = '8px';
+
+                    // Add a special class for Safari
+                    link.classList.add('safari-notification-link');
+                });
+            }
         });
     </script>
 </body>
