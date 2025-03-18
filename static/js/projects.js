@@ -217,7 +217,16 @@ function editProject(projectId) {
             document.getElementById('projectDescription').value = project.description || '';
             document.getElementById('projectGithub').value = project.github_url || '';
             document.getElementById('projectUrl').value = project.project_url || '';
-
+            if (project.collaborators && project.collaborators.length > 0) {
+                projectCollaborators = project.collaborators.map(collab => ({
+                    username: collab.username,
+                    full_name: collab.full_name,
+                    avatar: collab.avatar,
+                    user_id: collab.user_id,
+                    status: collab.status || 'accepted'  // Default to 'accepted' for backward compatibility
+                }));
+                updateCollaboratorsUI();
+            }
             // Загружаем миниатюру, если она существует
             if (project.thumbnail) {
                 document.getElementById('thumbnailPreview').src = project.thumbnail;
@@ -422,23 +431,7 @@ function searchUsers() {
         });
 }
 
-// Добавление сотрудника в проект
-function addCollaborator(user) {
-    // Проверяем, не является ли пользователь уже сотрудником
-    if (!projectCollaborators.some(c => c.username === user.username)) {
-        projectCollaborators.push({
-            username: user.username,
-            full_name: user.full_name,
-            avatar: user.avatar,
-            user_id: user.user_id
-        });
 
-        updateCollaboratorsUI();
-        showNotification(`Added @${user.username} as a Collaborator`, 'success');
-    } else {
-        showNotification(`@${user.username} is already a member`, 'success');
-    }
-}
 
 // Обновление интерфейса сотрудников
 function updateCollaboratorsUI() {
@@ -447,24 +440,42 @@ function updateCollaboratorsUI() {
 
     if (projectCollaborators.length === 0) {
         container.innerHTML = `
-            <div class="text-sm text-gray-500 py-3">Сотрудники еще не добавлены</div>
+            <div class="text-sm text-gray-500 py-3">No collaborators added yet</div>
         `;
         return;
     }
 
-    // Создаем список сотрудников с анимацией
+    // Create list of collaborators with status indicators
     projectCollaborators.forEach((collaborator, index) => {
         const element = document.createElement('div');
         element.className = 'flex items-center justify-between bg-gray-50 p-3 rounded-lg mb-2 transform transition-all duration-300';
         element.style.opacity = '0';
         element.style.transform = 'translateY(10px)';
 
+        // Create status indicator based on collaborator status
+        const statusIndicator = collaborator.status === 'pending' ?
+            `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
+                <svg class="mr-1 h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Pending
+            </span>` :
+            `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                <svg class="mr-1 h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                </svg>
+                Joined
+            </span>`;
+
         element.innerHTML = `
             <div class="flex items-center">
                 <img src="${collaborator.avatar}" alt="${collaborator.username}" class="h-8 w-8 rounded-full mr-3">
                 <div>
                     <div class="text-sm font-medium">${collaborator.full_name || collaborator.username}</div>
-                    <div class="text-xs text-gray-500">@${collaborator.username}</div>
+                    <div class="flex items-center space-x-2">
+                        <div class="text-xs text-gray-500">@${collaborator.username}</div>
+                        ${statusIndicator}
+                    </div>
                 </div>
             </div>
             <button type="button" class="text-gray-500 hover:text-red-500 transition-colors p-2 rounded-full hover:bg-gray-100"
@@ -477,30 +488,33 @@ function updateCollaboratorsUI() {
 
         container.appendChild(element);
 
-        // Анимация появления
+        // Animation
         setTimeout(() => {
             element.style.opacity = '1';
             element.style.transform = 'translateY(0)';
         }, index * 100);
     });
 
-    // Добавляем небольшой значок, показывающий количество сотрудников
+    // Count badge with pending vs. accepted stats
+    const pendingCount = projectCollaborators.filter(c => c.status === 'pending').length;
+    const acceptedCount = projectCollaborators.length - pendingCount;
+
     const countBadge = document.createElement('div');
     countBadge.className = 'text-xs text-gray-500 text-right mt-2';
-    countBadge.textContent = `${projectCollaborators.length} сотрудник${projectCollaborators.length !== 1 ? 'ов' : ''}`;
+
+    if (pendingCount > 0) {
+        countBadge.innerHTML = `
+            ${projectCollaborators.length} collaborator${projectCollaborators.length !== 1 ? 's' : ''} 
+            <span class="text-yellow-600">(${pendingCount} pending)</span>
+        `;
+    } else {
+        countBadge.textContent = `${projectCollaborators.length} collaborator${projectCollaborators.length !== 1 ? 's' : ''}`;
+    }
+
     container.appendChild(countBadge);
 }
 
-// Удаление сотрудника с подтверждением
-function removeCollaborator(index) {
-    const collaborator = projectCollaborators[index];
 
-    if (confirm(`Remove ${collaborator.full_name || collaborator.username} from Collaborators?`)) {
-        projectCollaborators.splice(index, 1);
-        updateCollaboratorsUI();
-        showNotification(`Removed @${collaborator.username} from Collaborators`, 'success');
-    }
-}
 
 // ===== Настройка формы проекта =====
 
@@ -640,7 +654,29 @@ function setupDeleteConfirmation() {
             }
         });
     }
-
+    function renderCollaborator(collaborator) {
+        return `
+        <div class="collaborator-item flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-full overflow-hidden">
+                    <img src="${collaborator.avatar || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(collaborator.username[0]) + '&background=random&color=fff&size=128'}" 
+                         alt="${collaborator.username}" 
+                         class="collaborator-avatar w-full h-full object-cover">
+                </div>
+                <div>
+                    <h4 class="font-medium">${collaborator.username}</h4>
+                    <p class="text-sm text-gray-500">${collaborator.full_name || ''}</p>
+                </div>
+            </div>
+            <button type="button" onclick="removeCollaborator('${collaborator.user_id}')" 
+                    class="text-red-500 hover:bg-red-50 p-2 rounded-full transition-colors">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+        `;
+    }
     // Обработчик клика вне результатов поиска
     document.addEventListener('click', function (e) {
         const searchResults = document.getElementById('userSearchResults');
@@ -651,3 +687,46 @@ function setupDeleteConfirmation() {
         }
     });
 }
+// Update collaborator display UI
+
+
+// Add collaborator with pending status
+function addCollaborator(user) {
+    // Check if user is not already a collaborator
+    if (!projectCollaborators.some(c => c.username === user.username)) {
+        projectCollaborators.push({
+            username: user.username,
+            full_name: user.full_name,
+            avatar: user.avatar,
+            user_id: user.user_id,
+            status: 'pending'  // Default status for new collaborators
+        });
+
+        updateCollaboratorsUI();
+        showNotification(`Added @${user.username} as a pending collaborator`, 'success');
+    } else {
+        showNotification(`@${user.username} is already added`, 'info');
+    }
+}
+
+// Confirmation dialog with different message based on status
+function removeCollaborator(index) {
+    const collaborator = projectCollaborators[index];
+    const isPending = collaborator.status === 'pending';
+
+    const message = isPending ?
+        `Cancel invitation to ${collaborator.full_name || collaborator.username}?` :
+        `Remove ${collaborator.full_name || collaborator.username} from collaborators?`;
+
+    if (confirm(message)) {
+        projectCollaborators.splice(index, 1);
+        updateCollaboratorsUI();
+
+        const notification = isPending ?
+            `Cancelled invitation to @${collaborator.username}` :
+            `Removed @${collaborator.username} from collaborators`;
+
+        showNotification(notification, 'success');
+    }
+}
+

@@ -2,6 +2,11 @@
 <html lang="en" data-theme="light">
 
 <head>
+    <style>
+        [x-cloak] {
+            display: none !important;
+        }
+    </style>
     <!-- Favicons -->
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.ico/favicon-96x96.png') }}"
         sizes="96x96" />
@@ -48,6 +53,65 @@
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
 
     <style>
+        /* Targeted fix for stretched avatar images */
+        .rounded-full img[src*="avatar"],
+        .rounded-full img[src*="ui-avatars.com"],
+        div[class*="avatar"] img,
+        img.avatar,
+        .user-profile .rounded-full img {
+            object-fit: cover !important;
+        }
+
+        /* Super specific avatar fix that won't affect badges */
+        img.rounded-full,
+        .rounded-full>img,
+        .w-10.h-10.rounded-full img,
+        .w-12.h-12.rounded-full img,
+        .w-8.h-8.rounded-full img,
+        .w-16.h-16.rounded-full img,
+        .btn-circle.avatar img,
+        img[alt="Profile"],
+        img[alt*="avatar"],
+        img[alt*="Avatar"] {
+            object-fit: cover !important;
+        }
+
+        /* Fix specifically for avatar containers to maintain square aspect ratio */
+        .w-10.h-10.rounded-full,
+        .w-12.h-12.rounded-full,
+        .w-8.h-8.rounded-full,
+        .w-16.h-16.rounded-full,
+        .btn-circle.avatar,
+        .avatar {
+            overflow: hidden !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+        }
+
+        /* Make collaborator badges exempt from avatar styling */
+        .collaborator-badge,
+        .role-badge,
+        .badge,
+        [class*="badge"] img,
+        img.collaborator-icon,
+        img.badge-icon {
+            object-fit: contain !important;
+            width: auto !important;
+            height: auto !important;
+            aspect-ratio: auto !important;
+        }
+
+        /* Fix circle container avatars */
+        div.w-10.h-10.rounded-full img,
+        div.w-12.h-12.rounded-full img,
+        div.w-8.h-8.rounded-full img,
+        div.w-16.h-16.rounded-full img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover !important;
+        }
+
         /* Enhanced University Recommendation System Styles */
         @keyframes pulse {
 
@@ -2739,6 +2803,144 @@
                 });
             }
         });
+    </script>
+    <!-- Add this near the end of your base.html file, just before the closing body tag -->
+    <!-- Career Test Suggestion Modal -->
+    <div id="careerTestModal" class="fixed inset-0 z-50 flex items-center justify-center hidden">
+        <!-- Backdrop -->
+        <div class="absolute inset-0 bg-black bg-opacity-50 backdrop-blur-sm transition-opacity" id="modalBackdrop">
+        </div>
+
+        <!-- Modal Content -->
+        <div
+            class="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 md:mx-auto z-10 overflow-hidden transform transition-all">
+            <!-- Header with close button -->
+            <div class="flex items-center justify-between bg-black text-white p-4">
+                <h3 class="text-xl font-bold">Раскройте свой карьерный потенциал</h3>
+                <button id="closeModal" class="text-white hover:text-gray-300 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="p-6">
+                <div class="flex items-center justify-center mb-6">
+                    <div class="w-16 h-16 bg-black rounded-full flex items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-white" fill="none"
+                            viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                        </svg>
+                    </div>
+                </div>
+
+                <p class="text-gray-700 mb-6 text-center">
+                    Пройдите наш профессиональный карьерный тест и получите персонализированные рекомендации по
+                    идеальным профессиям, основанные на ваших навыках, интересах и личностных качествах.
+                </p>
+
+                <div class="flex flex-col md:flex-row gap-4 justify-center">
+                    <a href="/career-test"
+                        class="bg-black text-white px-6 py-3 rounded-lg text-center font-medium hover:bg-gray-800 transition-colors">
+                        Пройти тест
+                    </a>
+                    <button id="dismissTest"
+                        class="px-6 py-3 border border-gray-300 rounded-lg text-center font-medium hover:bg-gray-100 transition-colors">
+                        Не сейчас
+                    </button>
+                </div>
+
+                <!-- Mandatory notice for school students -->
+                <div id="mandatoryNotice" class="mt-4 text-center text-sm text-red-600 hidden">
+                    <p>* Прохождение теста обязательно для учеников школ</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Control Script -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const modal = document.getElementById('careerTestModal');
+            const backdrop = document.getElementById('modalBackdrop');
+            const closeBtn = document.getElementById('closeModal');
+            const dismissBtn = document.getElementById('dismissTest');
+            const mandatoryNotice = document.getElementById('mandatoryNotice');
+
+            // Functions to control the modal
+            function showModal(mandatory = false) {
+                modal.classList.remove('hidden');
+                document.body.classList.add('overflow-hidden'); // Prevent scrolling
+
+                // Handle mandatory flag
+                if (mandatory) {
+                    mandatoryNotice.classList.remove('hidden');
+                    dismissBtn.classList.add('hidden');
+                } else {
+                    mandatoryNotice.classList.add('hidden');
+                    dismissBtn.classList.remove('hidden');
+                }
+
+                // Animate entrance
+                setTimeout(() => {
+                    modal.querySelector('.bg-white').classList.add('scale-100');
+                    modal.querySelector('.bg-white').classList.remove('scale-95');
+                    backdrop.classList.add('opacity-100');
+                    backdrop.classList.remove('opacity-0');
+                }, 10);
+            }
+
+            function hideModal() {
+                // Animate exit
+                modal.querySelector('.bg-white').classList.add('scale-95');
+                modal.querySelector('.bg-white').classList.remove('scale-100');
+                backdrop.classList.add('opacity-0');
+                backdrop.classList.remove('opacity-100');
+
+                // Hide after animation
+                setTimeout(() => {
+                    modal.classList.add('hidden');
+                    document.body.classList.remove('overflow-hidden');
+                }, 300);
+            }
+
+            // Event listeners
+            if (closeBtn) closeBtn.addEventListener('click', hideModal);
+            if (dismissBtn) dismissBtn.addEventListener('click', hideModal);
+            if (backdrop) backdrop.addEventListener('click', function (e) {
+                // Only close if mandatory flag is not set
+                if (mandatoryNotice.classList.contains('hidden')) {
+                    hideModal();
+                }
+            });
+
+            // Close on ESC key
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape' && !modal.classList.contains('hidden') && mandatoryNotice.classList.contains('hidden')) {
+                    hideModal();
+                }
+            });
+
+            // Check for flags in localStorage
+            function checkShowCareerTestModal() {
+                if (localStorage.getItem('showCareerTestModal') === 'true') {
+                    const isMandatory = localStorage.getItem('careerTestMandatory') === 'true';
+                    showModal(isMandatory);
+                    localStorage.removeItem('showCareerTestModal');
+                }
+            }
+
+            // Expose function to window for other scripts to call
+            window.showCareerTestModal = showModal;
+
+            // Check for modal on page load
+            checkShowCareerTestModal();
+        });
+
     </script>
 </body>
 

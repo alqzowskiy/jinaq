@@ -430,6 +430,13 @@
                     .then(data => {
                         if (data.success) {
                             window.location.href = data.redirect || '/profile';
+                            if (data.showCareerTest) {
+                                // Store in localStorage to show the modal after redirection
+                                localStorage.setItem('showCareerTestModal', 'true');
+                                if (data.careerTestMandatory) {
+                                    localStorage.setItem('careerTestMandatory', 'true');
+                                }
+                            }
                         } else {
                             console.error('Error:', data.error);
                             window.location.href = '/profile';
@@ -472,7 +479,8 @@
                 });
             }
 
-            // Complete setup
+
+
             if (completeBtn) {
                 completeBtn.addEventListener('click', function () {
                     // Collect selected skills
@@ -503,6 +511,15 @@
                         .then(response => response.json())
                         .then(data => {
                             if (data.success) {
+                                // NEW CODE: Handle career test modal display
+                                if (data.showCareerTest) {
+                                    // Store in localStorage to show the modal after redirection
+                                    localStorage.setItem('showCareerTestModal', 'true');
+                                    if (data.careerTestMandatory) {
+                                        localStorage.setItem('careerTestMandatory', 'true');
+                                    }
+                                }
+
                                 window.location.href = data.redirect || '/profile';
                             } else {
                                 alert('Error: ' + (data.error || 'Unknown error occurred'));

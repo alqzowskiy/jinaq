@@ -285,6 +285,38 @@
                                     {% endif %}
                                 </p>
                             </div>
+                            {% elif item.type == 'project_invitation' %}
+                            <div class="mt-1">
+                                <p class="text-gray-800 text-sm">
+                                    <span class="font-medium">Project Invitation:</span>
+                                    {{ item.sender_info.username if item.sender_info else 'Someone' }} invited you to
+                                    collaborate
+                                    on project {{ item.content.project_title }}
+                                </p>
+
+                                <div class="mt-2 flex space-x-2">
+                                    <button
+                                        onclick="handleProjectInvitation('{{ item.content.project_id }}', 'accept', '{{ item.id }}')"
+                                        class="inline-flex items-center px-3 py-1.5 bg-green-600 text-white text-sm rounded-md hover:bg-green-700">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1.5" fill="none"
+                                            viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M5 13l4 4L19 7" />
+                                        </svg>
+                                        Accept
+                                    </button>
+                                    <button
+                                        onclick="handleProjectInvitation('{{ item.content.project_id }}', 'decline', '{{ item.id }}')"
+                                        class="inline-flex items-center px-3 py-1.5 bg-gray-600 text-white text-sm rounded-md hover:bg-gray-700">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1.5" fill="none"
+                                            viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                        Decline
+                                    </button>
+                                </div>
+                            </div>
 
                             {% elif item.type == 'project_comment' %}
                             <div class="mt-1">
@@ -676,5 +708,131 @@
         optimizeForMobile();
         window.addEventListener('resize', optimizeForMobile);
     });
+</script>
+<script>
+    // Add this to the existing script block
+    function handleProjectInvitation(projectId, action, notificationId) {
+        // Disable buttons to prevent double submissions
+        const buttons = document.querySelectorAll(`[data-notification-id="${notificationId}"] button`);
+        buttons.forEach(btn => {
+            btn.disabled = true;
+            btn.classList.add('opacity-50');
+        });
+
+        // Show loading state on clicked button
+        const clickedButton = event.currentTarget;
+        const originalText = clickedButton.innerHTML;
+        clickedButton.innerHTML = `
+            <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            ${action === 'accept' ? 'Accepting...' : 'Declining...'}
+        `;
+
+        // Send request to handle the invitation
+        fetch(`/projects/${projectId}/invitation/${action}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Mark notification as read
+                    fetch(`/notifications/mark_read/${notificationId}`, {
+                        method: 'POST'
+                    });
+
+                    // Show success message
+                    showNotification(data.message, 'success');
+
+                    // Update notification UI to show processed state
+                    const notificationElement = document.querySelector(`[data-notification-id="${notificationId}"]`);
+                    if (notificationElement) {
+                        const actionsDiv = notificationElement.querySelector('.flex.space-x-2');
+                        if (actionsDiv) {
+                            actionsDiv.innerHTML = `
+                            <div class="inline-flex items-center px-3 py-1.5 bg-gray-100 text-gray-800 text-sm rounded-md">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1.5 ${action === 'accept' ? 'text-green-500' : 'text-gray-500'}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${action === 'accept' ? 'M5 13l4 4L19 7' : 'M6 18L18 6M6 6l12 12'}" />
+                                </svg>
+                                ${action === 'accept' ? 'Accepted' : 'Declined'}
+                            </div>
+                        `;
+                        }
+                    }
+
+                    // If accepted, refresh project data
+                    if (action === 'accept') {
+                        setTimeout(() => {
+                            // Optionally load the project view or refresh relevant sections
+                            // window.location.href = `/view_project/${projectId}`;
+                        }, 1500);
+                    }
+                } else {
+                    // Restore button state
+                    clickedButton.innerHTML = originalText;
+                    buttons.forEach(btn => {
+                        btn.disabled = false;
+                        btn.classList.remove('opacity-50');
+                    });
+
+                    // Show error
+                    showNotification(data.error || 'Error processing invitation', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                // Restore button state
+                clickedButton.innerHTML = originalText;
+                buttons.forEach(btn => {
+                    btn.disabled = false;
+                    btn.classList.remove('opacity-50');
+                });
+
+                showNotification('Error processing invitation. Please try again.', 'error');
+            });
+    }
+
+    // Add a reusable notification function if not already present
+    function showNotification(message, type = 'success') {
+        // Check if we have a toast notification container
+        let container = document.getElementById('toast-container');
+
+        // Create one if it doesn't exist
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'toast-container';
+            container.className = 'fixed bottom-5 right-5 z-50 flex flex-col space-y-2';
+            document.body.appendChild(container);
+        }
+
+        // Create the notification element
+        const toast = document.createElement('div');
+        toast.className = `transform transition-all duration-300 translate-y-2 opacity-0 flex items-center p-3 rounded-lg text-sm ${type === 'error' ? 'bg-red-500 text-white' : 'bg-green-500 text-white'}`;
+
+        // Set the icon based on notification type
+        const icon = type === 'error' ?
+            '<svg class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>' :
+            '<svg class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>';
+
+        toast.innerHTML = `${icon}<span>${message}</span>`;
+        container.appendChild(toast);
+
+        // Animate in
+        setTimeout(() => {
+            toast.classList.remove('translate-y-2', 'opacity-0');
+        }, 50);
+
+        // Animate out and remove after delay
+        setTimeout(() => {
+            toast.classList.add('translate-y-2', 'opacity-0');
+            setTimeout(() => {
+                toast.remove();
+            }, 300);
+        }, 4000);
+    }
 </script>
 {% endblock %}

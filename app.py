@@ -503,7 +503,7 @@ def complete_onboarding():
             'bio': data.get('bio', ''),
             'goals': data.get('goals', ''),
             'skills': data.get('skills', []),
-            'onboarding_completed': True,  # This is crucial
+            'onboarding_completed': True,
             'updated_at': datetime.datetime.now(tz=datetime.timezone.utc)
         }
         
@@ -520,15 +520,115 @@ def complete_onboarding():
             }
         )
         
+        # Check if the user is from a school
+        user_doc = db.collection('users').document(user_id).get()
+        user_data = user_doc.to_dict()
+        is_school_student = user_data.get('school_id') is not None
+        
+        # Set response data
+        response_data = {
+            'success': True,
+            'redirect': url_for('profile'),
+            'showCareerTest': True,  # Flag to show career test modal
+            'careerTestMandatory': is_school_student  # Flag if it's mandatory
+        }
+        
+        if is_school_student:
+            # For school students, mark the test as mandatory in their profile
+            db.collection('users').document(user_id).update({
+                'requires_career_test': True
+            })
+        
         # Log successful completion
         print(f"User {user_id} completed onboarding successfully")
         
-        return jsonify({'success': True, 'redirect': url_for('profile')})
+        return jsonify(response_data)
         
     except Exception as e:
         print(f"Error completing onboarding: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
-# Modify the register route to redirect to onboarding
+@app.route('/show-career-test')
+@login_required
+def show_career_test_popup():
+    """Route to re-show the career test popup"""
+    user_id = session['user_id']
+    
+    # Check if user is from a school
+    user_doc = db.collection('users').document(user_id).get()
+    user_data = user_doc.to_dict()
+    is_school_student = user_data.get('school_id') is not None
+    
+    # Set session flag for mandatory status
+    is_mandatory = is_school_student and user_data.get('requires_career_test', False)
+    
+    # Return a small JS snippet that will show the modal
+    return """
+    <script>
+        localStorage.setItem('showCareerTestModal', 'true');
+        localStorage.setItem('careerTestMandatory', '{0}');
+        window.location.href = '{1}';
+    </script>
+    """.format('true' if is_mandatory else 'false', url_for('profile'))
+
+@app.before_request
+def check_career_test_requirement():
+    """Middleware to check if school student needs to complete the career test"""
+    # Skip for non-authenticated users
+    if 'user_id' not in session:
+        return
+        
+    # Skip for certain paths
+    excluded_paths = [
+        '/career-test', 
+        '/static',
+        '/logout',
+        '/login',
+        '/register',
+        '/favicon.ico',
+        '/api',
+        # Add any other paths that should be accessible without test completion
+    ]
+    
+    if any(request.path.startswith(path) for path in excluded_paths):
+        return
+    
+    user_id = session['user_id']
+    
+    try:
+        # Check if the user is a school student who needs to complete the test
+        user_doc = db.collection('users').document(user_id).get()
+        if not user_doc.exists:
+            return
+            
+        user_data = user_doc.to_dict()
+        
+        # Only enforce for school students with requires_career_test flag
+        if not user_data.get('school_id') or not user_data.get('requires_career_test', False):
+            return
+            
+        # Check if user has completed the career test
+        test_completed = False
+        test_progress_ref = db.collection('users').document(user_id).collection('test_progress').document('career_test')
+        test_progress = test_progress_ref.get()
+        
+        if test_progress.exists:
+            progress_data = test_progress.to_dict()
+            completed_stages = progress_data.get('completed_stages', [])
+            
+            # If all stages completed, mark test as completed
+            if len(completed_stages) >= 4:
+                test_completed = True
+                # Remove the requirement flag
+                db.collection('users').document(user_id).update({
+                    'requires_career_test': False
+                })
+        
+        # If test not completed, redirect to career test
+        if not test_completed:
+            return redirect(url_for('career_test'))
+                
+    except Exception as e:
+        print(f"Error checking career test requirement: {e}")
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
@@ -538,6 +638,16 @@ def register():
         username = display_username.lower()
 
         try:
+            # Additional server-side validation for username
+            if ' ' in username:
+                flash('Username cannot contain spaces')
+                return redirect(url_for('register'))
+                
+            # Check for non-Latin characters (including Cyrillic)
+            if not all(ord(c) < 128 for c in username) or not username.isalnum() and '_' not in username:
+                flash('Username must contain only Latin letters, numbers, and underscores')
+                return redirect(url_for('register'))
+
             # Check username uniqueness
             users_ref = db.collection('users')
             username_query = users_ref.where('username', '==', username).get()
@@ -563,7 +673,7 @@ def register():
                 'verification_type': None,
                 'verified_by': None,
                 'verified_at': None,
-                'onboarding_completed': False,  # Новые пользователи должны пройти онбординг
+                'onboarding_completed': False,
                 'academic_info': {
                     'gpa': '',
                     'sat_score': '',
@@ -587,6 +697,7 @@ def register():
             return redirect(url_for('register'))
 
     return render_template('register.html')
+
 def check_onboarding_required():
     """Middleware to check if user needs to complete onboarding"""
     def decorator(f):
@@ -1030,7 +1141,39 @@ def comments(username):
     except Exception as e:
         print(f"Error in comments route: {str(e)}")
         return jsonify({'error': str(e)}), 500
-
+def prepare_project_data(project_doc, current_user_id=None):
+    """Prepare project data with proper creator and collaborator information"""
+    project_data = project_doc.to_dict()
+    project_data['id'] = project_doc.id
+    
+    # Determine the user's role in this project
+    is_creator = current_user_id == project_data.get('created_by')
+    is_collaborator = any(c.get('user_id') == current_user_id for c in project_data.get('collaborators', []))
+    
+    project_data['role'] = 'creator' if is_creator else 'collaborator' if is_collaborator else 'viewer'
+    
+    # If user is a collaborator, add creator info
+    if is_collaborator and 'created_by' in project_data:
+        creator_id = project_data['created_by']
+        try:
+            creator_doc = db.collection('users').document(creator_id).get()
+            if creator_doc.exists:
+                creator_data = creator_doc.to_dict()
+                project_data['creator'] = {
+                    'user_id': creator_id,
+                    'username': creator_data.get('display_username', creator_data.get('username', '')),
+                    'avatar': generate_avatar_url(creator_data)
+                }
+        except Exception as e:
+            print(f"Error fetching creator info: {e}")
+    
+    # If current user is a collaborator, filter themselves out of the collaborators list
+    if current_user_id and is_collaborator and 'collaborators' in project_data:
+        project_data['collaborators'] = [
+            c for c in project_data['collaborators'] if c.get('user_id') != current_user_id
+        ]
+    
+    return project_data
 @app.route('/<username>/comments/<comment_id>/replies', methods=['GET'])
 def get_comment_replies(username, comment_id):
     try:
@@ -1166,6 +1309,9 @@ def admin_dashboard():
     if not session.get('admin_logged_in'):
         return redirect(url_for('admin_login'))
 
+    # Get sort order parameter
+    sort_by = request.args.get('sort_by', 'created_at_desc')  # Default sort by creation date descending
+    
     # Fetch users with registration date
     users_ref = db.collection('users')
     users = users_ref.stream()
@@ -1174,7 +1320,30 @@ def admin_dashboard():
     for user_doc in users:
         user_data = user_doc.to_dict()
         user_data['id'] = user_doc.id
+        # Convert created_at to datetime object for sorting if it exists
+        if 'created_at' in user_data:
+            # Store the original created_at for display
+            user_data['created_at_display'] = user_data['created_at']
+            # Format created_at for display
+            if isinstance(user_data['created_at'], datetime.datetime):
+                user_data['created_at_formatted'] = user_data['created_at'].strftime('%Y-%m-%d %H:%M')
+            else:
+                user_data['created_at_formatted'] = 'Unknown'
+        else:
+            user_data['created_at'] = datetime.datetime.min
+            user_data['created_at_formatted'] = 'Unknown'
+        
         user_list.append(user_data)
+    
+    # Sort users based on selected sort order
+    if sort_by == 'created_at_asc':
+        user_list.sort(key=lambda x: x.get('created_at', datetime.datetime.min))
+    elif sort_by == 'created_at_desc':
+        user_list.sort(key=lambda x: x.get('created_at', datetime.datetime.min), reverse=True)
+    elif sort_by == 'username_asc':
+        user_list.sort(key=lambda x: x.get('username', '').lower())
+    elif sort_by == 'username_desc':
+        user_list.sort(key=lambda x: x.get('username', '').lower(), reverse=True)
     
     # Calculate metrics
     total_users = len(user_list)
@@ -1204,8 +1373,225 @@ def admin_dashboard():
         active_users=total_users - blocked_users,
         active_user_percentage=((total_users - blocked_users) / total_users * 100) if total_users > 0 else 0,
         generate_avatar_url=generate_avatar_url,
-        maintenance_enabled=maintenance_enabled
+        maintenance_enabled=maintenance_enabled,
+        current_sort=sort_by
     )
+
+@app.route('/admin/delete_user/<user_id>', methods=['POST'])
+@login_required
+def delete_user(user_id):
+    # Ensure only admin can access
+    if not session.get('admin_logged_in'):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    try:
+        # Get user document
+        user_doc = db.collection('users').document(user_id).get()
+        
+        if not user_doc.exists:
+            return jsonify({'success': False, 'error': 'User not found'}), 404
+            
+        user_data = user_doc.to_dict()
+        username = user_data.get('display_username', user_data.get('username', 'Unknown User'))
+        
+        # Delete user's data in Firestore
+        
+        # 1. Delete user's certificates
+        certificates_ref = db.collection('users').document(user_id).collection('certificates')
+        delete_collection(certificates_ref, 100)
+        
+        # 2. Delete user's comments
+        comments_ref = db.collection('users').document(user_id).collection('comments')
+        delete_collection(comments_ref, 100)
+        
+        # 3. Delete user's notifications
+        notifications_ref = db.collection('users').document(user_id).collection('notifications')
+        delete_collection(notifications_ref, 100)
+        
+        # 4. Delete user's projects
+        # First get all projects created by this user
+        projects_created = db.collection('projects').where('created_by', '==', user_id).stream()
+        for project in projects_created:
+            # Delete project's comments
+            project_comments_ref = db.collection('projects').document(project.id).collection('comments')
+            delete_collection(project_comments_ref, 100)
+            # Delete the project document
+            db.collection('projects').document(project.id).delete()
+        
+        # 5. Delete user's avatars and other storage files
+        try:
+            # Delete avatar
+            if user_data.get('avatar_url'):
+                try:
+                    avatar_path = f"avatars/{user_id}"
+                    blobs = bucket.list_blobs(prefix=avatar_path)
+                    for blob in blobs:
+                        blob.delete()
+                except Exception as e:
+                    print(f"Error deleting avatar: {e}")
+            
+            # Delete certificate files
+            cert_path = f"certificates/{user_id}"
+            cert_blobs = bucket.list_blobs(prefix=cert_path)
+            for blob in cert_blobs:
+                blob.delete()
+                
+            # Delete project files
+            project_path = f"projects/{user_id}"
+            project_blobs = bucket.list_blobs(prefix=project_path)
+            for blob in project_blobs:
+                blob.delete()
+        except Exception as e:
+            print(f"Error deleting user files: {e}")
+        
+        # 6. Delete the user document
+        db.collection('users').document(user_id).delete()
+        
+        # 7. Delete user from Firebase Auth
+        try:
+            auth.delete_user(user_id)
+        except Exception as e:
+            print(f"Error deleting user from Firebase Auth: {e}")
+        
+        # Log the action
+        log_admin_action('delete_user', {
+            'user_id': user_id,
+            'username': username,
+            'admin_id': session['user_id']
+        })
+        
+        return jsonify({
+            'success': True,
+            'message': f"User '{username}' and all associated data deleted successfully."
+        })
+        
+    except Exception as e:
+        print(f"Error deleting user: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/admin/batch_delete_users', methods=['POST'])
+@login_required
+def batch_delete_users():
+    # Ensure only admin can access
+    if not session.get('admin_logged_in'):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    try:
+        data = request.json
+        user_ids = data.get('user_ids', [])
+        
+        if not user_ids:
+            return jsonify({'success': False, 'error': 'No user IDs provided'}), 400
+        
+        # Keep track of successful and failed deletions
+        successful_deletions = 0
+        failed_deletions = 0
+        usernames = []
+        
+        # Process each user for deletion
+        for user_id in user_ids:
+            try:
+                # Get user document
+                user_doc = db.collection('users').document(user_id).get()
+                
+                if not user_doc.exists:
+                    failed_deletions += 1
+                    continue
+                
+                user_data = user_doc.to_dict()
+                username = user_data.get('display_username', user_data.get('username', 'Unknown User'))
+                usernames.append(username)
+                
+                # Delete user's data in Firestore
+                
+                # 1. Delete user's certificates
+                certificates_ref = db.collection('users').document(user_id).collection('certificates')
+                delete_collection(certificates_ref, 100)
+                
+                # 2. Delete user's comments
+                comments_ref = db.collection('users').document(user_id).collection('comments')
+                delete_collection(comments_ref, 100)
+                
+                # 3. Delete user's notifications
+                notifications_ref = db.collection('users').document(user_id).collection('notifications')
+                delete_collection(notifications_ref, 100)
+                
+                # 4. Delete user's projects
+                # First get all projects created by this user
+                projects_created = db.collection('projects').where('created_by', '==', user_id).stream()
+                for project in projects_created:
+                    # Delete project's comments
+                    project_comments_ref = db.collection('projects').document(project.id).collection('comments')
+                    delete_collection(project_comments_ref, 100)
+                    # Delete the project document
+                    db.collection('projects').document(project.id).delete()
+                
+                # 5. Delete user's avatars and other storage files
+                try:
+                    # Delete avatar
+                    if user_data.get('avatar_url'):
+                        try:
+                            avatar_path = f"avatars/{user_id}"
+                            blobs = bucket.list_blobs(prefix=avatar_path)
+                            for blob in blobs:
+                                blob.delete()
+                        except Exception as e:
+                            print(f"Error deleting avatar: {e}")
+                    
+                    # Delete certificate files
+                    cert_path = f"certificates/{user_id}"
+                    cert_blobs = bucket.list_blobs(prefix=cert_path)
+                    for blob in cert_blobs:
+                        blob.delete()
+                        
+                    # Delete project files
+                    project_path = f"projects/{user_id}"
+                    project_blobs = bucket.list_blobs(prefix=project_path)
+                    for blob in project_blobs:
+                        blob.delete()
+                except Exception as e:
+                    print(f"Error deleting user files: {e}")
+                
+                # 6. Delete the user document
+                db.collection('users').document(user_id).delete()
+                
+                # 7. Delete user from Firebase Auth
+                try:
+                    auth.delete_user(user_id)
+                except Exception as e:
+                    print(f"Error deleting user from Firebase Auth: {e}")
+                
+                successful_deletions += 1
+                
+            except Exception as e:
+                print(f"Error deleting user {user_id}: {e}")
+                failed_deletions += 1
+        
+        # Log the action
+        log_admin_action('batch_delete_users', {
+            'user_ids': user_ids,
+            'usernames': usernames,
+            'successful_deletions': successful_deletions,
+            'failed_deletions': failed_deletions,
+            'admin_id': session['user_id']
+        })
+        
+        return jsonify({
+            'success': True,
+            'message': f"Successfully deleted {successful_deletions} users. {failed_deletions} deletions failed.",
+            'successful_deletions': successful_deletions,
+            'failed_deletions': failed_deletions
+        })
+        
+    except Exception as e:
+        print(f"Error in batch delete users: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+        
 def get_user_location():
     try:
         # Try to get IP address
@@ -1235,18 +1621,48 @@ def profile():
     user_id = session['user_id']
     
     try:
+        # === Base Profile Data Retrieval ===
         user_doc = db.collection('users').document(user_id).get()
         user_data = user_doc.to_dict() or {}
         
-        avatar_url = generate_avatar_url(user_data)
-        
-        # Check if user is blocked
+        # Check basic validation
         if user_data.get('blocked', False):
             abort(404)
         if not user_data.get('onboarding_completed', False):
             print(f"User {user_id} redirected to onboarding from profile page")
             return redirect(url_for('onboarding'))
+        
+        # Set up avatar
+        avatar_url = generate_avatar_url(user_data)
         current_user_avatar = avatar_url
+        
+        # === Career Test Status & Results ===
+        test_completed = False
+        test_results = []
+        test_progress_ref = db.collection('users').document(user_id).collection('test_progress').document('career_test')
+        test_progress = test_progress_ref.get()
+        
+        if test_progress.exists:
+            progress_data = test_progress.to_dict()
+            completed_stages = progress_data.get('completed_stages', [])
+            
+            # Test is completed if all 4 stages are done
+            if len(completed_stages) >= 4:
+                test_completed = True
+                
+                # Get recommendations - first try from progress data
+                if 'recommendations' in progress_data:
+                    test_results = progress_data.get('recommendations', [])
+                else:
+                    # Then check dedicated recommendations collection
+                    recommendations_ref = db.collection('career_recommendations').document(user_id)
+                    recommendations_doc = recommendations_ref.get()
+                    
+                    if recommendations_doc.exists:
+                        rec_data = recommendations_doc.to_dict()
+                        test_results = rec_data.get('recommendations', [])
+        
+        # === Location Data ===
         if not user_data.get('location'):
             location = get_user_location()
             if location:
@@ -1254,9 +1670,8 @@ def profile():
                 db.collection('users').document(user_id).update({
                     'location': location
                 })
-                user_doc = db.collection('users').document(user_id).get()
         
-        # Check if user is a student of a school
+        # === School Data (for students) ===
         if user_data.get('school_id'):
             school_id = user_data.get('school_id')
             school_doc = db.collection('schools').document(school_id).get()
@@ -1272,7 +1687,8 @@ def profile():
                     db.collection('users').document(user_id).update({
                         'education': user_data['school_name']
                     })
-        # Initialize academic info if not present
+        
+        # === Initialize Academic Info If Missing ===
         if 'academic_info' not in user_data:
             user_data['academic_info'] = {
                 'gpa': '',
@@ -1283,24 +1699,19 @@ def profile():
                 'achievements': []
             }
 
-        # POST request handling
+        # === Form Submission Handling (POST request) ===
         if request.method == 'POST':
             try:
                 projects = []
-        
-                # Step 1: Get projects created by the user
+                
+                # Get created projects
                 created_projects_refs = list(db.collection('projects').where('created_by', '==', user_id).stream())
                 for project_doc in created_projects_refs:
-                    project_data = project_doc.to_dict()
-                    project_data['id'] = project_doc.id
-                    project_data['role'] = 'creator'  # Add role for UI distinction
+                    project_data = prepare_project_data(project_doc, user_id)
                     projects.append(project_data)
                 
-                # Step 2: Get projects where user is a collaborator
-                # This requires a different approach since Firestore doesn't support direct querying of array elements
-                # We'll query all projects and filter in Python
+                # Get collaborative projects
                 potential_collab_projects = db.collection('projects').stream()
-                
                 for project_doc in potential_collab_projects:
                     project_data = project_doc.to_dict()
                     
@@ -1313,10 +1724,11 @@ def profile():
                     is_collaborator = any(c.get('user_id') == user_id for c in collaborators)
                     
                     if is_collaborator:
-                        project_data['id'] = project_doc.id
-                        project_data['role'] = 'collaborator'  # Add role for UI distinction
+                        project_data = prepare_project_data(project_doc, user_id)
                         projects.append(project_data)
                 
+                # Sort projects by last updated time
+                projects.sort(key=lambda x: x.get('last_updated', x.get('created_at', datetime.datetime.min)), reverse=True)
                 # Handle JSON updates (AJAX requests)
                 if request.headers.get('Content-Type') == 'application/json':
                     data = request.get_json()
@@ -1370,10 +1782,9 @@ def profile():
                         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                             return jsonify({
                                 'success': True,
-                                'user_data': user_data  # Include the updated user data
+                                'user_data': user_data
                             })
                         
-                        # Regular form submission (non-AJAX)
                         flash('Profile updated successfully!')
                         return redirect(url_for('profile'))
 
@@ -1465,45 +1876,44 @@ def profile():
                 flash(f'Error updating profile: {str(e)}')
                 return redirect(url_for('profile'))
 
-        # Get certificates for display
-        certificates = list(db.collection('users').document(user_id).collection('certificates').stream())
-        
-        # Get notifications count
-        notifications_ref = db.collection('users').document(user_id).collection('notifications')
-        unread_notifications = notifications_ref.where('is_read', '==', False).get()
-        notifications_count = len(list(unread_notifications))
-
+        # === Projects Data ===
         projects = []
-        projects_refs = list(db.collection('projects').where('created_by', '==', user_id).stream())
         
-        # Also get projects where user is a collaborator
-        collab_projects_refs = list(db.collection('projects')
-                                .where('collaborators', 'array_contains', {'user_id': user_id}).stream())
-        
-        # Combine both lists
-        all_projects_refs = projects_refs + collab_projects_refs
-        
-        for project_doc in all_projects_refs:
+        # Get created projects
+        created_projects_refs = list(db.collection('projects').where('created_by', '==', user_id).stream())
+        for project_doc in created_projects_refs:
             project_data = project_doc.to_dict()
             project_data['id'] = project_doc.id
+            project_data['role'] = 'creator'
             projects.append(project_data)
-
+        
+        # Get collaborative projects
+        potential_collab_projects = db.collection('projects').stream()
+        for project_doc in potential_collab_projects:
+            project_data = project_doc.to_dict()
+            if project_data.get('created_by') == user_id:
+                continue
+            collaborators = project_data.get('collaborators', [])
+            is_collaborator = any(c.get('user_id') == user_id for c in collaborators)
+            if is_collaborator:
+                project_data['id'] = project_doc.id
+                project_data['role'] = 'collaborator'
+                projects.append(project_data)
         
         # Sort projects by last updated time
         projects.sort(key=lambda x: x.get('last_updated', x.get('created_at', datetime.datetime.min)), reverse=True)
         
-        # Get certificates for display
+        # === Certificates & Notifications ===
         certificates = list(db.collection('users').document(user_id).collection('certificates').stream())
         
-        # Get notifications count
         notifications_ref = db.collection('users').document(user_id).collection('notifications')
         unread_notifications = notifications_ref.where('is_read', '==', False).get()
         notifications_count = len(list(unread_notifications))
         
-        # Add current username to context for JavaScript use
+        # Get username for JS usage
         username = user_data.get('display_username', user_data.get('username', ''))
 
-        # Render template with all necessary data
+        # === Render Template with All Data ===
         return render_template('profile.html',
                               user_data=user_data,
                               avatar_url=avatar_url,
@@ -1513,19 +1923,74 @@ def profile():
                               social_media=user_data.get('social_media', {}),
                               academic_info=user_data.get('academic_info', {}),
                               projects=projects,
-                              current_username=username)
+                              current_username=username,
+                              test_completed=test_completed,
+                              test_results=test_results)
 
     except Exception as e:
         print(f"Error in profile route: {e}")
+        import traceback
+        traceback.print_exc()
         flash('An error occurred while loading your profile.')
         return redirect(url_for('index'))
-
-
+@app.route('/check-username', methods=['POST'])
+def check_username():
+    """API endpoint to check if a username is already taken."""
+    try:
+        data = request.get_json()
+        username = data.get('username', '').lower()
+        
+        # Basic validation
+        if not username:
+            return jsonify({'valid': False, 'message': 'Username is required'})
+            
+        # Check for spaces
+        if ' ' in username:
+            return jsonify({'valid': False, 'message': 'Username cannot contain spaces'})
+            
+        # Check for non-Latin characters (including Cyrillic)
+        if not all(ord(c) < 128 for c in username):
+            return jsonify({'valid': False, 'message': 'Username must contain only Latin characters (a-z, 0-9, _)'})
+        
+        # Check for availability in database
+        users_ref = db.collection('users')
+        username_query = users_ref.where('username', '==', username).get()
+        
+        if len(list(username_query)) > 0:
+            return jsonify({'valid': False, 'message': 'Username is already taken'})
+        
+        return jsonify({'valid': True, 'message': 'Username is available'})
+        
     except Exception as e:
-        print(f"Error in profile route: {e}")
-        flash('An error occurred while loading your profile.')
-        return redirect(url_for('index'))
-
+        print(f"Error checking username: {e}")
+        return jsonify({'valid': False, 'message': 'Error checking username'}), 500
+@app.route('/update-status', methods=['POST'])
+@login_required
+def update_status():
+    user_id = session['user_id']
+    data = request.json
+    
+    try:
+        # Clean and validate status
+        status_text = data.get('status', '').strip()
+        
+        # Check if exceeds character limit (280 characters like Twitter)
+        if len(status_text) > 280:
+            return jsonify({'success': False, 'error': 'Status exceeds the 280 character limit'}), 400
+        
+        # Update user document
+        db.collection('users').document(user_id).update({
+            'status': {
+                'text': status_text,
+                'updated_at': datetime.datetime.now(tz=datetime.timezone.utc)
+            },
+            'updated_at': datetime.datetime.now(tz=datetime.timezone.utc)
+        })
+        
+        return jsonify({'success': True, 'message': 'Status updated successfully'})
+    except Exception as e:
+        print(f"Error updating status: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 @app.route('/<username>')
 def public_profile(username):
     try:
@@ -4113,7 +4578,7 @@ def create_project():
         description = request.form.get('description')
         github_url = request.form.get('github_url', '')
         project_url = request.form.get('project_url', '')
-        
+
         # Parse tags and collaborators
         tags = json.loads(request.form.get('tags', '[]'))
         
@@ -4297,7 +4762,8 @@ def create_project():
                 },
                 sender_id=user_id
             )
-        
+        collaborators_data = json.loads(request.form.get('collaborators', '[]'))
+        collaborators = process_collaborators(collaborators_data)        
         return jsonify({
             'success': True,
             'project_id': project_id,
@@ -4310,7 +4776,150 @@ def create_project():
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
 
-
+def process_collaborators(collaborators_data):
+    """Process collaborator data and ensure avatars are set properly"""
+    collaborators = []
+    for collab in collaborators_data:
+        # Skip invalid collaborators missing user_id
+        if not collab.get('user_id'):
+            print(f"Warning: Skipping collaborator with missing user_id: {collab}")
+            continue
+            
+        # Fetch collaborator's user data to get proper information
+        try:
+            user_doc = db.collection('users').document(collab.get('user_id')).get()
+            if user_doc.exists:
+                user_data = user_doc.to_dict()
+                
+                # Generate proper avatar URL
+                avatar_url = generate_avatar_url(user_data)
+                
+                collaborator = {
+                    'user_id': collab.get('user_id', ''),
+                    'username': user_data.get('display_username', user_data.get('username', collab.get('username', ''))),
+                    'full_name': user_data.get('full_name', collab.get('full_name', '')),
+                    'avatar': avatar_url
+                }
+                collaborators.append(collaborator)
+            else:
+                # Fallback if user doc doesn't exist
+                collaborator = {
+                    'user_id': collab.get('user_id', ''),
+                    'username': collab.get('username', ''),
+                    'full_name': collab.get('full_name', ''),
+                    'avatar': f"https://ui-avatars.com/api/?name={collab.get('username', 'U')[0]}&background=random&color=fff&size=128"
+                }
+                collaborators.append(collaborator)
+        except Exception as e:
+            print(f"Error processing collaborator {collab.get('user_id')}: {e}")
+            # Add with fallback avatar
+            collaborator = {
+                'user_id': collab.get('user_id', ''),
+                'username': collab.get('username', ''),
+                'full_name': collab.get('full_name', ''),
+                'avatar': "https://ui-avatars.com/api/?name=U&background=random&color=fff&size=128"
+            }
+            collaborators.append(collaborator)
+    
+    return collaborators
+@app.route('/projects/<project_id>/invitation/<action>', methods=['POST'])
+@login_required
+def handle_project_invitation(project_id, action):
+    user_id = session['user_id']
+    
+    if action not in ['accept', 'decline']:
+        return jsonify({'success': False, 'error': 'Invalid action'}), 400
+    
+    try:
+        # Get project document
+        project_ref = db.collection('projects').document(project_id)
+        project_doc = project_ref.get()
+        
+        if not project_doc.exists:
+            return jsonify({'success': False, 'error': 'Project not found'}), 404
+            
+        project_data = project_doc.to_dict()
+        project_title = project_data.get('title', 'Project')
+        project_owner = project_data.get('created_by')
+        
+        # Check if user is in the pending collaborators
+        collaborators = project_data.get('collaborators', [])
+        found = False
+        
+        for i, collab in enumerate(collaborators):
+            if collab.get('user_id') == user_id and collab.get('status', 'pending') == 'pending':
+                found = True
+                
+                if action == 'accept':
+                    # Update status to accepted
+                    collaborators[i]['status'] = 'accepted'
+                    
+                    # Update project document
+                    project_ref.update({
+                        'collaborators': collaborators,
+                        'last_updated': datetime.datetime.now(tz=datetime.timezone.utc)
+                    })
+                    
+                    # Notify project owner
+                    create_notification(
+                        project_owner,
+                        'project_collaboration',
+                        {
+                            'project_id': project_id,
+                            'project_title': project_title,
+                            'message': f"{session.get('username', 'Someone')} accepted your invitation to collaborate"
+                        },
+                        sender_id=user_id
+                    )
+                    
+                    # Add project reference to user's collaborations
+                    user_collab_ref = db.collection('users').document(user_id).collection('project_collaborations').document(project_id)
+                    user_collab_ref.set({
+                        'project_id': project_id,
+                        'project_title': project_title,
+                        'added_at': datetime.datetime.now(tz=datetime.timezone.utc),
+                        'status': 'accepted'
+                    })
+                    
+                    return jsonify({
+                        'success': True, 
+                        'message': f'You are now a collaborator on {project_title}'
+                    })
+                else:  # decline
+                    # Remove user from collaborators
+                    collaborators.pop(i)
+                    
+                    # Update project document
+                    project_ref.update({
+                        'collaborators': collaborators,
+                        'last_updated': datetime.datetime.now(tz=datetime.timezone.utc)
+                    })
+                    
+                    # Notify project owner
+                    create_notification(
+                        project_owner,
+                        'project_collaboration',
+                        {
+                            'project_id': project_id,
+                            'project_title': project_title,
+                            'message': f"{session.get('username', 'Someone')} declined your invitation to collaborate"
+                        },
+                        sender_id=user_id
+                    )
+                    
+                    return jsonify({
+                        'success': True, 
+                        'message': f'You declined the invitation to {project_title}'
+                    })
+        
+        if not found:
+            return jsonify({'success': False, 'error': 'Invitation not found or already processed'}), 404
+            
+    except Exception as e:
+        print(f"Error handling project invitation: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
 @app.route('/projects/<project_id>')
 def get_project(project_id):
     try:
@@ -4346,7 +4955,7 @@ def update_project(project_id):
         project_data = project_doc.to_dict()
         
         # Check if user is creator or collaborator
-        if user_id != project_data['created_by'] and not any(c['user_id'] == user_id for c in project_data.get('collaborators', [])):
+        if user_id != project_data['created_by'] and not any(c['user_id'] == user_id and c.get('status', '') == 'accepted' for c in project_data.get('collaborators', [])):
             return jsonify({'success': False, 'error': 'Not authorized to update this project'}), 403
         
         # Check if the user is the creator (only creators can modify collaborators)
@@ -4365,20 +4974,37 @@ def update_project(project_id):
         if is_creator:
             collaborators_data = json.loads(request.form.get('collaborators', '[]'))
             
-            # Process collaborators with validation
+            # Get existing collaborators for comparison
+            existing_collaborators = {c.get('user_id'): c for c in project_data.get('collaborators', [])}
+            
+            # Process collaborators with status handling
             collaborators = []
             for collab in collaborators_data:
                 # Skip invalid collaborators missing user_id
                 if not collab.get('user_id'):
                     print(f"Warning: Skipping collaborator with missing user_id: {collab}")
                     continue
-                    
-                collaborator = {
-                    'user_id': collab.get('user_id', ''),
-                    'username': collab.get('username', ''),
-                    'full_name': collab.get('full_name', ''),
-                    'avatar': collab.get('avatar', '')
-                }
+                
+                # Check if this is an existing collaborator
+                if collab.get('user_id') in existing_collaborators:
+                    # Preserve existing status and data
+                    existing_collab = existing_collaborators[collab.get('user_id')]
+                    collaborator = {
+                        'user_id': collab.get('user_id', ''),
+                        'username': collab.get('username', ''),
+                        'full_name': collab.get('full_name', ''),
+                        'avatar': collab.get('avatar', ''),
+                        'status': existing_collab.get('status', 'accepted')  # Default to accepted for backward compatibility
+                    }
+                else:
+                    # New collaborator - set as pending
+                    collaborator = {
+                        'user_id': collab.get('user_id', ''),
+                        'username': collab.get('username', ''),
+                        'full_name': collab.get('full_name', ''),
+                        'avatar': collab.get('avatar', ''),
+                        'status': 'pending'  # New collaborators start as pending
+                    }
                 collaborators.append(collaborator)
             
             # Check for removed collaborators to notify them
@@ -4411,7 +5037,7 @@ def update_project(project_id):
                 except Exception as e:
                     print(f"Error removing project reference for user {collab_id}: {e}")
             
-            # Notify added collaborators
+            # Send invitations to newly added collaborators
             for collab_id in added_collaborators:
                 if not collab_id:  # Skip empty IDs
                     continue
@@ -4421,35 +5047,20 @@ def update_project(project_id):
                 
                 create_notification(
                     collab_id,
-                    'project_collaboration',
+                    'project_invitation',  # New notification type
                     {
                         'project_id': project_id,
                         'project_title': title,
-                        'message': f"You were added as a collaborator to {title}"
+                        'message': f"You've been invited to collaborate on {title}",
+                        'action': 'invitation'
                     },
                     sender_id=user_id
                 )
-                
-                # Add project reference to collaborator's user document
-                try:
-                    # Validate collab_id is not empty before creating the reference
-                    if collab_id and collab_id.strip():
-                        user_projects_ref = db.collection('users').document(collab_id).collection('project_collaborations').document(project_id)
-                        user_projects_ref.set({
-                            'project_id': project_id,
-                            'project_title': title,
-                            'added_at': datetime.datetime.now(tz=datetime.timezone.utc),
-                            'added_by': {
-                                'user_id': user_id,
-                                'username': session.get('username', '')
-                            }
-                        })
-                except Exception as e:
-                    print(f"Error adding project reference for user {collab_id}: {e}")
         else:
             # If not creator, keep existing collaborators
             collaborators = project_data.get('collaborators', [])
-        
+                    # Update project document with new data
+
         # Validate required fields
         if not title or not description:
             return jsonify({'success': False, 'error': 'Title and description are required'}), 400
@@ -4543,15 +5154,14 @@ def update_project(project_id):
         
         # Update project document
         update_data = {
-            'title': title,
-            'description': description,
-            'github_url': github_url,
-            'project_url': project_url,
-            'tags': tags,
-            'images': image_urls,
-            'collaborators': collaborators,
-            'last_updated': datetime.datetime.now(tz=datetime.timezone.utc)
-        }
+                'title': title,
+                'description': description,
+                'github_url': github_url,
+                'project_url': project_url,
+                'tags': tags,
+                'collaborators': collaborators,
+                'last_updated': datetime.datetime.now(tz=datetime.timezone.utc)
+            }
         
         # Add thumbnail and header if they exist
         if thumbnail_url:
@@ -4562,16 +5172,17 @@ def update_project(project_id):
         
         project_ref.update(update_data)
         
-        # Notify all collaborators about project update
-        all_collaborators = [c.get('user_id') for c in collaborators 
-                            if c.get('user_id') and c.get('user_id') != user_id]
+        # Notify active collaborators about project update
+        active_collaborators = [c.get('user_id') for c in collaborators 
+                          if c.get('user_id') and c.get('user_id') != user_id 
+                          and c.get('status', '') == 'accepted']
         
         # Also notify the creator if update was made by collaborator
         if not is_creator:
-            all_collaborators.append(project_data['created_by'])
+            active_collaborators.append(project_data['created_by'])
         
         # Send notifications
-        for collab_id in all_collaborators:
+        for collab_id in active_collaborators:
             create_notification(
                 collab_id,
                 'project_update',
@@ -4593,7 +5204,123 @@ def update_project(project_id):
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
+# Add this route to handle optimizing small avatars and caching them for better display
+@app.route('/optimized-avatar/<user_id>/<size>')
+def optimized_avatar(user_id, size):
+    """Serve optimized avatar for a specific user in the requested size
+    Sizes: 'small' (32px), 'medium' (64px), 'large' (128px)"""
+    try:
+        # Get user data
+        user_doc = db.collection('users').document(user_id).get()
+        if not user_doc.exists:
+            # Return fallback avatar
+            fallback_url = f"https://ui-avatars.com/api/?name=U&background=random&color=fff&size=256&bold=true"
+            return redirect(fallback_url)
+        
+        user_data = user_doc.to_dict()
+        
+        # Get avatar URL
+        avatar_url = user_data.get('avatar_url')
+        
+        if not avatar_url:
+            # Generate UI Avatar with higher resolution
+            display_name = user_data.get('display_username', user_data.get('username', 'U'))
+            initials = ''.join(word[0].upper() for word in display_name.split()[:2])
+            fallback_url = f"https://ui-avatars.com/api/?name={initials}&background=random&color=fff&size=256&bold=true"
+            return redirect(fallback_url)
+        
+        # For uploaded avatars, we could resize them here using PIL if needed
+        # For now, just redirect to the original avatar URL
+        return redirect(avatar_url)
+        
+    except Exception as e:
+        print(f"Error serving optimized avatar: {e}")
+        # Return fallback avatar
+        return redirect(f"https://ui-avatars.com/api/?name=U&background=random&color=fff&size=256&bold=true")
+@app.route('/admin/repair_project_collaborators', methods=['GET'])
+@login_required
+def repair_project_collaborators():
+    # Only allow admin or specific users to run this
+    if session.get('user_id') != 'vVbXL4LKGidXtrKnvqa21gWRY3V2':  # Your admin ID
+        return "Unauthorized", 403
     
+    try:
+        # Get all projects
+        projects_ref = db.collection('projects')
+        projects = projects_ref.stream()
+        
+        fixed_count = 0
+        
+        for project_doc in projects:
+            project_data = project_doc.to_dict()
+            project_id = project_doc.id
+            
+            if 'collaborators' not in project_data or not project_data['collaborators']:
+                continue
+            
+            # Process and fix collaborators
+            fixed_collaborators = []
+            changed = False
+            
+            for collab in project_data['collaborators']:
+                if not collab.get('user_id'):
+                    continue
+                
+                try:
+                    user_doc = db.collection('users').document(collab['user_id']).get()
+                    if user_doc.exists:
+                        user_data = user_doc.to_dict()
+                        
+                        # Generate proper avatar URL
+                        avatar_url = generate_avatar_url(user_data)
+                        
+                        # Check if avatar needs to be updated
+                        if collab.get('avatar') != avatar_url:
+                            changed = True
+                        
+                        fixed_collab = {
+                            'user_id': collab['user_id'],
+                            'username': user_data.get('display_username', user_data.get('username', collab.get('username', ''))),
+                            'full_name': user_data.get('full_name', collab.get('full_name', '')),
+                            'avatar': avatar_url
+                        }
+                    else:
+                        # If user no longer exists, keep original with fallback avatar
+                        fallback_avatar = f"https://ui-avatars.com/api/?name={collab.get('username', 'U')[0]}&background=random&color=fff&size=128"
+                        
+                        if collab.get('avatar') != fallback_avatar:
+                            changed = True
+                        
+                        fixed_collab = {
+                            'user_id': collab['user_id'],
+                            'username': collab.get('username', ''),
+                            'full_name': collab.get('full_name', ''),
+                            'avatar': fallback_avatar
+                        }
+                except Exception as e:
+                    print(f"Error repairing collaborator {collab.get('user_id')} for project {project_id}: {e}")
+                    # Keep original but with fallback avatar if missing
+                    fixed_collab = collab.copy()
+                    if not collab.get('avatar'):
+                        fixed_collab['avatar'] = "https://ui-avatars.com/api/?name=U&background=random&color=fff&size=128"
+                        changed = True
+                
+                fixed_collaborators.append(fixed_collab)
+            
+            # Update the project if changes were made
+            if changed:
+                projects_ref.document(project_id).update({
+                    'collaborators': fixed_collaborators
+                })
+                fixed_count += 1
+        
+        return f"Successfully repaired collaborator avatars in {fixed_count} projects."
+    
+    except Exception as e:
+        print(f"Error repairing collaborators: {e}")
+        import traceback
+        traceback.print_exc()
+        return f"Error during repair: {str(e)}", 500    
 @app.route('/projects/<project_id>/update_header', methods=['POST'])
 @login_required
 def update_project_header(project_id):
@@ -4900,6 +5627,7 @@ def delete_project(project_id):
         print(f"Error deleting project: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
+
 @app.route('/view_project/<project_id>')
 def view_project(project_id):
     try:
@@ -4932,6 +5660,7 @@ def view_project(project_id):
         print(f"Error viewing project: {e}")
         flash('Error loading project')
         return redirect(url_for('index'))
+
 
 @app.route('/projects/<project_id>/comments', methods=['GET', 'POST'])
 @login_required
@@ -6795,6 +7524,772 @@ def normalize_class_name(class_name):
     else:
         # If it doesn't match the pattern, just uppercase it
         return class_name.upper()
+    
+
+
+# Add these routes to your app.py
+
+@app.route('/career-test', methods=['GET'])
+@login_required
+def career_test():
+    """Landing page for the career test system"""
+    # Get current test progress from session or user data
+    user_id = session['user_id']
+    
+    try:
+        # Check if user has any saved progress
+        test_progress_ref = db.collection('users').document(user_id).collection('test_progress').document('career_test')
+        test_progress = test_progress_ref.get()
+        
+        if test_progress.exists:
+            progress_data = test_progress.to_dict()
+            current_stage = progress_data.get('current_stage', 1)
+            completed_stages = progress_data.get('completed_stages', [])
+        else:
+            # No existing progress, start at stage 1
+            current_stage = 1
+            completed_stages = []
+        
+        # Get user data for personalization
+        user_doc = db.collection('users').document(user_id).get()
+        user_data = user_doc.to_dict() if user_doc.exists else {}
+        
+        return render_template(
+            'career_test/landing.html',
+            current_stage=current_stage,
+            completed_stages=completed_stages,
+            user_data=user_data,
+            current_user_avatar=get_current_user_avatar(),
+            current_username=get_current_username()
+        )
+        
+    except Exception as e:
+        print(f"Error loading career test: {e}")
+        flash('Error loading career test system')
+        return redirect(url_for('profile'))
+
+@app.route('/career-test/analyzing')
+@login_required
+def career_test_analyzing():
+    """Show the analyzing animation before displaying results"""
+    user_id = session['user_id']
+    
+    try:
+        # Check if the user has completed all test stages
+        test_progress_ref = db.collection('users').document(user_id).collection('test_progress').document('career_test')
+        test_progress = test_progress_ref.get()
+        
+        if not test_progress.exists:
+            return redirect(url_for('career_test'))
+            
+        progress_data = test_progress.to_dict()
+        completed_stages = progress_data.get('completed_stages', [])
+        
+        # If not all stages completed, redirect to appropriate stage
+        if len(completed_stages) < 4:
+            next_stage = min([i for i in range(1, 5) if i not in completed_stages])
+            return redirect(url_for('career_test_stage', stage=next_stage))
+        
+        # Render the analyzing template
+        return render_template('career_test/analyzing.html')
+        
+    except Exception as e:
+        print(f"Error in career test analyzing: {e}")
+        flash('Error processing test data')
+        return redirect(url_for('career_test'))
+@app.route('/career-test/stage/<int:stage>', methods=['GET', 'POST'])
+@login_required
+def career_test_stage(stage):
+    """Handle a specific stage of the career test with AJAX support and multiple choice for all questions"""
+    user_id = session['user_id']
+    
+    # Validate stage
+    if stage < 1 or stage > 4:
+        flash('Invalid test stage')
+        return redirect(url_for('career_test'))
+    
+    # Get previous progress
+    try:
+        test_progress_ref = db.collection('users').document(user_id).collection('test_progress').document('career_test')
+        test_progress = test_progress_ref.get()
+        
+        if test_progress.exists:
+            progress_data = test_progress.to_dict()
+            completed_stages = progress_data.get('completed_stages', [])
+            saved_answers = progress_data.get('answers', {})
+            current_question = progress_data.get('current_question', {}).get(f'stage_{stage}', 1)
+        else:
+            completed_stages = []
+            saved_answers = {}
+            current_question = 1
+            
+        # Get test questions
+        with open('static/js/career_test_questions.json', 'r', encoding='utf-8') as f:
+            all_questions = json.load(f)
+            
+        stage_key = f'stage_{stage}'
+        if stage_key not in all_questions:
+            flash('Test questions not found')
+            return redirect(url_for('career_test'))
+            
+        stage_questions = all_questions[stage_key]
+        total_questions = len(stage_questions['questions'])
+        
+        # Handle form submission (POST)
+        if request.method == 'POST':
+            is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+            action = request.form.get('action')
+            
+            if action == 'next':
+                # Save current answer(s)
+                question_id = int(request.form.get('question_id', 1))
+                
+                # Always get as multiple answers (checkboxes)
+                answers = request.form.getlist('answer')
+                
+                # Save this answer
+                if stage_key not in saved_answers:
+                    saved_answers[stage_key] = {}
+                saved_answers[stage_key][str(question_id)] = answers
+                
+                # Move to next question or complete stage
+                if question_id < total_questions:
+                    current_question = question_id + 1
+                    
+                    # Update progress in database
+                    update_data = {
+                        'current_stage': stage,
+                        'current_question': {stage_key: current_question},
+                        'answers': saved_answers,
+                    }
+                    test_progress_ref.set(update_data, merge=True)
+                    
+                    if is_ajax:
+                        # Render the next question and return as JSON
+                        question_data = stage_questions['questions'][current_question-1]
+                        selected_answers = []
+                        if stage_key in saved_answers and str(current_question) in saved_answers[stage_key]:
+                            selected_answers = saved_answers[stage_key][str(current_question)]
+                            
+                        html = render_template(
+                            'career_test/question_partial.html',
+                            stage=stage,
+                            stage_name=stage_questions['name'],
+                            question=question_data,
+                            question_number=current_question,
+                            total_questions=total_questions,
+                            selected_answers=selected_answers
+                        )
+                        
+                        return jsonify({'html': html})
+                    else:
+                        # Traditional redirect
+                        return redirect(url_for('career_test_stage', stage=stage))
+                else:
+                    # Complete this stage
+                    if stage not in completed_stages:
+                        completed_stages.append(stage)
+                    
+                    # Update progress
+                    update_data = {
+                        'current_stage': stage + 1 if stage < 4 else 4,
+                        'completed_stages': completed_stages,
+                        'answers': saved_answers,
+                    }
+                    test_progress_ref.set(update_data, merge=True)
+                    
+                    # If all stages completed, go to results
+                    if len(completed_stages) >= 4:
+                        if is_ajax:
+                            return jsonify({'redirect': url_for('career_test_analyzing')})
+                        return redirect(url_for('career_test_analyzing'))
+                    
+                    # Otherwise go to next stage
+                    if is_ajax:
+                        return jsonify({'redirect': url_for('career_test_stage', stage=stage+1)})
+                    return redirect(url_for('career_test_stage', stage=stage+1))
+                    
+            elif action == 'prev':
+                # Go to previous question
+                question_id = int(request.form.get('question_id', 1))
+                if question_id > 1:
+                    current_question = question_id - 1
+                    
+                    # Update database
+                    update_data = {
+                        'current_question': {stage_key: current_question},
+                    }
+                    test_progress_ref.set(update_data, merge=True)
+                    
+                    if is_ajax:
+                        # Render the previous question and return as JSON
+                        question_data = stage_questions['questions'][current_question-1]
+                        selected_answers = []
+                        if stage_key in saved_answers and str(current_question) in saved_answers[stage_key]:
+                            selected_answers = saved_answers[stage_key][str(current_question)]
+                            
+                        html = render_template(
+                            'career_test/question_partial.html',
+                            stage=stage,
+                            stage_name=stage_questions['name'],
+                            question=question_data,
+                            question_number=current_question,
+                            total_questions=total_questions,
+                            selected_answers=selected_answers
+                        )
+                        
+                        return jsonify({'html': html})
+                    else:
+                        return redirect(url_for('career_test_stage', stage=stage))
+                else:
+                    # Go to previous stage if at first question
+                    if stage > 1:
+                        if is_ajax:
+                            return jsonify({'redirect': url_for('career_test_stage', stage=stage-1)})
+                        return redirect(url_for('career_test_stage', stage=stage-1))
+                    else:
+                        if is_ajax:
+                            return jsonify({'redirect': url_for('career_test')})
+                        return redirect(url_for('career_test'))
+        
+        # GET request - display current question
+        question_data = stage_questions['questions'][current_question-1]
+        
+        # Get previously saved answer for this question if any
+        selected_answers = []
+        if stage_key in saved_answers and str(current_question) in saved_answers[stage_key]:
+            selected_answers = saved_answers[stage_key][str(current_question)]
+        
+        return render_template(
+            'career_test/question.html',
+            stage=stage,
+            stage_name=stage_questions['name'],
+            question=question_data,
+            question_number=current_question,
+            total_questions=total_questions,
+            selected_answers=selected_answers,
+            completed_stages=completed_stages,
+            current_user_avatar=get_current_user_avatar(),
+            current_username=get_current_username()
+        )
+            
+    except Exception as e:
+        print(f"Error in career test stage {stage}: {e}")
+        import traceback
+        traceback.print_exc()
+        flash(f'Error loading test stage: {str(e)}')
+        return redirect(url_for('career_test'))
+@app.route('/career-test/results')
+@login_required
+def career_test_results():
+    """Display career test results with analysis animation and cached recommendations"""
+    user_id = session['user_id']
+    
+    try:
+        # Get test answers
+        test_progress_ref = db.collection('users').document(user_id).collection('test_progress').document('career_test')
+        test_progress = test_progress_ref.get()
+        
+        if not test_progress.exists:
+            flash('Результаты теста не найдены')
+            return redirect(url_for('career_test'))
+            
+        progress_data = test_progress.to_dict()
+        
+        # Check if all stages are completed
+        completed_stages = progress_data.get('completed_stages', [])
+        if len(completed_stages) < 4:
+            flash('Пожалуйста, завершите все этапы теста')
+            next_stage = min([i for i in range(1, 5) if i not in completed_stages])
+            return redirect(url_for('career_test_stage', stage=next_stage))
+        
+        # Check if we already have recommendations
+        recommendations = None
+        if 'recommendations' in progress_data:
+            recommendations = progress_data.get('recommendations')
+        
+        # If no recommendations yet, check the dedicated cache
+        if not recommendations:
+            recommendations_ref = db.collection('career_recommendations').document(user_id)
+            recommendations_doc = recommendations_ref.get()
+            
+            if recommendations_doc.exists:
+                rec_data = recommendations_doc.to_dict()
+                if 'recommendations' in rec_data:
+                    recommendations = rec_data.get('recommendations')
+                    
+                    # Update the user's progress data with these recommendations
+                    test_progress_ref.update({
+                        'recommendations': recommendations
+                    })
+        
+        # If we still don't have recommendations, generate them
+        if not recommendations:
+            # This could happen if the user navigates directly to the results page
+            # without going through the analysis step
+            answers = progress_data.get('answers', {})
+            recommendations = analyze_career_test_results(answers)
+            
+            # Cache the recommendations in user's progress
+            test_progress_ref.update({
+                'recommendations': recommendations
+            })
+            
+        # Render the results template with recommendations
+        return render_template(
+            'career_test/results.html',
+            recommendations=recommendations,
+            user_data=progress_data,
+            current_user_avatar=get_current_user_avatar(),
+            current_username=get_current_username(),
+            from_cache=True
+        )
+        
+    except Exception as e:
+        print(f"Error generating career test results: {e}")
+        import traceback
+        traceback.print_exc()
+        flash('Ошибка при генерации рекомендаций по карьере')
+        return redirect(url_for('career_test'))
+
+@app.route('/career-test/profession/<profession_slug>')
+@login_required
+def career_profession_detail(profession_slug):
+    """Display detailed information about a specific profession"""
+    user_id = session['user_id']
+    
+    try:
+        # Check if cached profession data exists
+        profession_ref = db.collection('profession_data').document(profession_slug)
+        profession_doc = profession_ref.get()
+        
+        if profession_doc.exists:
+            # Use cached data
+            profession_data = profession_doc.to_dict()
+        else:
+            # Generate profession details using AI
+            profession_name = profession_slug.replace('-', ' ').title()
+            profession_data = generate_profession_details(profession_name)
+            
+            # Cache the results
+            profession_ref.set(profession_data)
+        
+        # Get user data for personalization (compatibility score)
+        test_progress_ref = db.collection('users').document(user_id).collection('test_progress').document('career_test')
+        test_progress = test_progress_ref.get()
+        
+        compatibility = None
+        if test_progress.exists:
+            progress_data = test_progress.to_dict()
+            recommendations = progress_data.get('recommendations', [])
+            
+            # Find this profession in recommendations to get compatibility
+            for rec in recommendations:
+                if rec.get('slug') == profession_slug:
+                    compatibility = rec.get('compatibility')
+                    break
+        
+        return render_template(
+            'career_test/profession_detail.html',
+            profession=profession_data,
+            compatibility=compatibility,
+            current_user_avatar=get_current_user_avatar(),
+            current_username=get_current_username()
+        )
+        
+    except Exception as e:
+        print(f"Error loading profession details: {e}")
+        flash('Error loading profession details')
+        return redirect(url_for('career_test_results'))
+
+
+def analyze_career_test_results(answers):
+    """Analyze test answers and generate career recommendations in Russian with improved results caching"""
+    try:
+        user_id = session.get('user_id')
+        
+        # Check for existing cached recommendations
+        if user_id:
+            cache_ref = db.collection('career_recommendations').document(user_id)
+            cache_doc = cache_ref.get()
+            
+            if cache_doc.exists:
+                cache_data = cache_doc.to_dict()
+                # Check if we already have recommendations and they're not too old (less than 30 days)
+                if 'recommendations' in cache_data and 'generated_at' in cache_data:
+                    generated_at = cache_data['generated_at']
+                    if isinstance(generated_at, datetime.datetime):
+                        age = datetime.datetime.now(tz=datetime.timezone.utc) - generated_at
+                        # Use cached results if they're less than 30 days old
+                        if age.days < 30:
+                            print("Using cached career recommendations")
+                            return cache_data.get('recommendations')
+        
+        # Initialize Gemini AI model
+        model = genai.GenerativeModel('gemini-1.5-pro-latest')
+        
+        # Prepare test answers for analysis
+        formatted_answers = json.dumps(answers, ensure_ascii=False, indent=2)
+        
+        # Create prompt for career analysis - RUSSIAN VERSION with enhanced precision
+        prompt = f"""Как карьерный консультант со специализацией на рынке труда Казахстана, проанализируй эти результаты тестов и рекомендуй 10 наиболее подходящих профессий для этого человека.
+
+ОТВЕТЫ ТЕСТА:
+{formatted_answers}
+
+Выполни тщательный анализ следующим образом:
+1. Определи ключевые сильные стороны и предпочтения на основе ответов всех 4 тестов
+2. Выяви профессиональные типы по Голланду на основе теста RIASEC
+3. Определи основные мотивационные факторы из теста мотивации
+4. Оцени конкретные интересы и склонности из заключительного теста
+5. Сопоставь полученные данные с требованиями профессий на рынке труда Казахстана
+
+Для каждой рекомендуемой профессии предоставь:
+1. Точное название профессии на русском языке
+2. Процент совместимости (от 60% до 98%) на основе всестороннего анализа ответов
+3. Подробное описание (2-3 предложения) с акцентом на то, почему эта профессия подходит данному человеку
+4. Реалистичную среднюю зарплату в Казахстане (в тенге) и в мире (в долларах США)
+
+Формат ответа должен быть в виде массива JSON с такой структурой:
+[
+  {{
+    "name": "Название профессии",
+    "slug": "название-профессии",
+    "compatibility": 92,
+    "description": "Детальное описание профессии с учетом личных качеств человека",
+    "salary": {{
+      "kz": "X,XXX,XXX тенге в год",
+      "global": "$XX,XXX в год"
+    }}
+  }},
+  ...
+]
+
+Важно: 
+- Используй ТОЛЬКО АКТУАЛЬНЫЕ И ТОЧНЫЕ данные о зарплатах и требованиях для Казахстана
+- Учитывай региональную специфику рынка труда Казахстана
+- Рекомендации должны быть ПЕРСОНАЛИЗИРОВАННЫМИ на основе конкретных ответов тестируемого
+- Процент совместимости должен точно отражать, насколько профессия соответствует всему комплексу характеристик тестируемого
+- Все описания должны быть на русском языке и включать конкретные причины, почему данная профессия рекомендуется
+- ОТВЕЧАЙ ТОЛЬКО В ФОРМАТЕ JSON, без дополнительного текста
+"""
+
+        # Get recommendations from Gemini
+        response = model.generate_content(prompt)
+        result_text = response.text
+        
+        # Try to extract JSON from response
+        try:
+            import re
+            json_match = re.search(r'(\[[\s\S]*\])', result_text)
+            if json_match:
+                json_str = json_match.group(1)
+                recommendations = json.loads(json_str)
+            else:
+                recommendations = json.loads(result_text)
+                
+            # Sort by compatibility score (highest first)
+            recommendations.sort(key=lambda x: x.get('compatibility', 0), reverse=True)
+            
+            # Cache the results in a dedicated collection
+            if user_id:
+                cache_data = {
+                    'recommendations': recommendations,
+                    'generated_at': datetime.datetime.now(tz=datetime.timezone.utc),
+                    'user_id': user_id
+                }
+                db.collection('career_recommendations').document(user_id).set(cache_data)
+            
+            # Return top 10 recommendations
+            return recommendations[:10]
+            
+        except json.JSONDecodeError:
+            # Fallback with generic recommendations in Russian if parsing fails
+            print("Error parsing JSON recommendations from AI")
+            return [
+                {
+                    "name": "Программист",
+                    "slug": "programmist",
+                    "compatibility": 92,
+                    "description": "Разрабатывает программное обеспечение и приложения. Исходя из ваших аналитических способностей и интереса к технологиям, эта профессия отлично соответствует вашему профилю.",
+                    "salary": {
+                        "kz": "4,800,000 тенге в год",
+                        "global": "$85,000 в год"
+                    }
+                },
+                {
+                    "name": "Специалист по анализу данных",
+                    "slug": "specialist-po-analizu-dannyh",
+                    "compatibility": 88,
+                    "description": "Анализирует большие наборы данных для получения информации и решения сложных проблем. Ваша способность к логическому мышлению и интерес к исследованиям делают эту профессию высоко релевантной для вас.",
+                    "salary": {
+                        "kz": "5,200,000 тенге в год",
+                        "global": "$95,000 в год"
+                    }
+                },
+                {
+                    "name": "Инженер-нефтяник",
+                    "slug": "inzhener-neftyanik",
+                    "compatibility": 86,
+                    "description": "Разрабатывает и совершенствует методы добычи нефти и газа из земли. Учитывая ваш интерес к прикладным наукам и предпочтение работы со сложными техническими системами, эта профессия может стать отличным выбором.",
+                    "salary": {
+                        "kz": "7,500,000 тенге в год",
+                        "global": "$110,000 в год"
+                    }
+                }
+            ]
+            
+    except Exception as e:
+        print(f"Error analyzing career test results: {e}")
+        import traceback
+        traceback.print_exc()
+        
+        # Return fallback recommendations in Russian
+        return [
+            {
+                "name": "Разработчик программного обеспечения",
+                "slug": "razrabotchik-programmnogo-obespecheniya",
+                "compatibility": 85,
+                "description": "Проектирует и разрабатывает компьютерное программное обеспечение и приложения. Эта профессия хорошо соответствует вашим техническим навыкам и аналитическому складу ума.",
+                "salary": {
+                    "kz": "4,800,000 тенге в год",
+                    "global": "$85,000 в год"
+                }
+            },
+            {
+                "name": "Учитель",
+                "slug": "uchitel",
+                "compatibility": 82,
+                "description": "Обучает учеников различным предметам и на разных уровнях образования. Ваши коммуникативные навыки и желание помогать другим делают эту профессию перспективным вариантом для вас.",
+                "salary": {
+                    "kz": "2,000,000 тенге в год",
+                    "global": "$45,000 в год"
+                }
+            }
+        ]
+@app.route('/career-test/generate-results', methods=['POST'])
+@login_required
+def generate_career_results():
+    """API endpoint to actually generate the results after showing animation"""
+    user_id = session['user_id']
+    
+    try:
+        # Get test answers
+        test_progress_ref = db.collection('users').document(user_id).collection('test_progress').document('career_test')
+        test_progress = test_progress.get()
+        
+        if not test_progress.exists:
+            return jsonify({'error': 'Результаты теста не найдены'}), 404
+            
+        progress_data = test_progress.to_dict()
+        answers = progress_data.get('answers', {})
+        
+        # Analyze results using AI
+        recommendations = analyze_career_test_results(answers)
+        
+        # Return the results
+        return jsonify({
+            'success': True,
+            'recommendations': recommendations
+        })
+        
+    except Exception as e:
+        print(f"Error generating results: {e}")
+        return jsonify({'error': str(e)}), 500
+
+def generate_profession_details(profession_name):
+    """Generate detailed profession information in Russian with central profession cache"""
+    try:
+        # Generate a consistent slug for caching
+        import re
+        # Replace all non-alphanumeric characters with hyphens and convert to lowercase
+        slug = re.sub(r'[^a-zA-Zа-яА-Я0-9]+', '-', profession_name.lower()).strip('-')
+        
+        # Check if cached profession data exists in central profession cache
+        profession_ref = db.collection('profession_details').document(slug)
+        profession_doc = profession_ref.get()
+        
+        if profession_doc.exists:
+            # Use cached data
+            print(f"Using cached profession data for {profession_name}")
+            profession_data = profession_doc.to_dict()
+            return profession_data
+        
+        # Initialize Gemini AI model
+        model = genai.GenerativeModel('gemini-1.5-pro-latest')
+        
+        # Create prompt for profession details - RUSSIAN VERSION with enhanced detail
+        prompt = f"""Как специалист по карьерам в Казахстане, создай исчерпывающее и точное описание профессии "{profession_name}" конкретно для казахстанского рынка труда.
+
+Включи следующую информацию:
+1. Детальный обзор профессии (основные функции, обязанности, роль в организации)
+2. Необходимое образование и квалификации в контексте Казахстана (конкретные вузы, специальности)
+3. Точный диапазон зарплат в Казахстане (в тенге) с учетом региональных различий и в мире (в долларах США)
+4. Конкретные перспективы трудоустройства и роста в Казахстане с учетом текущих экономических тенденций
+5. Подробный список ключевых профессиональных навыков и личностных качеств
+6. Типичные рабочие задачи, условия труда и рабочая среда
+7. Чёткие пути карьерного роста с указанием конкретных должностей и временных рамок
+8. Смежные профессии и возможности смены специализации
+9. Список ведущих работодателей в Казахстане с акцентом на региональное распределение
+
+Формат ответа - объект JSON со следующими ключами:
+{{
+  "name": "Название профессии",
+  "overview": "Подробный обзор...",
+  "education": ["Пункт об образовании 1", "Пункт 2", ...],
+  "salary": {{
+    "kz": {{
+      "range": "X,XXX,XXX - X,XXX,XXX тенге в год",
+      "average": "X,XXX,XXX тенге в год"
+    }},
+    "global": {{
+      "range": "$XX,XXX - $XXX,XXX в год",
+      "average": "$XX,XXX в год"
+    }}
+  }},
+  "job_outlook": "Подробные перспективы работы в Казахстане...",
+  "skills": ["Навык 1", "Навык 2", ...],
+  "personality": ["Качество 1", "Качество 2", ...],
+  "daily_work": ["Задача 1", "Задача 2", ...],
+  "advancement": ["Путь 1", "Путь 2", ...],
+  "related_professions": ["Родственная профессия 1", "Родственная профессия 2", ...],
+  "top_employers": ["Работодатель 1", "Работодатель 2", ...]
+}}
+
+КРИТИЧЕСКИ ВАЖНО:
+- Вся информация ДОЛЖНА быть конкретной, актуальной и основываться на реальных данных рынка труда Казахстана
+- Информация о зарплатах должна отражать реальную ситуацию в Казахстане на 2023-2024 годы
+- Образовательные требования должны соответствовать казахстанской системе образования
+- Перечень работодателей должен включать реальные компании, действующие в Казахстане
+- ВСЯ ИНФОРМАЦИЯ ДОЛЖНА БЫТЬ ИСКЛЮЧИТЕЛЬНО НА РУССКОМ ЯЗЫКЕ
+- Ответ должен содержать ТОЛЬКО JSON-объект без дополнительного текста
+"""
+
+        # Get details from Gemini
+        response = model.generate_content(prompt)
+        result_text = response.text
+        
+        # Try to extract JSON from response
+        try:
+            import re
+            json_match = re.search(r'(\{[\s\S]*\})', result_text)
+            if json_match:
+                json_str = json_match.group(1)
+                profession_data = json.loads(json_str)
+            else:
+                profession_data = json.loads(result_text)
+                
+            # Add timestamp and slug
+            profession_data['generated_at'] = datetime.datetime.now(tz=datetime.timezone.utc).isoformat()
+            profession_data['slug'] = slug
+            
+            # Store in central profession cache
+            db.collection('profession_details').document(slug).set(profession_data)
+            
+            return profession_data
+            
+        except json.JSONDecodeError:
+            # Fallback with generic data in Russian if parsing fails
+            print(f"Error parsing JSON profession details from AI for {profession_name}")
+            fallback_data = {
+                "name": profession_name,
+                "overview": "Эта профессия включает работу в специализированной области, требующей конкретных навыков и знаний. Специалисты данного профиля востребованы на рынке труда Казахстана и вносят значительный вклад в развитие соответствующей отрасли.",
+                "education": [
+                    "Высшее образование по специальности в одном из ведущих вузов Казахстана (КазНУ, ЕНУ, КБТУ)", 
+                    "Профессиональные сертификаты от международных организаций",
+                    "Регулярное повышение квалификации через специализированные курсы"
+                ],
+                "salary": {
+                    "kz": {
+                        "range": "3,000,000 - 7,000,000 тенге в год",
+                        "average": "5,000,000 тенге в год"
+                    },
+                    "global": {
+                        "range": "$40,000 - $100,000 в год",
+                        "average": "$70,000 в год"
+                    }
+                },
+                "job_outlook": "Перспективы для этой профессии в Казахстане умеренные с ожидаемым стабильным ростом. Спрос на квалифицированных специалистов особенно высок в крупных городах, таких как Алматы и Астана. С развитием отрасли ожидается увеличение количества вакансий и возможностей для карьерного роста.",
+                "skills": [
+                    "Коммуникабельность", 
+                    "Решение проблем", 
+                    "Технические знания",
+                    "Работа в команде",
+                    "Аналитическое мышление"
+                ],
+                "personality": [
+                    "Внимание к деталям", 
+                    "Умение работать в команде", 
+                    "Адаптивность",
+                    "Стрессоустойчивость",
+                    "Ответственность"
+                ],
+                "daily_work": [
+                    "Командные встречи", 
+                    "Работа над проектами", 
+                    "Профессиональное развитие",
+                    "Взаимодействие с клиентами и партнерами",
+                    "Решение текущих рабочих задач"
+                ],
+                "advancement": [
+                    "Специалист → Старший специалист → Руководитель группы", 
+                    "Специализация в узком профиле с повышением экспертности", 
+                    "Переход в смежные области с расширением компетенций"
+                ],
+                "related_professions": [
+                    "Похожая профессия 1", 
+                    "Похожая профессия 2",
+                    "Альтернативная карьерная траектория"
+                ],
+                "top_employers": [
+                    "Казмунайгаз", 
+                    "Казахтелеком", 
+                    "Air Astana",
+                    "Kaspi Bank",
+                    "Самрук-Казына"
+                ],
+                "generated_at": datetime.datetime.now(tz=datetime.timezone.utc).isoformat(),
+                "slug": slug
+            }
+            
+            # Still cache the fallback data
+            db.collection('profession_details').document(slug).set(fallback_data)
+            
+            return fallback_data
+            
+    except Exception as e:
+        print(f"Error generating profession details for {profession_name}: {e}")
+        import traceback
+        traceback.print_exc()
+        
+        # Return fallback data in Russian
+        return {
+            "name": profession_name,
+            "overview": "Подробная информация об этой профессии временно недоступна. Профессия представляет собой специализированную область деятельности, требующую определенных навыков и квалификации.",
+            "education": ["Высшее образование", "Профессиональное обучение"],
+            "salary": {
+                "kz": {
+                    "range": "3,000,000 - 6,000,000 тенге в год",
+                    "average": "4,500,000 тенге в год"
+                },
+                "global": {
+                    "range": "$40,000 - $80,000 в год",
+                    "average": "$60,000 в год"
+                }
+            },
+            "job_outlook": "Информация о перспективах работы в Казахстане временно недоступна.",
+            "skills": ["Профессиональные навыки", "Технические знания"],
+            "personality": ["Адаптивность", "Внимание к деталям"],
+            "daily_work": ["Варьируется в зависимости от рабочего места"],
+            "advancement": ["Карьерный рост от начальных до руководящих позиций"],
+            "related_professions": ["Смежные профессиональные роли"],
+            "top_employers": ["Ведущие компании Казахстана в соответствующей отрасли"],
+            "generated_at": datetime.datetime.now(tz=datetime.timezone.utc).isoformat(),
+            "slug": slug
+        }
+
+
+
 @app.errorhandler(404)
 def page_not_found(e):
 

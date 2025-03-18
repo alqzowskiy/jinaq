@@ -259,20 +259,47 @@
                                 </div>
                             </div>
                             {% endif %}
+                            {% if user_data.status and user_data.status.text %}
+                            <div class="mt-6">
+                                <div class="flex items-start">
+                                    <div class="flex-grow">
+                                        <h3 class="text-lg font-semibold mb-3 flex items-center">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-gray-700"
+                                                fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+                                            </svg>
+                                            Status
+                                        </h3>
+                                        <div class="bg-gray-50 rounded-lg p-4">
+                                            <p class="text-gray-800">{{ user_data.status.text }}</p>
+                                            <p class="text-xs text-gray-500 mt-2">
+                                                Updated {{ user_data.status.updated_at.strftime('%b %d, %Y') if
+                                                user_data.status.updated_at else '' }}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
                             {% if user_data.goals %}
                             <div class="mt-6">
-                                <h3 class="text-lg font-semibold text-gray-900 flex items-center">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-gray-700"
-                                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                        stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M12 2L19 9L12 16L5 9L12 2Z"></path>
-                                        <path d="M19 15L19 22L5 22L5 15"></path>
-                                        <path d="M2 15L22 15"></path>
-                                    </svg>
-                                    Goals
-                                </h3>
-                                <div class="bg-gray-50 rounded-lg p-4">
-                                    <p class="text-sm text-gray-600">{{ user_data.goals }}</p>
+                                <div class="flex items-start">
+                                    <div class="flex-grow">
+                                        <h3 class="text-lg font-semibold mb-3 flex items-center">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-gray-700"
+                                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round" stroke-linejoin="round">
+                                                <path d="M12 2L19 9L12 16L5 9L12 2Z"></path>
+                                                <path d="M19 15L19 22L5 22L5 15"></path>
+                                                <path d="M2 15L22 15"></path>
+                                            </svg>
+                                            Goals
+                                        </h3>
+                                        <div class="bg-gray-50 rounded-lg p-4">
+                                            <p class="text-sm text-gray-600">{{ user_data.goals }}</p>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                             {% endif %}
@@ -513,6 +540,7 @@
                         {% endif %}
 
                         <!-- Projects Section for Public Profile -->
+                        <!-- Projects Section in public_profile.html -->
                         <div class="bg-white rounded-xl shadow-sm p-6">
                             <h2 class="text-lg font-semibold text-gray-900 mb-6 flex items-center">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-gray-700" fill="none"
@@ -529,12 +557,36 @@
                                 <div
                                     class="bg-gray-50 rounded-lg overflow-hidden hover:shadow-md transition-all duration-300">
                                     <div class="md:flex">
-                                        {% if project.images and project.images|length > 0 %}
+                                        <!-- Logo/Thumbnail with Header Background -->
                                         <div class="md:flex-shrink-0 h-48 md:h-auto md:w-48 relative">
-                                            <img src="{{ project.images[0] }}" alt="{{ project.title }}"
-                                                class="w-full h-full object-cover md:object-cover">
+                                            <!-- Header image as background -->
+                                            <div class="absolute inset-0 bg-gradient-to-r from-gray-200 to-gray-300">
+                                                {% if project.header_image %}
+                                                <img src="{{ project.header_image }}" alt="{{ project.title }}"
+                                                    class="w-full h-full object-cover opacity-75">
+                                                {% endif %}
+                                            </div>
 
-                                            <!-- Add role badge -->
+                                            <!-- Overlay for better visibility -->
+                                            <div class="absolute inset-0 bg-black bg-opacity-10"></div>
+
+                                            <!-- Centered Logo -->
+                                            <div class="absolute inset-0 flex items-center justify-center">
+                                                {% if project.thumbnail %}
+                                                <div
+                                                    class="bg-white p-2 rounded-lg shadow-sm transform hover:scale-105 transition-all">
+                                                    <img src="{{ project.thumbnail }}" alt="{{ project.title }}"
+                                                        class="w-20 h-20 object-contain">
+                                                </div>
+                                                {% else %}
+                                                <div
+                                                    class="w-16 h-16 flex items-center justify-center bg-white rounded-full shadow-sm text-2xl font-bold">
+                                                    {{ project.title[0] }}
+                                                </div>
+                                                {% endif %}
+                                            </div>
+
+                                            <!-- Role badge -->
                                             {% if project.role == 'collaborator' %}
                                             <div
                                                 class="absolute top-2 right-2 px-2 py-1 bg-purple-500 text-white text-xs font-medium rounded-full">
@@ -542,7 +594,6 @@
                                             </div>
                                             {% endif %}
                                         </div>
-                                        {% endif %}
 
                                         <div class="p-6 flex-1">
                                             <div class="flex justify-between items-start">
@@ -574,35 +625,63 @@
                                             </div>
                                             {% endif %}
 
-                                            {% if project.collaborators and project.collaborators|length > 0 %}
+                                            <!-- Team Display -->
                                             <div class="mt-4">
-                                                <div class="text-xs text-gray-500 mb-2">
-                                                    {% if project.role == 'creator' %}Collaborators:{% else %}Team:{%
-                                                    endif %}
-                                                </div>
-                                                <div class="flex -space-x-2 overflow-hidden">
-                                                    <!-- Show creator first if this is a collaborative project -->
-                                                    {% if project.role == 'collaborator' %}
-                                                    <a href="/{{ project.creator.username }}" class="tooltip"
-                                                        data-tip="{{ project.creator.username }} (Creator)">
-                                                        <img class="inline-block h-8 w-8 rounded-full ring-2 ring-white"
+                                                {% if project.role == 'collaborator' and project.created_by %}
+                                                <!-- When viewing as collaborator, show the creator first -->
+                                                <div class="flex items-center gap-2 mb-2">
+                                                    <span class="text-xs text-gray-500">Creator:</span>
+                                                    {% if project.creator %}
+                                                    <a href="/{{ project.creator.username }}"
+                                                        class="tooltip flex items-center"
+                                                        data-tip="{{ project.creator.username }}">
+                                                        <img class="inline-block h-6 w-6 rounded-full ring-2 ring-white"
                                                             src="{{ project.creator.avatar }}"
                                                             alt="{{ project.creator.username }}">
+                                                        <span class="ml-1 text-xs text-gray-700">{{
+                                                            project.creator.username }}</span>
                                                     </a>
+                                                    {% else %}
+                                                    <span class="text-xs text-gray-500">Unknown</span>
                                                     {% endif %}
-
-                                                    <!-- Show collaborators -->
-                                                    {% for collaborator in project.collaborators %}
-                                                    <a href="/{{ collaborator.username }}" class="tooltip"
-                                                        data-tip="{{ collaborator.username }}">
-                                                        <img class="inline-block h-8 w-8 rounded-full ring-2 ring-white"
-                                                            src="{{ collaborator.avatar }}"
-                                                            alt="{{ collaborator.username }}">
-                                                    </a>
-                                                    {% endfor %}
                                                 </div>
+
+                                                <!-- Then show other collaborators -->
+                                                {% if project.collaborators and project.collaborators|length > 0 %}
+                                                <div class="flex items-center gap-2">
+                                                    <span class="text-xs text-gray-500">Team:</span>
+                                                    <div class="flex -space-x-2 overflow-hidden">
+                                                        {% for collaborator in project.collaborators %}
+                                                        <a href="/{{ collaborator.username }}" class="tooltip"
+                                                            data-tip="{{ collaborator.username }}">
+                                                            <img class="inline-block h-6 w-6 rounded-full ring-2 ring-white"
+                                                                src="{{ collaborator.avatar }}"
+                                                                alt="{{ collaborator.username }}">
+                                                        </a>
+                                                        {% endfor %}
+                                                    </div>
+                                                </div>
+                                                {% endif %}
+
+                                                {% else %}
+                                                <!-- Standard collaborators display for creator view -->
+                                                {% if project.collaborators and project.collaborators|length > 0 %}
+                                                <div class="flex items-center gap-2">
+                                                    <span class="text-xs text-gray-500">Collaborators:</span>
+                                                    <div class="flex -space-x-2 overflow-hidden">
+                                                        {% for collaborator in project.collaborators %}
+                                                        <a href="/{{ collaborator.username }}" class="tooltip"
+                                                            data-tip="{{ collaborator.username }}">
+                                                            <img class="inline-block h-6 w-6 rounded-full ring-2 ring-white"
+                                                                src="{{ collaborator.avatar }}"
+                                                                alt="{{ collaborator.username }}">
+                                                        </a>
+                                                        {% endfor %}
+                                                    </div>
+                                                </div>
+                                                {% endif %}
+                                                {% endif %}
                                             </div>
-                                            {% endif %}
 
                                             <div class="mt-4">
                                                 <a href="{{ url_for('view_project', project_id=project.id) }}"
