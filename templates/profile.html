@@ -202,6 +202,7 @@
 {% endblock %}
 
 {% block content %}
+
 <div class="min-h-screen bg-gray-50">
     <div class="container mx-auto px-4 py-8">
         <!-- Header Container - Hidden by default -->
@@ -263,6 +264,7 @@
                         <div class="relative group w-40 h-40 mx-auto mb-6">
                             <img id="avatarPreview" src="{{ avatar_url }}"
                                 class="w-full h-full object-cover rounded-2xl shadow-md" alt="Profile picture">
+
                             <label
                                 class="absolute inset-0 rounded-2xl bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-opacity profile-editable-section">
                                 <span class="text-white text-sm font-medium">Change Photo</span>
@@ -331,6 +333,56 @@
                                     Member since {{ user_data.created_at.strftime('%B %Y') if user_data and
                                     user_data.created_at else 'Recently' }}
                                 </span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-sm p-6 mb-6">
+                        <div class="space-y-4" id="statusContainer">
+                            <!-- Status Display Section -->
+                            <div id="statusDisplay" class="flex items-start justify-between">
+                                <div class="flex-grow">
+                                    <h3 class="text-lg font-semibold mb-2">Status</h3>
+                                    {% if user_data.status and user_data.status.text %}
+                                    <p id="currentStatus" class="text-gray-700">{{ user_data.status.text }}</p>
+                                    <p class="text-xs text-gray-500 mt-1">
+                                        Updated {{ user_data.status.updated_at.strftime('%b %d, %Y at %H:%M') if
+                                        user_data.status.updated_at else '' }}
+                                    </p>
+                                    {% else %}
+                                    <p id="currentStatus" class="text-gray-500 italic">No status set. Share what you're
+                                        working on or thinking about.</p>
+                                    {% endif %}
+                                </div>
+                                <button id="editStatusBtn" onclick="showStatusEditor()"
+                                    class="btn btn-ghost btn-sm profile-editable-section">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
+                                        viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                    </svg>
+                                </button>
+                            </div>
+
+                            <!-- Status Edit Section (Hidden by Default) -->
+                            <div id="statusEditor" class="hidden">
+                                <h3 class="text-lg font-semibold mb-2">Update your status</h3>
+                                <div class="mt-2">
+                                    <textarea id="statusText" class="textarea textarea-bordered w-full h-24 bg-gray-50"
+                                        placeholder="Share what you're working on or thinking about..."
+                                        maxlength="280">{{ user_data.status.text if user_data.status and user_data.status.text else '' }}</textarea>
+                                    <div class="flex justify-between items-center mt-2">
+                                        <span id="statusCharCount" class="text-sm text-gray-500">
+                                            {{ (user_data.status.text|length if user_data.status and
+                                            user_data.status.text else 0) }} / 280
+                                        </span>
+                                        <div class="flex gap-2">
+                                            <button onclick="cancelStatusEdit()"
+                                                class="btn btn-sm btn-ghost">Cancel</button>
+                                            <button onclick="saveStatus()"
+                                                class="btn btn-sm bg-black hover:bg-gray-800 text-white">Save</button>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -668,6 +720,7 @@
                     </div>
 
                     <!-- Projects Section -->
+                    <!-- Projects Section for Personal Profile -->
                     <div class="bg-white rounded-xl shadow-sm p-6">
                         <div class="flex justify-between items-center mb-6">
                             <h2 class="text-2xl font-bold">Projects</h2>
@@ -687,12 +740,35 @@
                             {% for project in projects %}
                             <div
                                 class="group relative bg-white border border-gray-200 rounded-xl overflow-hidden hover:shadow-md transition-all duration-300">
-                                {% if project.images and project.images|length > 0 %}
+                                <!-- Header and Logo Container -->
                                 <div class="relative h-48">
-                                    <img src="{{ project.images[0] }}" alt="{{ project.title }}"
-                                        class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105">
+                                    <!-- Header background -->
+                                    <div class="absolute inset-0 bg-gradient-to-r from-gray-100 to-gray-200">
+                                        {% if project.header_image %}
+                                        <img src="{{ project.header_image }}" alt="{{ project.title }}"
+                                            class="w-full h-full object-cover opacity-70">
+                                        {% endif %}
+                                    </div>
+
+                                    <!-- Overlay for better contrast -->
                                     <div
-                                        class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                        class="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent opacity-70">
+                                    </div>
+
+                                    <!-- Centered logo/thumbnail with background -->
+                                    <div class="absolute inset-0 flex items-center justify-center">
+                                        {% if project.thumbnail %}
+                                        <div
+                                            class="bg-white/90 p-3 rounded-lg shadow-sm transform group-hover:scale-105 transition-all">
+                                            <img src="{{ project.thumbnail }}" alt="{{ project.title }}"
+                                                class="h-24 w-auto object-contain max-w-[120px]">
+                                        </div>
+                                        {% else %}
+                                        <div
+                                            class="w-20 h-20 flex items-center justify-center bg-white rounded-full shadow-md text-2xl font-bold">
+                                            {{ project.title[0] }}
+                                        </div>
+                                        {% endif %}
                                     </div>
 
                                     <!-- Add role badge -->
@@ -703,24 +779,6 @@
                                     </div>
                                     {% endif %}
                                 </div>
-                                {% else %}
-                                <div
-                                    class="h-48 flex items-center justify-center bg-gray-100 group-hover:bg-gray-200 transition-colors duration-300 relative">
-                                    <svg class="h-16 w-16 text-gray-400" fill="none" viewBox="0 0 24 24"
-                                        stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z" />
-                                    </svg>
-
-                                    <!-- Add role badge for collaborator -->
-                                    {% if project.role == 'collaborator' %}
-                                    <div
-                                        class="absolute top-2 right-2 px-2 py-1 bg-purple-500 text-white text-xs font-medium rounded-full">
-                                        Collaborator
-                                    </div>
-                                    {% endif %}
-                                </div>
-                                {% endif %}
 
                                 <div class="p-6">
                                     <div class="flex justify-between items-start mb-2">
@@ -750,22 +808,68 @@
                                     </div>
                                     {% endif %}
 
-                                    <!-- Show collaborators -->
-                                    {% if project.collaborators and project.collaborators|length > 0 %}
-                                    <div class="flex items-center gap-2 mb-3">
-                                        <span class="text-xs text-gray-500">With:</span>
-                                        <div class="flex -space-x-2">
-                                            {% for collaborator in project.collaborators %}
-                                            <div class="tooltip" data-tip="{{ collaborator.username }}">
-                                                <img src="{{ collaborator.avatar }}" alt="{{ collaborator.username }}"
-                                                    class="h-6 w-6 rounded-full ring-2 ring-white">
+                                    <!-- Team/Collaborators Section -->
+                                    <div class="mt-3 mb-4">
+                                        {% if project.role == 'collaborator' %}
+                                        <!-- When I'm a collaborator, show the creator and my teammates differently -->
+                                        <div class="flex flex-col gap-2">
+                                            <!-- Creator first -->
+                                            <div class="flex items-center text-xs">
+                                                <span class="text-gray-500 mr-2">Creator:</span>
+                                                {% if project.creator %}
+                                                <a href="/{{ project.creator.username }}" class="flex items-center">
+                                                    <img class="w-5 h-5 rounded-full mr-1"
+                                                        src="{{ project.creator.avatar }}"
+                                                        alt="{{ project.creator.username }}">
+                                                    <span class="text-gray-700">{{ project.creator.username }}</span>
+                                                </a>
+                                                {% else %}
+                                                <span class="text-gray-600">Unknown</span>
+                                                {% endif %}
                                             </div>
-                                            {% endfor %}
-                                        </div>
-                                    </div>
-                                    {% endif %}
 
-                                    <div class="flex justify-between items-center mt-4">
+                                            <!-- Other team members -->
+                                            {% if project.collaborators and project.collaborators|length > 0 %}
+                                            <div class="flex items-center text-xs">
+                                                <span class="text-gray-500 mr-2">Team:</span>
+                                                <div class="flex -space-x-2">
+                                                    {% for collaborator in project.collaborators %}
+                                                    <div class="tooltip" data-tip="{{ collaborator.username }}">
+                                                        <div
+                                                            class="collaborator-avatar-container h-6 w-6 rounded-full ring-2 ring-white overflow-hidden">
+                                                            <img src="{{ collaborator.avatar }}"
+                                                                alt="{{ collaborator.username }}"
+                                                                class="w-full h-full object-cover small-avatar">
+                                                        </div>
+                                                    </div>
+                                                    {% endfor %}
+                                                </div>
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                        {% else %}
+                                        <!-- Standard collaborators display when I'm the creator -->
+                                        {% if project.collaborators and project.collaborators|length > 0 %}
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-xs text-gray-500">Collaborators:</span>
+                                            <div class="flex -space-x-2">
+                                                {% for collaborator in project.collaborators %}
+                                                <div class="tooltip" data-tip="{{ collaborator.username }}">
+                                                    <div
+                                                        class="collaborator-avatar-container h-6 w-6 rounded-full ring-2 ring-white overflow-hidden">
+                                                        <img src="{{ collaborator.avatar }}"
+                                                            alt="{{ collaborator.username }}"
+                                                            class="collaborator-avatar w-full h-full object-cover small-avatar">
+                                                    </div>
+                                                </div>
+                                                {% endfor %}
+                                            </div>
+                                        </div>
+                                        {% endif %}
+                                        {% endif %}
+                                    </div>
+
+                                    <div class="flex justify-between items-center">
                                         <a href="{{ url_for('view_project', project_id=project.id) }}"
                                             class="text-sm font-medium text-purple-600 hover:text-purple-800 transition-colors">
                                             View Project
@@ -800,7 +904,6 @@
                         </div>
                         {% else %}
                         <div class="text-center py-12 bg-gray-50 rounded-xl">
-
                             <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24"
                                 stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -808,10 +911,70 @@
                             </svg>
                             <h3 class="mt-4 text-lg font-medium text-gray-900">No projects yet</h3>
                             <p class="mt-2 text-sm text-gray-500">Showcase your work by adding your first project</p>
-
                         </div>
                         {% endif %}
                     </div>
+
+                    <div class="bg-white rounded-lg shadow-sm p-6 profile-display-section">
+                        <div class="flex justify-between items-center mb-4">
+                            <h2 class="text-2xl font-bold">Career test</h2>
+                            {% if test_completed %}
+                            <span class="px-3 py-1 text-sm font-medium bg-green-100 text-green-800 rounded-full">
+                                Passed
+                            </span>
+                            {% else %}
+                            <span class="px-3 py-1 text-sm font-medium bg-yellow-100 text-yellow-800 rounded-full">
+                                Not passed
+                            </span>
+                            {% endif %}
+                        </div>
+
+                        {% if test_completed %}
+                        <!-- Test Completed - Show Results Preview -->
+                        <div class="space-y-6">
+                            <p class="text-gray-700">Based on your profile, here are the top 3 recommended professions:
+                            </p>
+
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                {% for profession in test_results[:3] %}
+                                <div class="bg-gray-50 p-4 rounded-lg hover:shadow-md transition-all duration-200">
+                                    <div class="flex justify-between items-start mb-2">
+                                        <h3 class="font-semibold text-gray-900">{{ profession.name }}</h3>
+                                        <span class="text-sm font-bold text-purple-700">{{ profession.compatibility
+                                            }}%</span>
+                                    </div>
+                                    <p class="text-sm text-gray-600 line-clamp-3">{{ profession.description }}</p>
+                                </div>
+                                {% endfor %}
+                            </div>
+
+                            <div class="flex justify-center mt-4">
+                                <a href="{{ url_for('career_test_results') }}"
+                                    class="btn bg-black hover:bg-gray-800 text-white transform hover:scale-[1.02] transition-all duration-200">
+                                    View full results
+                                </a>
+                            </div>
+                        </div>
+                        {% else %}
+                        <!-- Test Not Completed - Show CTA -->
+                        <div class="text-center py-10 bg-gray-50 rounded-xl">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-12 w-12 text-gray-400" fill="none"
+                                viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                            </svg>
+                            <h3 class="mt-4 text-lg font-medium text-gray-900">Determine your career path</h3>
+                            <p class="mt-2 text-sm text-gray-500 mb-6">Take our career test and get personalized career
+                                recommendations</p>
+                            <a href="{{ url_for('career_test') }}"
+                                class="btn bg-black hover:bg-gray-800 text-white transform hover:scale-[1.02] transition-all duration-200">
+                                Take the career test
+                            </a>
+                        </div>
+                        {% endif %}
+                    </div>
+
+
                     <!-- Academic Portfolio -->
                     <div class="bg-white rounded-2xl shadow-sm p-8 profile-editable-section">
                         <h2 class="text-2xl font-bold mb-8">Academic Portfolio</h2>
@@ -1568,6 +1731,74 @@
         });
     });
 </script>
+<script>
+    // Status update functionality
+    function showStatusEditor() {
+        document.getElementById('statusDisplay').classList.add('hidden');
+        document.getElementById('statusEditor').classList.remove('hidden');
 
+        // Focus on textarea
+        document.getElementById('statusText').focus();
+    }
+
+    function cancelStatusEdit() {
+        document.getElementById('statusDisplay').classList.remove('hidden');
+        document.getElementById('statusEditor').classList.add('hidden');
+    }
+
+    // Character counter for status
+    document.getElementById('statusText')?.addEventListener('input', function () {
+        const length = this.value.length;
+        const charCountElement = document.getElementById('statusCharCount');
+        charCountElement.textContent = `${length} / 280`;
+
+        // Change color when approaching limit
+        if (length > 240) {
+            charCountElement.classList.add('text-orange-500');
+        } else if (length > 260) {
+            charCountElement.classList.add('text-red-500');
+        } else {
+            charCountElement.classList.remove('text-orange-500', 'text-red-500');
+        }
+    });
+
+    async function saveStatus() {
+        const statusText = document.getElementById('statusText').value;
+
+        try {
+            const response = await fetch('/update-status', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ status: statusText })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                // Update the displayed status
+                const currentStatus = document.getElementById('currentStatus');
+                if (statusText.trim()) {
+                    currentStatus.textContent = statusText;
+                    currentStatus.classList.remove('text-gray-500', 'italic');
+                } else {
+                    currentStatus.textContent = 'No status set. Share what you\'re working on or thinking about.';
+                    currentStatus.classList.add('text-gray-500', 'italic');
+                }
+
+                // Hide editor
+                cancelStatusEdit();
+
+                // Show success notification
+                showNotification('Status updated successfully');
+            } else {
+                throw new Error(data.error || 'Failed to update status');
+            }
+        } catch (error) {
+            showNotification(error.message, 'error');
+        }
+    }
+</script>
 
 {% endblock %}

@@ -1,0 +1,489 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="min-h-screen bg-gray-50 py-12">
+    <div class="container mx-auto px-4">
+        <div class="max-w-4xl mx-auto">
+            <!-- Header with Test Name and Progress -->
+            <div class="mb-6">
+                <h1 class="text-2xl font-bold text-black">{{ stage_name }}</h1>
+                <div class="flex justify-between items-center mt-2">
+                    <p class="text-gray-600">Этап {{ stage }} из 4</p>
+                    <p class="text-gray-600">Вопрос {{ question_number }} из {{ total_questions }}</p>
+                </div>
+            </div>
+
+            <!-- Animated Progress Bar -->
+            <div class="w-full bg-gray-200 rounded-full h-2.5 mb-8 overflow-hidden">
+                <div class="bg-black h-2.5 rounded-full transition-all duration-700 ease-out"
+                    style="width: {{ (stage / 4) * 100 }}%" id="progressBar"></div>
+            </div>
+
+            <!-- Question Container with Animation Wrapper -->
+            <div id="questionAnimationWrapper" class="relative overflow-hidden" style="min-height: 300px;">
+                <div id="questionContainer" class="transition-all duration-500 ease-out">
+                    <div class="bg-white shadow-md rounded-xl p-8 mb-8 question-card">
+                        <h2 class="text-xl font-semibold mb-8">{{ question.text }}</h2>
+
+                        <form id="questionForm" method="post">
+                            <input type="hidden" name="question_id" value="{{ question_number }}">
+
+                            <!-- Always use checkboxes for multiple choice -->
+                            {% if question.options and question.options|length > 0 %}
+                            <div class="space-y-4 options-container">
+                                {% for option in question.options %}
+                                <div class="relative option-item" style="--delay: {{ loop.index0 * 100 }}ms">
+                                    <input type="checkbox" id="option_{{ loop.index }}" name="answer"
+                                        value="{{ option.value }}" class="hidden" {{ 'checked' if option.value in
+                                        selected_answers }}>
+                                    <label for="option_{{ loop.index }}"
+                                        class="option-label flex items-center w-full p-4 border border-gray-200 rounded-lg cursor-pointer transition-all duration-200 hover:bg-gray-50 {{ 'selected-option' if option.value in selected_answers }}">
+                                        <span
+                                            class="checkbox-custom mr-3 w-5 h-5 border border-gray-300 rounded flex-shrink-0 flex items-center justify-center {{ 'checked' if option.value in selected_answers }}">
+                                            {% if option.value in selected_answers %}
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-black"
+                                                fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M5 13l4 4L19 7" />
+                                            </svg>
+                                            {% endif %}
+                                        </span>
+                                        {{ option.text }}
+                                    </label>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% else %}
+                            <!-- Fallback options for questions without options -->
+                            <div class="space-y-4 options-container">
+                                <div class="relative option-item" style="--delay: 0ms">
+                                    <input type="checkbox" id="option_yes" name="answer" value="yes" class="hidden"
+                                        {{ 'checked' if 'yes' in selected_answers }}>
+                                    <label for="option_yes"
+                                        class="option-label flex items-center w-full p-4 border border-gray-200 rounded-lg cursor-pointer transition-all duration-200 hover:bg-gray-50 {{ 'selected-option' if 'yes' in selected_answers }}">
+                                        <span
+                                            class="checkbox-custom mr-3 w-5 h-5 border border-gray-300 rounded flex-shrink-0 flex items-center justify-center {{ 'checked' if 'yes' in selected_answers }}">
+                                            {% if 'yes' in selected_answers %}
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-black"
+                                                fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M5 13l4 4L19 7" />
+                                            </svg>
+                                            {% endif %}
+                                        </span>
+                                        Да
+                                    </label>
+                                </div>
+                                <div class="relative option-item" style="--delay: 100ms">
+                                    <input type="checkbox" id="option_somewhat" name="answer" value="somewhat"
+                                        class="hidden" {{ 'checked' if 'somewhat' in selected_answers }}>
+                                    <label for="option_somewhat"
+                                        class="option-label flex items-center w-full p-4 border border-gray-200 rounded-lg cursor-pointer transition-all duration-200 hover:bg-gray-50 {{ 'selected-option' if 'somewhat' in selected_answers }}">
+                                        <span
+                                            class="checkbox-custom mr-3 w-5 h-5 border border-gray-300 rounded flex-shrink-0 flex items-center justify-center {{ 'checked' if 'somewhat' in selected_answers }}">
+                                            {% if 'somewhat' in selected_answers %}
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-black"
+                                                fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M5 13l4 4L19 7" />
+                                            </svg>
+                                            {% endif %}
+                                        </span>
+                                        Отчасти
+                                    </label>
+                                </div>
+                                <div class="relative option-item" style="--delay: 200ms">
+                                    <input type="checkbox" id="option_no" name="answer" value="no" class="hidden"
+                                        {{ 'checked' if 'no' in selected_answers }}>
+                                    <label for="option_no"
+                                        class="option-label flex items-center w-full p-4 border border-gray-200 rounded-lg cursor-pointer transition-all duration-200 hover:bg-gray-50 {{ 'selected-option' if 'no' in selected_answers }}">
+                                        <span
+                                            class="checkbox-custom mr-3 w-5 h-5 border border-gray-300 rounded flex-shrink-0 flex items-center justify-center {{ 'checked' if 'no' in selected_answers }}">
+                                            {% if 'no' in selected_answers %}
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-black"
+                                                fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M5 13l4 4L19 7" />
+                                            </svg>
+                                            {% endif %}
+                                        </span>
+                                        Нет
+                                    </label>
+                                </div>
+                            </div>
+                            {% endif %}
+
+                            <div class="mt-8 flex justify-between buttons-container">
+                                <button type="submit" name="action" value="prev"
+                                    class="px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-all duration-200 text-gray-700 flex items-center prev-button">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none"
+                                        viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M15 19l-7-7 7-7" />
+                                    </svg>
+                                    Назад
+                                </button>
+
+                                <button type="submit" name="action" value="next"
+                                    class="px-6 py-3 bg-black text-white rounded-lg hover:bg-gray-900 transition-all duration-200 flex items-center next-button">
+                                    Далее
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 ml-2" fill="none"
+                                        viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M9 5l7 7-7 7" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Base styles for the question card */
+    .question-card {
+        transform: translateY(0);
+        opacity: 1;
+        transition: all 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    /* Animation styles for transitions */
+    .option-item {
+        opacity: 0;
+        transform: translateY(20px);
+        animation: fadeInUp 0.5s forwards;
+        animation-delay: var(--delay);
+    }
+
+    .selected-option {
+        border-color: black !important;
+        background-color: rgba(0, 0, 0, 0.05) !important;
+    }
+
+    .checkbox-custom.checked {
+        background-color: white;
+        border-color: black;
+    }
+
+    /* Enter animation */
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* Exit animation */
+    @keyframes fadeOutLeft {
+        from {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        to {
+            opacity: 0;
+            transform: translateX(-100px);
+        }
+    }
+
+    /* Enter from right animation */
+    @keyframes fadeInRight {
+        from {
+            opacity: 0;
+            transform: translateX(100px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+
+    /* Loading animation */
+    @keyframes pulse {
+
+        0%,
+        100% {
+            opacity: 1;
+        }
+
+        50% {
+            opacity: 0.5;
+        }
+    }
+
+    .loading-state {
+        animation: pulse 1.5s infinite;
+    }
+
+    /* Buttons animation */
+    .buttons-container {
+        opacity: 0;
+        transform: translateY(20px);
+        animation: fadeInUp 0.5s forwards;
+        animation-delay: 500ms;
+    }
+
+    .next-button,
+    .prev-button {
+        position: relative;
+        overflow: hidden;
+    }
+
+    .next-button::after,
+    .prev-button::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 120%;
+        height: 0;
+        padding-bottom: 120%;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 50%;
+        transform: translate(-50%, -50%) scale(0);
+        transition: transform 0.6s;
+    }
+
+    .next-button:hover::after,
+    .prev-button:hover::after {
+        transform: translate(-50%, -50%) scale(1);
+    }
+
+    /* Progress bar animation */
+    #progressBar {
+        position: relative;
+    }
+
+    #progressBar::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 50px;
+        height: 100%;
+        background: linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.5) 50%, rgba(255, 255, 255, 0) 100%);
+        animation: shimmer 2s infinite;
+    }
+
+    @keyframes shimmer {
+        from {
+            transform: translateX(-100%);
+        }
+
+        to {
+            transform: translateX(200%);
+        }
+    }
+</style>
+
+<script>
+    // Enhanced script with beautiful animations
+    document.addEventListener('DOMContentLoaded', function () {
+        // Get animation wrapper and container
+        const animationWrapper = document.getElementById('questionAnimationWrapper');
+        const questionContainer = document.getElementById('questionContainer');
+        const progressBar = document.getElementById('progressBar');
+
+        // Initialize page with animation
+        animateQuestionIn();
+
+        // Progress bar animation
+        setTimeout(() => {
+            const currentWidth = parseFloat(progressBar.style.width);
+            progressBar.style.width = `${currentWidth}%`;
+        }, 100);
+
+        // Handle checkbox interaction
+        setupCheckboxHandlers();
+
+        // Handle form submission with animations
+        const questionForm = document.getElementById('questionForm');
+        if (questionForm) {
+            questionForm.addEventListener('submit', function (e) {
+                e.preventDefault();
+
+                // Get active button
+                const submitButton = document.activeElement;
+                const originalText = submitButton.innerHTML;
+                submitButton.disabled = true;
+
+                // Get form data
+                const formData = new FormData(questionForm);
+                const action = submitButton.value;
+                formData.append('action', action);
+
+                // Animation direction based on button clicked
+                const direction = action === 'next' ? 'right' : 'left';
+
+                // Animate the current question out
+                animateQuestionOut(direction);
+
+                // Add loading animation to button
+                if (action === 'next') {
+                    submitButton.innerHTML = `
+                    <div class="flex items-center">
+                        <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span>Далее...</span>
+                    </div>
+                `;
+                } else {
+                    submitButton.innerHTML = `
+                    <div class="flex items-center">
+                        <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-gray-700" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span>Назад...</span>
+                    </div>
+                `;
+                }
+
+                // Send AJAX request
+                fetch(window.location.href, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Network response was not ok');
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        if (data.redirect) {
+                            // Page change needed - smooth transition
+                            document.body.style.opacity = '0';
+                            document.body.style.transition = 'opacity 0.5s ease';
+                            setTimeout(() => {
+                                window.location.href = data.redirect;
+                            }, 500);
+                        } else if (data.html) {
+                            // Update the question content with animation
+                            setTimeout(() => {
+                                // Update DOM with new content
+                                questionContainer.innerHTML = data.html;
+
+                                // Animate new question in from opposite direction
+                                animateQuestionIn(direction === 'right' ? 'left' : 'right');
+
+                                // Re-initialize handlers
+                                setupCheckboxHandlers();
+
+                                // Animate progress bar
+                                const progressValue = parseInt(document.querySelector('.text-gray-600').textContent.split(' ')[1]) / 4 * 100;
+                                progressBar.style.width = `${progressValue}%`;
+                            }, 500); // Wait for exit animation to finish
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Произошла ошибка. Пожалуйста, попробуйте еще раз.');
+
+                        // Reset animation and button
+                        animateQuestionIn();
+                        submitButton.disabled = false;
+                        submitButton.innerHTML = originalText;
+                    });
+            });
+        }
+
+        // Function to set up checkbox interactions
+        function setupCheckboxHandlers() {
+            const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+            checkboxes.forEach(checkbox => {
+                checkbox.addEventListener('change', function () {
+                    const label = document.querySelector(`label[for="${this.id}"]`);
+                    if (label) {
+                        if (this.checked) {
+                            label.classList.add('selected-option');
+                            const checkboxCustom = label.querySelector('.checkbox-custom');
+                            if (checkboxCustom) {
+                                checkboxCustom.classList.add('checked');
+                                checkboxCustom.innerHTML = `
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                </svg>
+                            `;
+                            }
+                        } else {
+                            label.classList.remove('selected-option');
+                            const checkboxCustom = label.querySelector('.checkbox-custom');
+                            if (checkboxCustom) {
+                                checkboxCustom.classList.remove('checked');
+                                checkboxCustom.innerHTML = '';
+                            }
+                        }
+                    }
+                });
+            });
+        }
+
+        // Function to animate question entering
+        function animateQuestionIn(direction = 'right') {
+            const questionCard = questionContainer.querySelector('.question-card');
+            if (!questionCard) return;
+
+            // Reset styles
+            questionCard.style.opacity = '0';
+
+            if (direction === 'right') {
+                questionCard.style.transform = 'translateX(100px)';
+            } else if (direction === 'left') {
+                questionCard.style.transform = 'translateX(-100px)';
+            } else {
+                questionCard.style.transform = 'translateY(30px)';
+            }
+
+            // Trigger animation
+            setTimeout(() => {
+                questionCard.style.opacity = '1';
+                questionCard.style.transform = 'translateX(0) translateY(0)';
+
+                // Reset option animations
+                const options = document.querySelectorAll('.option-item');
+                options.forEach((option, index) => {
+                    option.style.opacity = '0';
+                    option.style.transform = 'translateY(20px)';
+                    option.style.animationDelay = `${index * 100}ms`;
+
+                    // Force reflow to restart the animation
+                    void option.offsetWidth;
+
+                    option.style.animation = 'none';
+                    setTimeout(() => {
+                        option.style.animation = 'fadeInUp 0.5s forwards';
+                    }, 10);
+                });
+            }, 50);
+        }
+
+        // Function to animate question exiting
+        function animateQuestionOut(direction = 'left') {
+            const questionCard = questionContainer.querySelector('.question-card');
+            if (!questionCard) return;
+
+            if (direction === 'right') {
+                questionCard.style.opacity = '0';
+                questionCard.style.transform = 'translateX(100px)';
+            } else {
+                questionCard.style.opacity = '0';
+                questionCard.style.transform = 'translateX(-100px)';
+            }
+        }
+    });
+</script>
+{% endblock %}

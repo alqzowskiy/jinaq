@@ -1,0 +1,220 @@
+{# Template for profession detail page with black and white design #}
+{% extends "base.html" %}
+{% block content %}
+<div class="bg-white min-h-screen py-12">
+    <div class="container mx-auto px-4">
+        <div class="max-w-4xl mx-auto">
+            <a href="{{ url_for('career_test_results') }}"
+                class="text-black hover:text-gray-700 mb-6 inline-flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd"
+                        d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z"
+                        clip-rule="evenodd" />
+                </svg>
+                Вернуться к результатам
+            </a>
+
+            <div class="bg-white border border-gray-200 rounded-xl shadow-md overflow-hidden mb-8">
+                <div class="bg-black text-white p-6">
+                    <div class="flex flex-col md:flex-row md:items-center justify-between">
+                        <h1 class="text-3xl font-bold">{{ profession.name }}</h1>
+
+                        {% if compatibility %}
+                        <div class="mt-4 md:mt-0 bg-white text-black px-4 py-2 rounded-lg">
+                            <div class="text-sm font-medium">Совместимость</div>
+                            <div class="text-2xl font-bold">{{ compatibility }}%</div>
+                            <div class="text-xs">для тебя</div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="p-6 md:p-8">
+                    <div class="prose max-w-none mb-8">
+                        <h2 class="text-xl font-semibold mb-3 text-black">Обзор</h2>
+                        <p class="text-gray-700">{{ profession.overview }}</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+                        <div>
+                            <h2 class="text-xl font-semibold mb-3 text-black">Необходимое образование</h2>
+                            <ul class="space-y-2">
+                                {% for item in profession.education %}
+                                <li class="flex items-start">
+                                    <svg class="h-5 w-5 text-black mr-2 flex-shrink-0" fill="currentColor"
+                                        viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd"
+                                            d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                                            clip-rule="evenodd"></path>
+                                    </svg>
+                                    <span class="text-gray-700">{{ item }}</span>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+
+                        <div>
+                            <h2 class="text-xl font-semibold mb-3 text-black">Зарплата</h2>
+                            <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                                <div class="mb-4">
+                                    <h3 class="font-medium text-black">В Казахстане</h3>
+                                    <div class="flex justify-between mt-1">
+                                        <span class="text-gray-500">Диапазон:</span>
+                                        <span class="text-gray-900 font-medium">{{ profession.salary.kz.range }}</span>
+                                    </div>
+                                    <div class="flex justify-between mt-1">
+                                        <span class="text-gray-500">Средняя:</span>
+                                        <span class="text-gray-900 font-medium">{{ profession.salary.kz.average
+                                            }}</span>
+                                    </div>
+                                </div>
+                                <div>
+                                    <h3 class="font-medium text-black">В мире</h3>
+                                    <div class="flex justify-between mt-1">
+                                        <span class="text-gray-500">Диапазон:</span>
+                                        <span class="text-gray-900 font-medium">{{ profession.salary.global.range
+                                            }}</span>
+                                    </div>
+                                    <div class="flex justify-between mt-1">
+                                        <span class="text-gray-500">Средняя:</span>
+                                        <span class="text-gray-900 font-medium">{{ profession.salary.global.average
+                                            }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-8">
+                        <h2 class="text-xl font-semibold mb-3 text-black">Перспективы работы</h2>
+                        <p class="text-gray-700">{{ profession.job_outlook }}</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+                        <div>
+                            <h2 class="text-xl font-semibold mb-3 text-black">Ключевые навыки</h2>
+                            <div class="flex flex-wrap gap-2">
+                                {% for skill in profession.skills %}
+                                <span
+                                    class="bg-gray-100 text-black text-sm font-medium px-2.5 py-1 rounded-md border border-gray-200">
+                                    {{ skill }}
+                                </span>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <div>
+                            <h2 class="text-xl font-semibold mb-3 text-black">Личностные качества</h2>
+                            <div class="flex flex-wrap gap-2">
+                                {% for trait in profession.personality %}
+                                <span
+                                    class="bg-gray-100 text-black text-sm font-medium px-2.5 py-1 rounded-md border border-gray-200">
+                                    {{ trait }}
+                                </span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+                        <div>
+                            <h2 class="text-xl font-semibold mb-3 text-black">Рабочие обязанности</h2>
+                            <ul class="space-y-2">
+                                {% for item in profession.daily_work %}
+                                <li class="flex items-start">
+                                    <svg class="h-5 w-5 text-gray-400 mr-2 flex-shrink-0" fill="currentColor"
+                                        viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd"
+                                            d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"
+                                            clip-rule="evenodd"></path>
+                                    </svg>
+                                    <span class="text-gray-700">{{ item }}</span>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+
+                        <div>
+                            <h2 class="text-xl font-semibold mb-3 text-black">Карьерный рост</h2>
+                            <ul class="space-y-2">
+                                {% for item in profession.advancement %}
+                                <li class="flex items-start">
+                                    <svg class="h-5 w-5 text-gray-400 mr-2 flex-shrink-0" fill="currentColor"
+                                        viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd"
+                                            d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"
+                                            clip-rule="evenodd"></path>
+                                    </svg>
+                                    <span class="text-gray-700">{{ item }}</span>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div>
+                            <h2 class="text-xl font-semibold mb-3 text-black">Смежные профессии</h2>
+                            <ul class="space-y-2">
+                                {% for item in profession.related_professions %}
+                                <li class="flex items-start">
+                                    <svg class="h-5 w-5 text-gray-400 mr-2 flex-shrink-0" fill="currentColor"
+                                        viewBox="0 0 20 20">
+                                        <path
+                                            d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z">
+                                        </path>
+                                        <path
+                                            d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z">
+                                        </path>
+                                    </svg>
+                                    <span class="text-gray-700">{{ item }}</span>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+
+                        <div>
+                            <h2 class="text-xl font-semibold mb-3 text-black">Топ работодателей в Казахстане</h2>
+                            <ul class="space-y-2">
+                                {% for item in profession.top_employers %}
+                                <li class="flex items-start">
+                                    <svg class="h-5 w-5 text-gray-400 mr-2 flex-shrink-0" fill="currentColor"
+                                        viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd"
+                                            d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4zm3 1h6v4H7V5zm8 8v2h1v1H4v-1h1v-2h1v2h1v-2h1v2h1v-2h1v2h1v-2h1v2h1v-2h1z"
+                                            clip-rule="evenodd"></path>
+                                    </svg>
+                                    <span class="text-gray-700">{{ item }}</span>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-between">
+                <a href="{{ url_for('career_test_results') }}"
+                    class="bg-gray-200 hover:bg-gray-300 text-black px-5 py-2 rounded-lg transition-colors flex items-center">
+                    <svg class="h-5 w-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd"
+                            d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z"
+                            clip-rule="evenodd"></path>
+                    </svg>
+                    Назад к результатам
+                </a>
+
+                <a href="{{ url_for('university_recommendation') }}"
+                    class="bg-black hover:bg-gray-900 text-white px-5 py-2 rounded-lg transition-colors shadow-sm flex items-center">
+                    Подобрать университеты
+                    <svg class="h-5 w-5 ml-2" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd"
+                            d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z"
+                            clip-rule="evenodd"></path>
+                    </svg>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,146 +1,229 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="container mx-auto px-4 py-8">
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <!-- User Management Panel -->
-        <div class="md:col-span-2 bg-white shadow-md rounded-lg">
-            <div class="px-6 py-4 border-b flex justify-between items-center">
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <!-- Main content area - User Management Panel -->
+        <div class="lg:col-span-3 bg-white shadow-md rounded-lg">
+            <!-- Header with search and logout -->
+            <div class="px-6 py-4 border-b flex flex-col md:flex-row justify-between items-center gap-4">
                 <h1 class="text-2xl font-bold">Admin Dashboard - User Management</h1>
-                <div class="flex items-center space-x-4">
-                    <!-- Search Input -->
-                    <div class="relative">
+                <div class="flex items-center space-x-4 w-full md:w-auto">
+                    <div class="relative flex-grow md:flex-grow-0">
                         <input type="text" id="adminUserSearch" placeholder="Search users..."
-                            class="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-black w-64">
-                        <div id="adminSearchResults"
-                            class="absolute z-10 mt-1 w-full bg-white border rounded-lg shadow-lg hidden"></div>
+                            class="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-black w-full md:w-64">
                     </div>
-                    <a href="{{ url_for('admin_logout') }}" class="btn bg-red-500 text-white">Logout</a>
+                    <a href="{{ url_for('admin_logout') }}"
+                        class="btn bg-red-500 text-white px-4 py-2 rounded">Logout</a>
                 </div>
             </div>
 
-            <table class="w-full">
-                <thead class="bg-gray-100">
-                    <tr>
-                        <th class="px-6 py-3 text-left">Username</th>
-                        <th class="px-6 py-3 text-left">Email</th>
-                        <th class="px-6 py-3 text-left">Verification</th>
-                        <th class="px-6 py-3 text-left">Account Status</th>
-                        <th class="px-6 py-3 text-left">Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="userTableBody">
-                    {% for user in users %}
-                    <tr class="border-b user-row" data-user-id="{{ user.id }}">
-                        <td class="px-6 py-4">
-                            <div class="flex items-center">
-                                <input type="checkbox" class="user-checkbox mr-3" value="{{ user.id }}"
-                                    data-username="{{ user.display_username }}">
-                                {{ user.display_username }}
-                                {% if user.get('verified') %}
-                                <span
-                                    class="ml-2 px-2 py-1 text-xs {{ 'bg-blue-100 text-blue-800' if user.get('verification_type') == 'official' else 'bg-purple-100 text-purple-800' if user.get('verification_type') == 'creator' else 'bg-green-100 text-green-800' }} rounded-full">
-                                    {{ user.get('verification_type', 'Verified') }}
-                                </span>
-                                {% endif %}
-                            </div>
-                        </td>
-                        <td class="px-6 py-4">{{ user.email }}</td>
-                        <td class="px-6 py-4">
-                            <span class="{{ 'text-green-600' if user.get('verified') else 'text-gray-500' }}">
-                                {{ 'Verified' if user.get('verified') else 'Not Verified' }}
-                            </span>
-                        </td>
-                        <td class="px-6 py-4">
-                            <span class="{{ 'text-green-600' if not user.get('blocked') else 'text-red-600' }}">
-                                {{ 'Active' if not user.get('blocked') else 'Blocked' }}
-                            </span>
-                        </td>
-                        <td class="px-6 py-4">
-                            <div class="dropdown">
-                                <label tabindex="0" class="btn m-1">Actions</label>
-                                <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-base-100 rounded-box w-52">
-                                    <li>
-                                        <a onclick="verifyUser('{{ user.id }}', 'official')">
-                                            🏛️ Official Account
-                                        </a>
-                                    </li>
-                                    <li>
-                                        <a onclick="verifyUser('{{ user.id }}', 'creator')">
-                                            🎨 Content Creator
-                                        </a>
-                                    </li>
-                                    <li>
-                                        <a onclick="verifyUser('{{ user.id }}', 'business')">
-                                            💼 Business Account
-                                        </a>
-                                    </li>
-                                    <li>
-                                        <a onclick="verifyUser('{{ user.id }}', 'remove')" class="text-red-500">
-                                            ❌ Remove Verification
-                                        </a>
-                                    </li>
-                                    <li>
-                                        <a onclick="addAdmin('{{ user.id }}')" class="text-blue-500">
-                                            👑 Grant Admin Access
-                                        </a>
-                                    </li>
-                                    <li>
-                                        <a onclick="toggleUserBlock('{{ user.id }}')"
-                                            class="{{ 'text-red-500' if not user.get('blocked') else 'text-green-500' }}">
-                                            {{ '🚫 Block User' if not user.get('blocked') else '✅ Unblock User' }}
-                                        </a>
-                                    </li>
-                                </ul>
-                            </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+            <!-- Sorting options and batch actions -->
+            <div class="px-6 py-3 bg-gray-50">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span class="text-sm text-gray-600 mr-2">Sort by:</span>
+                        <div class="flex flex-wrap gap-2">
+                            <a href="{{ url_for('admin_dashboard', sort_by='created_at_desc') }}"
+                                class="px-3 py-1 rounded text-sm {{ 'bg-gray-700 text-white' if current_sort == 'created_at_desc' else 'bg-gray-200' }}">
+                                Newest first
+                            </a>
+                            <a href="{{ url_for('admin_dashboard', sort_by='created_at_asc') }}"
+                                class="px-3 py-1 rounded text-sm {{ 'bg-gray-700 text-white' if current_sort == 'created_at_asc' else 'bg-gray-200' }}">
+                                Oldest first
+                            </a>
+                            <a href="{{ url_for('admin_dashboard', sort_by='username_asc') }}"
+                                class="px-3 py-1 rounded text-sm {{ 'bg-gray-700 text-white' if current_sort == 'username_asc' else 'bg-gray-200' }}">
+                                Username A-Z
+                            </a>
+                            <a href="{{ url_for('admin_dashboard', sort_by='username_desc') }}"
+                                class="px-3 py-1 rounded text-sm {{ 'bg-gray-700 text-white' if current_sort == 'username_desc' else 'bg-gray-200' }}">
+                                Username Z-A
+                            </a>
+                        </div>
+                    </div>
 
-        <!-- Notification Panel -->
-        <div class="bg-white shadow-md rounded-lg p-6">
-            <h2 class="text-xl font-bold mb-4">Send Notifications</h2>
-
-            <form id="notificationForm">
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700">Recipient Type</label>
-                    <select id="recipientType" class="select select-bordered w-full">
-                        <option value="all">All Users</option>
-                        <option value="verified">Verified Users</option>
-                        <option value="unverified">Unverified Users</option>
-                        <option value="selected">Selected Users</option>
-                    </select>
-                </div>
-
-                <div class="mb-4" id="selectedUsersContainer" style="display:none;">
-                    <label class="block text-sm font-medium text-gray-700">Selected Users</label>
-                    <div id="selectedUsersList" class="mt-2 p-2 bg-gray-100 rounded"></div>
-                </div>
-
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700">Message Type</label>
-                    <select id="messageType" class="select select-bordered w-full">
-                        <option value="system">System Message</option>
-                        <option value="admin_message">Admin Message</option>
-                        <option value="important">Important Notification</option>
-                    </select>
-                </div>
-
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700">Message</label>
-                    <textarea id="messageText" class="textarea textarea-bordered w-full"
-                        placeholder="Enter your message" maxlength="500"></textarea>
-                    <div class="text-sm text-gray-500 mt-1">
-                        <span id="charCount">0</span>/500 characters
+                    <!-- Batch actions toolbar -->
+                    <div id="batchActionsToolbar" class="flex items-center gap-2 opacity-50 pointer-events-none">
+                        <span id="selectedCount" class="text-sm font-medium">0 selected</span>
+                        <button id="batchDeleteBtn" onclick="confirmBatchDelete()"
+                            class="px-3 py-1 bg-red-600 text-white rounded-md text-sm flex items-center gap-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                            Delete Selected
+                        </button>
                     </div>
                 </div>
+            </div>
 
-                <button type="button" onclick="sendNotification()" class="btn btn-primary w-full">
-                    Send Notification
-                </button>
-            </form>
+            <!-- Users table -->
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-100">
+                        <tr>
+                            <th class="px-4 py-3 text-left w-10">
+                                <input type="checkbox" id="selectAllUsers" class="checkbox">
+                            </th>
+                            <th class="px-4 py-3 text-left">Username</th>
+                            <th class="px-4 py-3 text-left">Email</th>
+                            <th class="px-4 py-3 text-left">Created</th>
+                            <th class="px-4 py-3 text-left">Verification</th>
+                            <th class="px-4 py-3 text-left">Account Status</th>
+                            <th class="px-4 py-3 text-left">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="userTableBody">
+                        {% for user in users %}
+                        <tr class="border-b user-row hover:bg-gray-50" data-user-id="{{ user.id }}">
+                            <td class="px-4 py-3">
+                                <input type="checkbox" class="user-checkbox" value="{{ user.id }}"
+                                    data-username="{{ user.display_username }}">
+                            </td>
+                            <td class="px-4 py-3">
+                                <div class="flex items-center">
+                                    {{ user.display_username }}
+                                    {% if user.get('verified') %}
+                                    <span
+                                        class="ml-2 px-2 py-1 text-xs {{ 'bg-blue-100 text-blue-800' if user.get('verification_type') == 'official' else 'bg-purple-100 text-purple-800' if user.get('verification_type') == 'creator' else 'bg-green-100 text-green-800' }} rounded-full">
+                                        {{ user.get('verification_type', 'Verified') }}
+                                    </span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td class="px-4 py-3">{{ user.email }}</td>
+                            <td class="px-4 py-3">{{ user.created_at_formatted }}</td>
+                            <td class="px-4 py-3">
+                                <span class="{{ 'text-green-600' if user.get('verified') else 'text-gray-500' }}">
+                                    {{ 'Verified' if user.get('verified') else 'Not Verified' }}
+                                </span>
+                            </td>
+                            <td class="px-4 py-3">
+                                <span class="{{ 'text-green-600' if not user.get('blocked') else 'text-red-600' }}">
+                                    {{ 'Active' if not user.get('blocked') else 'Blocked' }}
+                                </span>
+                            </td>
+                            <td class="px-4 py-3">
+                                <div class="dropdown dropdown-end">
+                                    <button tabindex="0" class="btn btn-sm">Actions</button>
+                                    <ul tabindex="0"
+                                        class="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52">
+                                        <li>
+                                            <a onclick="verifyUser('{{ user.id }}', 'official')">
+                                                🏛️ Official Account
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a onclick="verifyUser('{{ user.id }}', 'creator')">
+                                                🎨 Content Creator
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a onclick="verifyUser('{{ user.id }}', 'business')">
+                                                💼 Business Account
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a onclick="verifyUser('{{ user.id }}', 'remove')" class="text-red-500">
+                                                ❌ Remove Verification
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a onclick="addAdmin('{{ user.id }}')" class="text-blue-500">
+                                                👑 Grant Admin Access
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a onclick="toggleUserBlock('{{ user.id }}')"
+                                                class="{{ 'text-red-500' if not user.get('blocked') else 'text-green-500' }}">
+                                                {{ '🚫 Block User' if not user.get('blocked') else '✅ Unblock User' }}
+                                            </a>
+                                        </li>
+                                        <li class="border-t border-gray-200 mt-1 pt-1">
+                                            <a onclick="confirmDeleteUser('{{ user.id }}', '{{ user.display_username }}')"
+                                                class="text-red-600 font-bold">
+                                                🗑️ Delete User & Data
+                                            </a>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Sidebar - Notifications and Stats -->
+        <div class="lg:col-span-1 space-y-6">
+            <!-- Notification Panel -->
+            <div class="bg-white shadow-md rounded-lg p-6">
+                <h2 class="text-xl font-bold mb-4">Send Notifications</h2>
+
+                <form id="notificationForm">
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700">Recipient Type</label>
+                        <select id="recipientType" class="select select-bordered w-full">
+                            <option value="all">All Users</option>
+                            <option value="verified">Verified Users</option>
+                            <option value="unverified">Unverified Users</option>
+                            <option value="selected">Selected Users</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-4" id="selectedUsersContainer" style="display:none;">
+                        <label class="block text-sm font-medium text-gray-700">Selected Users</label>
+                        <div id="selectedUsersList" class="mt-2 p-2 bg-gray-100 rounded"></div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700">Message Type</label>
+                        <select id="messageType" class="select select-bordered w-full">
+                            <option value="system">System Message</option>
+                            <option value="admin_message">Admin Message</option>
+                            <option value="important">Important Notification</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700">Message</label>
+                        <textarea id="messageText" class="textarea textarea-bordered w-full" rows="5"
+                            placeholder="Enter your message" maxlength="500"></textarea>
+                        <div class="text-sm text-gray-500 mt-1">
+                            <span id="charCount">0</span>/500 characters
+                        </div>
+                    </div>
+
+                    <button type="button" onclick="sendNotification()" class="btn btn-primary w-full">
+                        Send Notification
+                    </button>
+                </form>
+            </div>
+
+            <!-- Stats Cards -->
+            <div class="bg-white shadow-md rounded-lg p-6">
+                <h2 class="text-xl font-bold mb-4">User Statistics</h2>
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="bg-blue-50 rounded-lg p-3">
+                        <h3 class="font-medium text-blue-900">Total Users</h3>
+                        <p class="text-2xl font-bold text-blue-700">{{ total_users }}</p>
+                    </div>
+                    <div class="bg-green-50 rounded-lg p-3">
+                        <h3 class="font-medium text-green-900">Active Users</h3>
+                        <p class="text-2xl font-bold text-green-700">{{ active_users }}</p>
+                    </div>
+                    <div class="bg-purple-50 rounded-lg p-3">
+                        <h3 class="font-medium text-purple-900">Verified Users</h3>
+                        <p class="text-2xl font-bold text-purple-700">{{ verified_users }}</p>
+                    </div>
+                    <div class="bg-red-50 rounded-lg p-3">
+                        <h3 class="font-medium text-red-900">Blocked Users</h3>
+                        <p class="text-2xl font-bold text-red-700">{{ blocked_users }}</p>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -153,14 +236,73 @@
             <button onclick="closeNotificationModal()" class="btn btn-primary w-full">OK</button>
         </div>
     </div>
-</div>
 
+    <!-- Delete User Confirmation Modal -->
+    <div id="deleteUserModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+        <div class="bg-white rounded-lg p-6 max-w-md w-full">
+            <h3 class="text-xl font-bold mb-2 text-red-600">Delete User</h3>
+            <p id="deleteUserModalMessage" class="mb-6">Are you sure you want to permanently delete this user and all
+                their data? This action cannot be undone.</p>
+            <div class="flex space-x-3">
+                <button id="confirmDeleteUserBtn" class="btn bg-red-600 hover:bg-red-700 text-white flex-1">Delete
+                    User</button>
+                <button onclick="closeDeleteUserModal()"
+                    class="btn bg-gray-300 hover:bg-gray-400 text-gray-800 flex-1">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Batch Delete Confirmation Modal -->
+    <div id="batchDeleteModal"
+        class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+        <div class="bg-white rounded-lg p-6 max-w-md w-full">
+            <h3 class="text-xl font-bold mb-2 text-red-600">Batch Delete Users</h3>
+            <p id="batchDeleteModalMessage" class="mb-6">Are you sure you want to permanently delete all selected users
+                and their data? This action cannot be undone.</p>
+            <div class="flex space-x-3">
+                <button id="confirmBatchDeleteBtn" class="btn bg-red-600 hover:bg-red-700 text-white flex-1">Delete
+                    Selected Users</button>
+                <button onclick="closeBatchDeleteModal()"
+                    class="btn bg-gray-300 hover:bg-gray-400 text-gray-800 flex-1">Cancel</button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
 <script>
     let selectedUsers = [];
+    let userToDeleteId = null;
 
+    // Elements references
+    const batchActionsToolbar = document.getElementById('batchActionsToolbar');
+    const selectedCountElement = document.getElementById('selectedCount');
+
+    // Check if select all checkbox exists and add event listener
+    const selectAllCheckbox = document.getElementById('selectAllUsers');
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', function () {
+            const checkboxes = document.querySelectorAll('.user-checkbox');
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = this.checked;
+
+                const userId = checkbox.value;
+                const username = checkbox.dataset.username;
+
+                if (this.checked && !selectedUsers.find(u => u.id === userId)) {
+                    selectedUsers.push({ id: userId, username: username });
+                } else if (!this.checked) {
+                    selectedUsers = selectedUsers.filter(user => user.id !== userId);
+                }
+            });
+
+            updateSelectedUsersList();
+            updateBatchActionsToolbar();
+        });
+    }
+
+    // Add event listeners to user checkboxes
     document.querySelectorAll('.user-checkbox').forEach(checkbox => {
         checkbox.addEventListener('change', function () {
             const userId = this.value;
@@ -170,11 +312,28 @@
                 selectedUsers.push({ id: userId, username: username });
             } else {
                 selectedUsers = selectedUsers.filter(user => user.id !== userId);
+
+                // Uncheck "select all" if any checkbox is unchecked
+                if (selectAllCheckbox && selectAllCheckbox.checked) {
+                    selectAllCheckbox.checked = false;
+                }
             }
 
             updateSelectedUsersList();
+            updateBatchActionsToolbar();
         });
     });
+
+    function updateBatchActionsToolbar() {
+        // Show/hide the batch actions toolbar based on selection
+        if (selectedUsers.length > 0) {
+            batchActionsToolbar.classList.remove('opacity-50', 'pointer-events-none');
+            selectedCountElement.textContent = `${selectedUsers.length} selected`;
+        } else {
+            batchActionsToolbar.classList.add('opacity-50', 'pointer-events-none');
+            selectedCountElement.textContent = '0 selected';
+        }
+    }
 
     document.getElementById('recipientType').addEventListener('change', function () {
         const selectedUsersContainer = document.getElementById('selectedUsersContainer');
@@ -198,10 +357,100 @@
     function removeUser(userId) {
         selectedUsers = selectedUsers.filter(user => user.id !== userId);
         updateSelectedUsersList();
+        updateBatchActionsToolbar();
 
         // Uncheck the checkbox
         const checkbox = document.querySelector(`.user-checkbox[value="${userId}"]`);
         if (checkbox) checkbox.checked = false;
+
+        // Uncheck "select all" if we removed a user
+        if (selectAllCheckbox && selectAllCheckbox.checked) {
+            selectAllCheckbox.checked = false;
+        }
+    }
+
+    // Batch delete functions
+    function confirmBatchDelete() {
+        if (selectedUsers.length === 0) {
+            showNotificationModal('Error', 'No users selected for deletion');
+            return;
+        }
+
+        const messageElement = document.getElementById('batchDeleteModalMessage');
+        messageElement.innerHTML = `Are you sure you want to permanently delete <strong>${selectedUsers.length} selected users</strong> and all their data? This includes all projects, comments, certificates, and other content.<br><br>This action cannot be undone.`;
+
+        const confirmBtn = document.getElementById('confirmBatchDeleteBtn');
+        confirmBtn.onclick = batchDeleteUsers;
+
+        const modal = document.getElementById('batchDeleteModal');
+        modal.classList.remove('hidden');
+    }
+
+    function closeBatchDeleteModal() {
+        const modal = document.getElementById('batchDeleteModal');
+        modal.classList.add('hidden');
+    }
+
+    function batchDeleteUsers() {
+        // Show loading state
+        const confirmBtn = document.getElementById('confirmBatchDeleteBtn');
+        const originalBtnText = confirmBtn.innerHTML;
+        confirmBtn.innerHTML = 'Deleting...';
+        confirmBtn.disabled = true;
+
+        // Send the request to delete multiple users
+        fetch('/admin/batch_delete_users', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                user_ids: selectedUsers.map(user => user.id)
+            })
+        })
+            .then(response => response.json())
+            .then(data => {
+                closeBatchDeleteModal();
+
+                if (data.success) {
+                    // Remove deleted user rows from table
+                    for (const user of selectedUsers) {
+                        const userRow = document.querySelector(`.user-row[data-user-id="${user.id}"]`);
+                        if (userRow) {
+                            userRow.remove();
+                        }
+                    }
+
+                    // Clear selected users
+                    selectedUsers = [];
+                    updateSelectedUsersList();
+                    updateBatchActionsToolbar();
+
+                    // Uncheck select all
+                    if (selectAllCheckbox) {
+                        selectAllCheckbox.checked = false;
+                    }
+
+                    showNotificationModal('Success', data.message);
+
+                    // Refresh page after a short delay to update counts
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1500);
+                } else {
+                    showNotificationModal('Error', data.error || 'Failed to delete users');
+                }
+            })
+            .catch(error => {
+                closeBatchDeleteModal();
+                console.error('Error:', error);
+                showNotificationModal('Error', 'An error occurred while deleting users');
+            })
+            .finally(() => {
+                // Reset button state
+                confirmBtn.innerHTML = originalBtnText;
+                confirmBtn.disabled = false;
+            });
     }
 
     function sendNotification() {
@@ -239,6 +488,7 @@
                     document.getElementById('charCount').textContent = '0';
                     selectedUsers = [];
                     updateSelectedUsersList();
+                    updateBatchActionsToolbar();
                 } else {
                     showNotificationModal('Error', data.error || 'Failed to send notification');
                 }
@@ -248,10 +498,12 @@
                 showNotificationModal('Error', 'An error occurred');
             });
     }
+
     // Search functionality
     document.addEventListener('DOMContentLoaded', function () {
         const searchInput = document.getElementById('adminUserSearch');
-        const searchResults = document.getElementById('adminSearchResults');
+        if (!searchInput) return;
+
         const userTableBody = document.getElementById('userTableBody');
         let allUsers = Array.from(document.querySelectorAll('.user-row'));
 
@@ -261,14 +513,15 @@
             if (query.length < 2) {
                 // Show all rows if query is too short
                 allUsers.forEach(row => row.style.display = '');
-                searchResults.classList.add('hidden');
                 return;
             }
 
             // Filter rows
             const matchingUsers = allUsers.filter(row => {
-                const username = row.querySelector('.user-checkbox').dataset.username.toLowerCase();
-                const email = row.querySelectorAll('td')[1].textContent.toLowerCase();
+                const usernameElem = row.querySelector('td:nth-child(2)');
+                const username = usernameElem ? usernameElem.textContent.toLowerCase() : '';
+                const emailElem = row.querySelector('td:nth-child(3)');
+                const email = emailElem ? emailElem.textContent.toLowerCase() : '';
                 return username.includes(query) || email.includes(query);
             });
 
@@ -310,22 +563,31 @@
                 if (data.success) {
                     // Update UI
                     const userRow = document.querySelector(`.user-row[data-user-id="${userId}"]`);
-                    const statusCell = userRow.querySelectorAll('td')[3];
-                    const actionMenu = userRow.querySelector('.dropdown-content li:last-child a');
+                    const statusCell = userRow.querySelectorAll('td')[5]; // Adjusted index
+                    const actionButton = userRow.querySelector('.dropdown-content li:nth-last-child(2) a');
 
                     if (data.blocked) {
                         statusCell.innerHTML = '<span class="text-red-600">Blocked</span>';
-                        actionMenu.textContent = '✅ Unblock User';
-                        actionMenu.classList.remove('text-red-500');
-                        actionMenu.classList.add('text-green-500');
+                        if (actionButton) {
+                            actionButton.textContent = '✅ Unblock User';
+                            actionButton.classList.remove('text-red-500');
+                            actionButton.classList.add('text-green-500');
+                        }
                     } else {
                         statusCell.innerHTML = '<span class="text-green-600">Active</span>';
-                        actionMenu.textContent = '🚫 Block User';
-                        actionMenu.classList.remove('text-green-500');
-                        actionMenu.classList.add('text-red-500');
+                        if (actionButton) {
+                            actionButton.textContent = '🚫 Block User';
+                            actionButton.classList.remove('text-green-500');
+                            actionButton.classList.add('text-red-500');
+                        }
                     }
 
                     showNotificationModal('User Status', data.message);
+
+                    // Refresh page after a small delay to update stats
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1500);
                 } else {
                     showNotificationModal('Error', data.error);
                 }
@@ -336,7 +598,63 @@
             });
     }
 
-    // Existing functions from previous script
+    // Delete User Confirmation Modal
+    function confirmDeleteUser(userId, username) {
+        userToDeleteId = userId;
+
+        const messageElement = document.getElementById('deleteUserModalMessage');
+        messageElement.innerHTML = `Are you sure you want to permanently delete <strong>${username}</strong> and all their data? This includes all projects, comments, certificates, and other content. <br><br>This action cannot be undone.`;
+
+        const confirmBtn = document.getElementById('confirmDeleteUserBtn');
+        confirmBtn.onclick = () => deleteUser(userId);
+
+        const modal = document.getElementById('deleteUserModal');
+        modal.classList.remove('hidden');
+    }
+
+    function closeDeleteUserModal() {
+        const modal = document.getElementById('deleteUserModal');
+        modal.classList.add('hidden');
+        userToDeleteId = null;
+    }
+
+    function deleteUser(userId) {
+        fetch(`/admin/delete_user/${userId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+            .then(response => response.json())
+            .then(data => {
+                closeDeleteUserModal();
+
+                if (data.success) {
+                    // Remove user row from table
+                    const userRow = document.querySelector(`.user-row[data-user-id="${userId}"]`);
+                    if (userRow) {
+                        userRow.remove();
+                    }
+
+                    showNotificationModal('Success', data.message);
+
+                    // Refresh page after a short delay to update counts
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1500);
+                } else {
+                    showNotificationModal('Error', data.error || 'Failed to delete user');
+                }
+            })
+            .catch(error => {
+                closeDeleteUserModal();
+                console.error('Error:', error);
+                showNotificationModal('Error', 'An error occurred while deleting the user');
+            });
+    }
+
+    // Verification functions
+    // Verification functions (continued)
     function verifyUser(userId, type = 'official') {
         fetch('/admin/verify_user', {
             method: 'POST',
@@ -353,8 +671,8 @@
                 if (data.success) {
                     // Update UI
                     const userRow = document.querySelector(`.user-row[data-user-id="${userId}"]`);
-                    const usernameCell = userRow.querySelector('td:first-child');
-                    const verificationCell = userRow.querySelectorAll('td')[2];
+                    const usernameCell = userRow.querySelector('td:nth-child(2)');
+                    const verificationCell = userRow.querySelectorAll('td')[4]; // Adjusted index
 
                     if (type === 'remove') {
                         verificationCell.innerHTML = '<span class="text-gray-500">Not Verified</span>';
@@ -382,11 +700,16 @@
                         if (existingBadge) {
                             existingBadge.replaceWith(badge);
                         } else {
-                            usernameCell.appendChild(badge);
+                            usernameCell.querySelector('div').appendChild(badge);
                         }
                     }
 
                     showNotificationModal('User Verification', `User has been ${type === 'remove' ? 'unverified' : `verified as ${type} account`}.`);
+
+                    // Refresh page after a small delay to update stats
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1500);
                 } else {
                     showNotificationModal('Error', 'Failed to verify user');
                 }

@@ -1,0 +1,108 @@
+{# career_test/question_partial.html - с анимацией #}
+<div class="bg-white shadow-md rounded-xl p-8 mb-8 question-card">
+    <h2 class="text-xl font-semibold mb-8">{{ question.text }}</h2>
+
+    <form id="questionForm" method="post">
+        <input type="hidden" name="question_id" value="{{ question_number }}">
+
+        <!-- Always use checkboxes for multiple choice -->
+        {% if question.options and question.options|length > 0 %}
+        <div class="space-y-4 options-container">
+            {% for option in question.options %}
+            <div class="relative option-item" style="--delay: {{ loop.index0 * 100 }}ms">
+                <input type="checkbox" id="option_{{ loop.index }}" name="answer" value="{{ option.value }}"
+                    class="hidden" {{ 'checked' if option.value in selected_answers }}>
+                <label for="option_{{ loop.index }}"
+                    class="option-label flex items-center w-full p-4 border border-gray-200 rounded-lg cursor-pointer transition-all duration-200 hover:bg-gray-50 {{ 'selected-option' if option.value in selected_answers }}">
+                    <span
+                        class="checkbox-custom mr-3 w-5 h-5 border border-gray-300 rounded flex-shrink-0 flex items-center justify-center {{ 'checked' if option.value in selected_answers }}">
+                        {% if option.value in selected_answers %}
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-black" fill="none"
+                            viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                        </svg>
+                        {% endif %}
+                    </span>
+                    {{ option.text }}
+                </label>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <!-- Fallback options for questions without options -->
+        <div class="space-y-4 options-container">
+            <div class="relative option-item" style="--delay: 0ms">
+                <input type="checkbox" id="option_yes" name="answer" value="yes" class="hidden" {{ 'checked' if 'yes' in
+                    selected_answers }}>
+                <label for="option_yes"
+                    class="option-label flex items-center w-full p-4 border border-gray-200 rounded-lg cursor-pointer transition-all duration-200 hover:bg-gray-50 {{ 'selected-option' if 'yes' in selected_answers }}">
+                    <span
+                        class="checkbox-custom mr-3 w-5 h-5 border border-gray-300 rounded flex-shrink-0 flex items-center justify-center {{ 'checked' if 'yes' in selected_answers }}">
+                        {% if 'yes' in selected_answers %}
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-black" fill="none"
+                            viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                        </svg>
+                        {% endif %}
+                    </span>
+                    Да
+                </label>
+            </div>
+            <div class="relative option-item" style="--delay: 100ms">
+                <input type="checkbox" id="option_somewhat" name="answer" value="somewhat" class="hidden" {{ 'checked'
+                    if 'somewhat' in selected_answers }}>
+                <label for="option_somewhat"
+                    class="option-label flex items-center w-full p-4 border border-gray-200 rounded-lg cursor-pointer transition-all duration-200 hover:bg-gray-50 {{ 'selected-option' if 'somewhat' in selected_answers }}">
+                    <span
+                        class="checkbox-custom mr-3 w-5 h-5 border border-gray-300 rounded flex-shrink-0 flex items-center justify-center {{ 'checked' if 'somewhat' in selected_answers }}">
+                        {% if 'somewhat' in selected_answers %}
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-black" fill="none"
+                            viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                        </svg>
+                        {% endif %}
+                    </span>
+                    Отчасти
+                </label>
+            </div>
+            <div class="relative option-item" style="--delay: 200ms">
+                <input type="checkbox" id="option_no" name="answer" value="no" class="hidden" {{ 'checked' if 'no' in
+                    selected_answers }}>
+                <label for="option_no"
+                    class="option-label flex items-center w-full p-4 border border-gray-200 rounded-lg cursor-pointer transition-all duration-200 hover:bg-gray-50 {{ 'selected-option' if 'no' in selected_answers }}">
+                    <span
+                        class="checkbox-custom mr-3 w-5 h-5 border border-gray-300 rounded flex-shrink-0 flex items-center justify-center {{ 'checked' if 'no' in selected_answers }}">
+                        {% if 'no' in selected_answers %}
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-black" fill="none"
+                            viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                        </svg>
+                        {% endif %}
+                    </span>
+                    Нет
+                </label>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="mt-8 flex justify-between buttons-container">
+            <button type="submit" name="action" value="prev"
+                class="px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-all duration-200 text-gray-700 flex items-center prev-button">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                </svg>
+                Назад
+            </button>
+
+            <button type="submit" name="action" value="next"
+                class="px-6 py-3 bg-black text-white rounded-lg hover:bg-gray-900 transition-all duration-200 flex items-center next-button">
+                Далее
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 ml-2" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                </svg>
+            </button>
+        </div>
+    </form>
+</div>
