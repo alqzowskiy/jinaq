@@ -7533,7 +7533,6 @@ def normalize_class_name(class_name):
 @login_required
 def career_test():
     """Landing page for the career test system"""
-    # Get current test progress from session or user data
     user_id = session['user_id']
     
     try:
@@ -7560,13 +7559,15 @@ def career_test():
             completed_stages=completed_stages,
             user_data=user_data,
             current_user_avatar=get_current_user_avatar(),
-            current_username=get_current_username()
+            current_username=get_current_username(),
+            total_stages=2  # Updated to 2 stages
         )
         
     except Exception as e:
         print(f"Error loading career test: {e}")
         flash('Error loading career test system')
         return redirect(url_for('profile'))
+
 
 @app.route('/career-test/analyzing')
 @login_required
@@ -7586,8 +7587,9 @@ def career_test_analyzing():
         completed_stages = progress_data.get('completed_stages', [])
         
         # If not all stages completed, redirect to appropriate stage
-        if len(completed_stages) < 4:
-            next_stage = min([i for i in range(1, 5) if i not in completed_stages])
+        # Updated to check for 2 stages instead of 4
+        if len(completed_stages) < 2:
+            next_stage = min([i for i in range(1, 3) if i not in completed_stages])
             return redirect(url_for('career_test_stage', stage=next_stage))
         
         # Render the analyzing template
@@ -7597,14 +7599,16 @@ def career_test_analyzing():
         print(f"Error in career test analyzing: {e}")
         flash('Error processing test data')
         return redirect(url_for('career_test'))
+    
+
 @app.route('/career-test/stage/<int:stage>', methods=['GET', 'POST'])
 @login_required
 def career_test_stage(stage):
-    """Handle a specific stage of the career test with AJAX support and multiple choice for all questions"""
+    """Handle a specific stage of the career test with fixed question numbering for ALL counter elements"""
     user_id = session['user_id']
     
     # Validate stage
-    if stage < 1 or stage > 4:
+    if stage < 1 or stage > 2:
         flash('Invalid test stage')
         return redirect(url_for('career_test'))
     
@@ -7617,11 +7621,25 @@ def career_test_stage(stage):
             progress_data = test_progress.to_dict()
             completed_stages = progress_data.get('completed_stages', [])
             saved_answers = progress_data.get('answers', {})
-            current_question = progress_data.get('current_question', {}).get(f'stage_{stage}', 1)
+            
+            # Получаем текущий вопрос из базы данных
+            stage_key = f'stage_{stage}'
+            current_question = progress_data.get('current_question', {}).get(stage_key, 1)
+            
+            print(f"Loaded current_question from DB: {current_question}")
         else:
             completed_stages = []
             saved_answers = {}
             current_question = 1
+            
+            # Создаем начальную запись прогресса
+            initial_progress = {
+                'current_stage': stage,
+                'current_question': {f'stage_{stage}': 1},
+                'completed_stages': [],
+                'answers': {}
+            }
+            test_progress_ref.set(initial_progress)
             
         # Get test questions
         with open('static/js/career_test_questions.json', 'r', encoding='utf-8') as f:
@@ -7635,53 +7653,97 @@ def career_test_stage(stage):
         stage_questions = all_questions[stage_key]
         total_questions = len(stage_questions['questions'])
         
+        # Ensure current_question is valid
+        if current_question < 1:
+            current_question = 1
+        if current_question > total_questions:
+            current_question = total_questions
+        
         # Handle form submission (POST)
         if request.method == 'POST':
             is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
             action = request.form.get('action')
             
+            # Получаем номер вопроса из формы
+            form_question_id = int(request.form.get('question_id', 1))
+            print(f"Form question_id: {form_question_id}, Action: {action}")
+            
             if action == 'next':
-                # Save current answer(s)
-                question_id = int(request.form.get('question_id', 1))
-                
-                # Always get as multiple answers (checkboxes)
+                # Сохраняем ответ для текущего вопроса
                 answers = request.form.getlist('answer')
                 
-                # Save this answer
                 if stage_key not in saved_answers:
                     saved_answers[stage_key] = {}
-                saved_answers[stage_key][str(question_id)] = answers
                 
-                # Move to next question or complete stage
-                if question_id < total_questions:
-                    current_question = question_id + 1
-                    
-                    # Update progress in database
+                # Сохраняем ответ для вопроса, который был отображен
+                saved_answers[stage_key][str(form_question_id)] = answers
+                
+                # Вычисляем следующий вопрос
+                next_question = form_question_id + 1
+                print(f"Calculated next_question: {next_question}")
+                
+                if next_question <= total_questions:
+                    # Обновляем прогресс в БД
                     update_data = {
                         'current_stage': stage,
-                        'current_question': {stage_key: current_question},
+                        'current_question': {stage_key: next_question},
                         'answers': saved_answers,
                     }
-                    test_progress_ref.set(update_data, merge=True)
+                    test_progress_ref.update(update_data)
+                    print(f"Updated DB with next_question: {next_question}")
                     
                     if is_ajax:
-                        # Render the next question and return as JSON
-                        question_data = stage_questions['questions'][current_question-1]
+                        # Рендерим следующий вопрос - УЛУЧШЕННАЯ ВЕРСИЯ
+                        question_data = stage_questions['questions'][next_question-1]
                         selected_answers = []
-                        if stage_key in saved_answers and str(current_question) in saved_answers[stage_key]:
-                            selected_answers = saved_answers[stage_key][str(current_question)]
+                        if stage_key in saved_answers and str(next_question) in saved_answers[stage_key]:
+                            selected_answers = saved_answers[stage_key][str(next_question)]
                             
                         html = render_template(
                             'career_test/question_partial.html',
                             stage=stage,
                             stage_name=stage_questions['name'],
                             question=question_data,
-                            question_number=current_question,
+                            question_number=next_question,
                             total_questions=total_questions,
-                            selected_answers=selected_answers
+                            selected_answers=selected_answers,
+                            total_stages=2
                         )
                         
-                        return jsonify({'html': html})
+                        # УЛУЧШЕННЫЙ JS для обновления ВСЕХ элементов с номером вопроса
+                        fix_all_counters_js = f"""
+                            // JavaScript для синхронизации всех счетчиков вопросов на странице
+                            (function() {{
+                                // Находим и обновляем ВСЕ элементы с номером вопроса
+                                const counters = document.querySelectorAll('.text-gray-600');
+                                
+                                counters.forEach(function(counter) {{
+                                    // Проверяем, содержит ли этот элемент текст "Вопрос"
+                                    if (counter.textContent.includes('Вопрос')) {{
+                                        counter.textContent = 'Вопрос {next_question} из {total_questions}';
+                                        console.log('Updated counter: ' + counter.textContent);
+                                    }}
+                                }});
+                                
+                                // Принудительно обновляем заголовок, если он есть
+                                const header = document.querySelector('h1.text-2xl');
+                                if (header && header.textContent.includes('Вопрос')) {{
+                                    header.textContent = 'Вопрос {next_question} из {total_questions}';
+                                    console.log('Updated header: ' + header.textContent);
+                                }}
+                            }})();
+                        """
+                        
+                        return jsonify({
+                            'html': html,
+                            'question_number': next_question,
+                            'fixed_counter_js': fix_all_counters_js,
+                            'debug_info': {
+                                'form_question_id': form_question_id,
+                                'calculated_next': next_question,
+                                'total_questions': total_questions
+                            }
+                        })
                     else:
                         # Traditional redirect
                         return redirect(url_for('career_test_stage', stage=stage))
@@ -7692,14 +7754,14 @@ def career_test_stage(stage):
                     
                     # Update progress
                     update_data = {
-                        'current_stage': stage + 1 if stage < 4 else 4,
+                        'current_stage': stage + 1 if stage < 2 else 2,
                         'completed_stages': completed_stages,
                         'answers': saved_answers,
                     }
-                    test_progress_ref.set(update_data, merge=True)
+                    test_progress_ref.update(update_data)
                     
                     # If all stages completed, go to results
-                    if len(completed_stages) >= 4:
+                    if len(completed_stages) >= 2:
                         if is_ajax:
                             return jsonify({'redirect': url_for('career_test_analyzing')})
                         return redirect(url_for('career_test_analyzing'))
@@ -7710,35 +7772,69 @@ def career_test_stage(stage):
                     return redirect(url_for('career_test_stage', stage=stage+1))
                     
             elif action == 'prev':
-                # Go to previous question
-                question_id = int(request.form.get('question_id', 1))
-                if question_id > 1:
-                    current_question = question_id - 1
-                    
-                    # Update database
+                # Вычисляем предыдущий вопрос
+                prev_question = form_question_id - 1
+                print(f"Calculated prev_question: {prev_question}")
+                
+                if prev_question >= 1:
+                    # Обновляем БД
                     update_data = {
-                        'current_question': {stage_key: current_question},
+                        'current_question': {stage_key: prev_question},
                     }
-                    test_progress_ref.set(update_data, merge=True)
+                    test_progress_ref.update(update_data)
+                    print(f"Updated DB with prev_question: {prev_question}")
                     
                     if is_ajax:
-                        # Render the previous question and return as JSON
-                        question_data = stage_questions['questions'][current_question-1]
+                        # Рендерим предыдущий вопрос
+                        question_data = stage_questions['questions'][prev_question-1]
                         selected_answers = []
-                        if stage_key in saved_answers and str(current_question) in saved_answers[stage_key]:
-                            selected_answers = saved_answers[stage_key][str(current_question)]
+                        if stage_key in saved_answers and str(prev_question) in saved_answers[stage_key]:
+                            selected_answers = saved_answers[stage_key][str(prev_question)]
                             
                         html = render_template(
                             'career_test/question_partial.html',
                             stage=stage,
                             stage_name=stage_questions['name'],
                             question=question_data,
-                            question_number=current_question,
+                            question_number=prev_question,
                             total_questions=total_questions,
-                            selected_answers=selected_answers
+                            selected_answers=selected_answers,
+                            total_stages=2
                         )
                         
-                        return jsonify({'html': html})
+                        # УЛУЧШЕННЫЙ JS для обновления ВСЕХ элементов с номером вопроса
+                        fix_all_counters_js = f"""
+                            // JavaScript для синхронизации всех счетчиков вопросов на странице
+                            (function() {{
+                                // Находим и обновляем ВСЕ элементы с номером вопроса
+                                const counters = document.querySelectorAll('.text-gray-600');
+                                
+                                counters.forEach(function(counter) {{
+                                    // Проверяем, содержит ли этот элемент текст "Вопрос"
+                                    if (counter.textContent.includes('Вопрос')) {{
+                                        counter.textContent = 'Вопрос {prev_question} из {total_questions}';
+                                        console.log('Updated counter: ' + counter.textContent);
+                                    }}
+                                }});
+                                
+                                // Принудительно обновляем заголовок, если он есть
+                                const header = document.querySelector('h1.text-2xl');
+                                if (header && header.textContent.includes('Вопрос')) {{
+                                    header.textContent = 'Вопрос {prev_question} из {total_questions}';
+                                    console.log('Updated header: ' + header.textContent);
+                                }}
+                            }})();
+                        """
+                        
+                        return jsonify({
+                            'html': html,
+                            'question_number': prev_question,
+                            'fixed_counter_js': fix_all_counters_js,
+                            'debug_info': {
+                                'form_question_id': form_question_id,
+                                'calculated_prev': prev_question
+                            }
+                        })
                     else:
                         return redirect(url_for('career_test_stage', stage=stage))
                 else:
@@ -7753,6 +7849,8 @@ def career_test_stage(stage):
                         return redirect(url_for('career_test'))
         
         # GET request - display current question
+        # Убедимся что current_question в пределах от 1 до total_questions
+        current_question = max(1, min(current_question, total_questions))
         question_data = stage_questions['questions'][current_question-1]
         
         # Get previously saved answer for this question if any
@@ -7770,7 +7868,8 @@ def career_test_stage(stage):
             selected_answers=selected_answers,
             completed_stages=completed_stages,
             current_user_avatar=get_current_user_avatar(),
-            current_username=get_current_username()
+            current_username=get_current_username(),
+            total_stages=2
         )
             
     except Exception as e:
@@ -7779,6 +7878,9 @@ def career_test_stage(stage):
         traceback.print_exc()
         flash(f'Error loading test stage: {str(e)}')
         return redirect(url_for('career_test'))
+
+
+
 @app.route('/career-test/results')
 @login_required
 def career_test_results():
@@ -7796,11 +7898,11 @@ def career_test_results():
             
         progress_data = test_progress.to_dict()
         
-        # Check if all stages are completed
+        # Check if all stages are completed - updated for 2 stages
         completed_stages = progress_data.get('completed_stages', [])
-        if len(completed_stages) < 4:
+        if len(completed_stages) < 2:
             flash('Пожалуйста, завершите все этапы теста')
-            next_stage = min([i for i in range(1, 5) if i not in completed_stages])
+            next_stage = min([i for i in range(1, 3) if i not in completed_stages])
             return redirect(url_for('career_test_stage', stage=next_stage))
         
         # Check if we already have recommendations
@@ -7842,7 +7944,8 @@ def career_test_results():
             user_data=progress_data,
             current_user_avatar=get_current_user_avatar(),
             current_username=get_current_username(),
-            from_cache=True
+            from_cache=True,
+            total_stages=2  # Updated to 2 stages
         )
         
     except Exception as e:
@@ -7851,7 +7954,6 @@ def career_test_results():
         traceback.print_exc()
         flash('Ошибка при генерации рекомендаций по карьере')
         return redirect(url_for('career_test'))
-
 @app.route('/career-test/profession/<profession_slug>')
 @login_required
 def career_profession_detail(profession_slug):
@@ -7904,9 +8006,17 @@ def career_profession_detail(profession_slug):
 
 
 def analyze_career_test_results(answers):
-    """Analyze test answers and generate career recommendations in Russian with improved results caching"""
+    """Analyze test answers with FULL QUESTION CONTEXT for better AI understanding"""
     try:
         user_id = session.get('user_id')
+        
+        # First, load the full question data
+        try:
+            with open('static/js/career_test_questions.json', 'r', encoding='utf-8') as f:
+                all_questions = json.load(f)
+        except Exception as e:
+            print(f"ERROR: Could not load questions data: {e}")
+            all_questions = {}
         
         # Check for existing cached recommendations
         if user_id:
@@ -7915,33 +8025,83 @@ def analyze_career_test_results(answers):
             
             if cache_doc.exists:
                 cache_data = cache_doc.to_dict()
-                # Check if we already have recommendations and they're not too old (less than 30 days)
                 if 'recommendations' in cache_data and 'generated_at' in cache_data:
                     generated_at = cache_data['generated_at']
                     if isinstance(generated_at, datetime.datetime):
                         age = datetime.datetime.now(tz=datetime.timezone.utc) - generated_at
-                        # Use cached results if they're less than 30 days old
                         if age.days < 30:
                             print("Using cached career recommendations")
                             return cache_data.get('recommendations')
         
+        # Prepare enriched answers with full question and answer text
+        enriched_data = {
+            "stage_1": [],
+            "stage_2": []
+        }
+        
+        for stage_name in ["stage_1", "stage_2"]:
+            if stage_name not in answers or stage_name not in all_questions:
+                continue
+                
+            # Get the questions for this stage
+            stage_questions = all_questions[stage_name].get("questions", [])
+            stage_answers = answers[stage_name]
+            
+            # Create a lookup by question ID
+            question_lookup = {str(q["id"]): q for q in stage_questions}
+            
+            # Process each answer with full context
+            for question_id, selected_options in stage_answers.items():
+                if question_id not in question_lookup:
+                    continue
+                    
+                question_data = question_lookup[question_id]
+                question_text = question_data.get("text", "")
+                question_type = question_data.get("type", "")
+                options = question_data.get("options", [])
+                
+                # Create a lookup for options
+                option_lookup = {opt["id"]: opt["text"] for opt in options}
+                
+                # Get the selected options with full text
+                selected_texts = []
+                for option_id in selected_options:
+                    if option_id in option_lookup:
+                        selected_texts.append(option_lookup[option_id])
+                
+                # Add the enriched data
+                enriched_data[stage_name].append({
+                    "question_id": question_id,
+                    "question_text": question_text,
+                    "type": question_type,
+                    "selected_options": selected_texts
+                })
+        
         # Initialize Gemini AI model
         model = genai.GenerativeModel('gemini-1.5-pro-latest')
         
-        # Prepare test answers for analysis
+        # Prepare the enriched context for analysis
         formatted_answers = json.dumps(answers, ensure_ascii=False, indent=2)
+        formatted_enriched = json.dumps(enriched_data, ensure_ascii=False, indent=2)
         
-        # Create prompt for career analysis - RUSSIAN VERSION with enhanced precision
+        # Create enhanced prompt with full question context
         prompt = f"""Как карьерный консультант со специализацией на рынке труда Казахстана, проанализируй эти результаты тестов и рекомендуй 10 наиболее подходящих профессий для этого человека.
 
-ОТВЕТЫ ТЕСТА:
+ИСХОДНЫЕ ОТВЕТЫ ТЕСТА (ID вопросов и ID ответов):
 {formatted_answers}
 
+ОБОГАЩЕННЫЕ ДАННЫЕ ТЕСТА (полный текст вопросов и ответов):
+{formatted_enriched}
+
+Тест включает два раздела:
+1. Базовый тест с вопросами об интересах, предпочтениях в работе и мотивации
+2. Тест Голланда (RIASEC) для определения профессионального типа личности
+
 Выполни тщательный анализ следующим образом:
-1. Определи ключевые сильные стороны и предпочтения на основе ответов всех 4 тестов
+1. Определи ключевые сильные стороны и предпочтения на основе ответов всех 2 тестов
 2. Выяви профессиональные типы по Голланду на основе теста RIASEC
-3. Определи основные мотивационные факторы из теста мотивации
-4. Оцени конкретные интересы и склонности из заключительного теста
+3. Определи основные мотивационные факторы из ответов первого теста
+4. Оцени конкретные интересы и склонности на основе выбранных вариантов ответа
 5. Сопоставь полученные данные с требованиями профессий на рынке труда Казахстана
 
 Для каждой рекомендуемой профессии предоставь:
@@ -7974,8 +8134,15 @@ def analyze_career_test_results(answers):
 - ОТВЕЧАЙ ТОЛЬКО В ФОРМАТЕ JSON, без дополнительного текста
 """
 
+        # Print the AI prompt to console
+        print("\n===== CAREER TEST AI PROMPT WITH FULL CONTEXT =====")
+        print(prompt)
+        print("=================================\n")
+
         # Get recommendations from Gemini
+        print("Sending request to Gemini API...")
         response = model.generate_content(prompt)
+        print("Received response from Gemini API")
         result_text = response.text
         
         # Try to extract JSON from response
@@ -8002,6 +8169,7 @@ def analyze_career_test_results(answers):
             
             # Return top 10 recommendations
             return recommendations[:10]
+            
             
         except json.JSONDecodeError:
             # Fallback with generic recommendations in Russian if parsing fails
@@ -8067,6 +8235,7 @@ def analyze_career_test_results(answers):
                 }
             }
         ]
+
 @app.route('/career-test/generate-results', methods=['POST'])
 @login_required
 def generate_career_results():
@@ -8288,7 +8457,79 @@ def generate_profession_details(profession_name):
             "slug": slug
         }
 
-
+@app.route('/admin/test-career-prompt', methods=['GET'])
+@login_required
+def admin_test_career_prompt():
+    """Route for administrators to test the career test system with random answers"""
+    user_id = session['user_id']
+    
+    # Verify this is an admin
+    if user_id != 'vVbXL4LKGidXtrKnvqa21gWRY3V2':  # Your admin ID
+        return "Unauthorized", 403
+    
+    try:
+        # Load test questions
+        with open('static/js/career_test_questions.json', 'r', encoding='utf-8') as f:
+            all_questions = json.load(f)
+        
+        # Generate random answers for all questions
+        random_answers = {
+            "stage_1": {},
+            "stage_2": {}
+        }
+        
+        # Stage 1 random answers
+        stage1_questions = all_questions['stage_1']['questions']
+        for question in stage1_questions:
+            question_id = str(question['id'])
+            options = question['options']
+            
+            # For radio buttons, select one random answer
+            if question['type'] == 'radio':
+                random_answers['stage_1'][question_id] = [random.choice([opt['id'] for opt in options])]
+            
+            # For checkboxes, select between 1 and 3 random answers
+            elif question['type'] == 'checkbox':
+                num_selections = random.randint(1, min(3, len(options)))
+                random_answers['stage_1'][question_id] = random.sample([opt['id'] for opt in options], num_selections)
+        
+        # Stage 2 random answers
+        stage2_questions = all_questions['stage_2']['questions']
+        for question in stage2_questions:
+            question_id = str(question['id'])
+            # For Holland test, select a random answer (1-5)
+            random_answers['stage_2'][question_id] = [str(random.randint(1, 5))]
+        
+        # Print the random answers for verification
+        print("\n===== RANDOM TEST ANSWERS =====")
+        print(json.dumps(random_answers, indent=2))
+        print("===============================\n")
+        
+        # Analyze the results - using the original function
+        # This will print the prompt to the console
+        recommendations = analyze_career_test_results(random_answers)
+        
+        # Save these random answers to the user's test progress (for testing)
+        test_progress_ref = db.collection('users').document(user_id).collection('test_progress').document('career_test')
+        
+        test_progress_ref.set({
+            'current_stage': 2,
+            'completed_stages': [1, 2],
+            'answers': random_answers,
+            'recommendations': recommendations,
+            'is_test_data': True
+        })
+        
+        return render_template('admin/career_test_debug.html', 
+                             random_answers=random_answers,
+                             recommendations=recommendations,
+                             all_questions=all_questions)
+                             
+    except Exception as e:
+        print(f"Error in admin test: {e}")
+        import traceback
+        traceback.print_exc()
+        return f"Error: {str(e)}", 500
 
 @app.errorhandler(404)
 def page_not_found(e):

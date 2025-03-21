@@ -7,15 +7,15 @@
             <div class="mb-6">
                 <h1 class="text-2xl font-bold text-black">{{ stage_name }}</h1>
                 <div class="flex justify-between items-center mt-2">
-                    <p class="text-gray-600">Этап {{ stage }} из 4</p>
-                    <p class="text-gray-600">Вопрос {{ question_number }} из {{ total_questions }}</p>
+                    <p class="text-gray-600">Этап {{ stage }} из 2</p>
+                    <p class="text-gray-600 question-counter">Вопрос {{ question_number }} из {{ total_questions }}</p>
                 </div>
             </div>
 
             <!-- Animated Progress Bar -->
             <div class="w-full bg-gray-200 rounded-full h-2.5 mb-8 overflow-hidden">
                 <div class="bg-black h-2.5 rounded-full transition-all duration-700 ease-out"
-                    style="width: {{ (stage / 4) * 100 }}%" id="progressBar"></div>
+                    style="width: {{ (stage / 2) * 100 }}%" id="progressBar"></div>
             </div>
 
             <!-- Question Container with Animation Wrapper -->
@@ -25,7 +25,10 @@
                         <h2 class="text-xl font-semibold mb-8">{{ question.text }}</h2>
 
                         <form id="questionForm" method="post">
+                            <!-- Добавляем дополнительный скрытый элемент для защиты от возможных рассинхронизаций -->
+                            <input type="hidden" name="stage" value="{{ stage }}">
                             <input type="hidden" name="question_id" value="{{ question_number }}">
+                            <input type="hidden" name="total_questions" value="{{ total_questions }}">
 
                             <!-- Always use checkboxes for multiple choice -->
                             {% if question.options and question.options|length > 0 %}
@@ -285,7 +288,7 @@
 </style>
 
 <script>
-    // Enhanced script with beautiful animations
+    // Enhanced script with fixes for counter synchronization
     document.addEventListener('DOMContentLoaded', function () {
         // Get animation wrapper and container
         const animationWrapper = document.getElementById('questionAnimationWrapper');
@@ -319,6 +322,9 @@
                 const formData = new FormData(questionForm);
                 const action = submitButton.value;
                 formData.append('action', action);
+
+                // Log form data for debugging
+                console.log("Submitting form with question_id:", formData.get('question_id'));
 
                 // Animation direction based on button clicked
                 const direction = action === 'next' ? 'right' : 'left';
@@ -364,6 +370,9 @@
                         return response.json();
                     })
                     .then(data => {
+                        // Debug
+                        console.log("Received response:", data);
+
                         if (data.redirect) {
                             // Page change needed - smooth transition
                             document.body.style.opacity = '0';
@@ -377,14 +386,36 @@
                                 // Update DOM with new content
                                 questionContainer.innerHTML = data.html;
 
+                                // IMPORTANT: Выполняем JS-скрипт для обновления всех счетчиков
+                                if (data.fixed_counter_js) {
+                                    console.log("Executing forced counter update script");
+                                    try {
+                                        // Создаем и выполняем script с кодом от сервера
+                                        const scriptEl = document.createElement('script');
+                                        scriptEl.textContent = data.fixed_counter_js;
+                                        document.head.appendChild(scriptEl);
+                                        // Удаляем script после выполнения
+                                        setTimeout(() => {
+                                            document.head.removeChild(scriptEl);
+                                        }, 100);
+                                    } catch (scriptError) {
+                                        console.error("Error executing counter script:", scriptError);
+                                    }
+                                }
+
                                 // Animate new question in from opposite direction
                                 animateQuestionIn(direction === 'right' ? 'left' : 'right');
 
                                 // Re-initialize handlers
                                 setupCheckboxHandlers();
 
-                                // Animate progress bar
-                                const progressValue = parseInt(document.querySelector('.text-gray-600').textContent.split(' ')[1]) / 4 * 100;
+                                // Get stage number for progress bar
+                                const stageText = document.querySelector('.text-gray-600').textContent;
+                                const stageMatch = stageText.match(/Этап (\d+) из 2/);
+                                const stage = stageMatch ? parseInt(stageMatch[1]) : 1;
+
+                                // Animate progress bar - Updated for 2 stages
+                                const progressValue = (stage / 2) * 100;
                                 progressBar.style.width = `${progressValue}%`;
                             }, 500); // Wait for exit animation to finish
                         }
