@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Career Test Debug</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        h1,
+        h2,
+        h3 {
+            color: #333;
+        }
+
+        .recommendation {
+            background-color: #f9f9f9;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-left: 4px solid #007bff;
+        }
+
+        .answer-item {
+            margin-bottom: 5px;
+        }
+
+        pre {
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+
+        .compatibility {
+            font-weight: bold;
+            color: #007bff;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Career Test Debug Results</h1>
+
+        <div class="section">
+            <h2>Test Status</h2>
+            <p>Random answers generated and sent to AI model.</p>
+            <p>Check server console for the complete prompt sent to the AI model.</p>
+        </div>
+
+        <div class="section">
+            <h2>Career Recommendations</h2>
+            {% for rec in recommendations %}
+            <div class="recommendation">
+                <h3>{{ rec.name }} <span class="compatibility">({{ rec.compatibility }}% match)</span></h3>
+                <p>{{ rec.description }}</p>
+                <p><strong>Salary:</strong> {{ rec.salary.kz }} (Kazakhstan) / {{ rec.salary.global }} (Global)</p>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="section">
+            <h2>Random Answers Generated</h2>
+
+            <h3>Stage 1: Basic Test</h3>
+            <div class="answers-list">
+                {% for question in all_questions.stage_1.questions %}
+                <div class="answer-item">
+                    <strong>Q{{ question.id }}:</strong> {{ question.text }}<br>
+                    <strong>Random answer:</strong>
+                    {% if random_answers.stage_1[question.id|string] %}
+                    {% for answer_id in random_answers.stage_1[question.id|string] %}
+                    {% for option in question.options %}
+                    {% if option.id == answer_id %}
+                    "{{ option.text }}"
+                    {% endif %}
+                    {% endfor %}
+                    {% if not loop.last %}, {% endif %}
+                    {% endfor %}
+                    {% else %}
+                    No answer
+                    {% endif %}
+                </div>
+                <hr>
+                {% endfor %}
+            </div>
+
+            <h3>Stage 2: Holland Code Test</h3>
+            <div class="answers-list">
+                {% for question in all_questions.stage_2.questions %}
+                <div class="answer-item">
+                    <strong>Q{{ question.id }}:</strong> {{ question.text }}<br>
+                    <strong>Random answer:</strong>
+                    {% if random_answers.stage_2[question.id|string] %}
+                    {% for answer_id in random_answers.stage_2[question.id|string] %}
+                    {% for option in question.options %}
+                    {% if option.id == answer_id %}
+                    "{{ option.text }}"
+                    {% endif %}
+                    {% endfor %}
+                    {% if not loop.last %}, {% endif %}
+                    {% endfor %}
+                    {% else %}
+                    No answer
+                    {% endif %}
+                </div>
+                <hr>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>

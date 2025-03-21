@@ -1,9 +1,11 @@
-{# career_test/question_partial.html - с анимацией #}
 <div class="bg-white shadow-md rounded-xl p-8 mb-8 question-card">
     <h2 class="text-xl font-semibold mb-8">{{ question.text }}</h2>
 
     <form id="questionForm" method="post">
+        <!-- Добавляем дополнительные скрытые поля для надежности -->
+        <input type="hidden" name="stage" value="{{ stage }}">
         <input type="hidden" name="question_id" value="{{ question_number }}">
+        <input type="hidden" name="total_questions" value="{{ total_questions }}">
 
         <!-- Always use checkboxes for multiple choice -->
         {% if question.options and question.options|length > 0 %}

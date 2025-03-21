@@ -162,4 +162,19 @@
         </div>
     </div>
 </div>
+
+<script>
+    // Check if recommendations were generated from cache or newly created
+    const fromCache = {{ 'true' if from_cache else 'false' }};
+
+    if (fromCache) {
+        console.log("Career recommendations loaded from cache.");
+    } else {
+        console.log("New career recommendations were generated.");
+        console.log("Check server console for the full AI prompt that was sent.");
+    }
+
+    // Log the recommendations that were returned
+    console.log("Career recommendations:", {{ recommendations| tojson }});
+</script>
 {% endblock %}
