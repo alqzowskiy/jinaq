@@ -1,4 +1,3 @@
-{# Template for career test landing page with black and white design #}
 {% extends "base.html" %}
 {% block content %}
 <div class="bg-white min-h-screen">
@@ -10,7 +9,7 @@
                 <div class="relative z-10">
                     <h2 class="text-2xl font-bold mb-4">Узнай свою идеальную профессию</h2>
                     <p class="text-gray-300 mb-6 text-lg">
-                        Пройди наш 4-этапный тест, чтобы определить свои сильные стороны, интересы и наиболее подходящие
+                        Пройди наш 2-этапный тест, чтобы определить свои сильные стороны, интересы и наиболее подходящие
                         для тебя профессии.
                         Результаты помогут тебе сделать осознанный выбор карьерного пути.
                     </p>
@@ -22,11 +21,11 @@
 
                         <!-- Active progress line -->
                         <div class="absolute top-5 left-0 h-1 bg-white rounded-full transition-all duration-500 ease-out"
-                            style="width: {% if completed_stages|length == 0 %}0{% else %}{{ (completed_stages|length / 4 * 100)|int }}{% endif %}%">
+                            style="width: {% if completed_stages|length == 0 %}0{% else %}{{ (completed_stages|length / 2 * 100)|int }}{% endif %}%">
                         </div>
 
                         <div class="flex items-center justify-between relative z-10">
-                            {% for stage_num in range(1, 5) %}
+                            {% for stage_num in range(1, 3) %}
                             <div class="flex flex-col items-center">
                                 <div class="w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300
                                     {% if stage_num in completed_stages %}
@@ -50,31 +49,36 @@
                                     Базовый тест
                                     {% elif stage_num == 2 %}
                                     Тест Голланда
-                                    {% elif stage_num == 3 %}
-                                    Тест мотивации
-                                    {% elif stage_num == 4 %}
-                                    Тест интересов
                                     {% endif %}
                                 </div>
                             </div>
                             {% endfor %}
                         </div>
                     </div>
-
-                    <div class="flex justify-center">
+                    <div class="flex flex-col sm:flex-row justify-center gap-4">
                         {% if current_stage == 1 and not completed_stages %}
                         <a href="{{ url_for('career_test_stage', stage=1) }}"
-                            class="bg-white hover:bg-gray-200 text-black px-8 py-4 rounded-xl font-medium shadow-md transition-all duration-300 transform hover:translate-y-[-2px]">
+                            class="bg-white hover:bg-gray-200 text-black px-8 py-4 rounded-xl font-medium shadow-md transition-all duration-300 transform hover:translate-y-[-2px] text-center">
                             Начать тест
                         </a>
-                        {% elif completed_stages|length >= 4 %}
+                        {% elif completed_stages|length >= 2 %}
                         <a href="{{ url_for('career_test_results') }}"
-                            class="bg-white hover:bg-gray-200 text-black px-8 py-4 rounded-xl font-medium shadow-md transition-all duration-300 transform hover:translate-y-[-2px]">
+                            class="bg-white hover:bg-gray-200 text-black px-8 py-4 rounded-xl font-medium shadow-md transition-all duration-300 transform hover:translate-y-[-2px] text-center">
                             Просмотреть результаты
                         </a>
+                        <!-- Updated Retake Test Button -->
+                        <button id="retakeTestBtn" type="button"
+                            class="bg-transparent hover:bg-gray-800 text-white border border-white px-8 py-4 rounded-xl font-medium shadow-md transition-all duration-300 transform hover:translate-y-[-2px] flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                            Пройти тест заново
+                        </button>
                         {% else %}
                         <a href="{{ url_for('career_test_stage', stage=current_stage) }}"
-                            class="bg-white hover:bg-gray-200 text-black px-8 py-4 rounded-xl font-medium shadow-md transition-all duration-300 transform hover:translate-y-[-2px]">
+                            class="bg-white hover:bg-gray-200 text-black px-8 py-4 rounded-xl font-medium shadow-md transition-all duration-300 transform hover:translate-y-[-2px] text-center">
                             Продолжить тест
                         </a>
                         {% endif %}
@@ -95,7 +99,7 @@
                     </div>
                     <h3 class="font-bold text-lg mb-2 text-black">Базовый тест</h3>
                     <p class="text-gray-600 mb-3">15 вопросов о твоих предпочтениях, интересах и отношении к работе.
-                        Этот тест помогает определить твои базовые карьерные предпочтения.</p>
+                        Этот тест помогает определить твои базовые карьерные предпочтения и личностные качества.</p>
                     {% if 1 in completed_stages %}
                     <span class="inline-flex items-center text-black text-sm font-medium">
                         <svg class="w-4 h-4 mr-1.5" fill="currentColor" viewBox="0 0 20 20"
@@ -133,58 +137,116 @@
                     </span>
                     {% endif %}
                 </div>
+            </div>
 
-                <div
-                    class="bg-white border border-gray-200 rounded-xl shadow-md p-6 transition-all duration-300 hover:shadow-lg hover:translate-y-[-4px]">
-                    <div class="mb-4 bg-black rounded-full w-12 h-12 flex items-center justify-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none"
-                            viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                                d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-                        </svg>
+            {# Benefits Section #}
+            <div class="mt-12 bg-gray-50 rounded-xl p-8">
+                <h3 class="text-2xl font-bold mb-6 text-center text-black">Почему важно пройти этот тест?</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="flex flex-col items-center text-center">
+                        <div class="bg-black rounded-full w-16 h-16 flex items-center justify-center mb-4">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-white" fill="none"
+                                viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                    d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                            </svg>
+                        </div>
+                        <h4 class="text-lg font-semibold mb-2 text-black">Понимание сильных сторон</h4>
+                        <p class="text-gray-600">Выяви свои ключевые навыки и таланты, которые помогут тебе выбрать
+                            профессию, где ты будешь максимально успешен.</p>
                     </div>
-                    <h3 class="font-bold text-lg mb-2 text-black">Тест на выявление мотивации</h3>
-                    <p class="text-gray-600 mb-3">Помогает определить, что мотивирует тебя в работе: достижения,
-                        признание, интерес к деятельности, отношения с другими или другие факторы.</p>
-                    {% if 3 in completed_stages %}
-                    <span class="inline-flex items-center text-black text-sm font-medium">
-                        <svg class="w-4 h-4 mr-1.5" fill="currentColor" viewBox="0 0 20 20"
-                            xmlns="http://www.w3.org/2000/svg">
-                            <path fill-rule="evenodd"
-                                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                                clip-rule="evenodd"></path>
-                        </svg>
-                        Выполнено
-                    </span>
-                    {% endif %}
-                </div>
-
-                <div
-                    class="bg-white border border-gray-200 rounded-xl shadow-md p-6 transition-all duration-300 hover:shadow-lg hover:translate-y-[-4px]">
-                    <div class="mb-4 bg-black rounded-full w-12 h-12 flex items-center justify-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none"
-                            viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
+                    <div class="flex flex-col items-center text-center">
+                        <div class="bg-black rounded-full w-16 h-16 flex items-center justify-center mb-4">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-white" fill="none"
+                                viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                    d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                            </svg>
+                        </div>
+                        <h4 class="text-lg font-semibold mb-2 text-black">Профессиональная реализация</h4>
+                        <p class="text-gray-600">Найди профессии, которые соответствуют твоим личностным особенностям и
+                            дадут возможность для самореализации.</p>
                     </div>
-                    <h3 class="font-bold text-lg mb-2 text-black">Тест интересов и склонностей</h3>
-                    <p class="text-gray-600 mb-3">Выявляет твои конкретные интересы и природные таланты, которые могут
-                        определить наиболее подходящие профессиональные направления.</p>
-                    {% if 4 in completed_stages %}
-                    <span class="inline-flex items-center text-black text-sm font-medium">
-                        <svg class="w-4 h-4 mr-1.5" fill="currentColor" viewBox="0 0 20 20"
-                            xmlns="http://www.w3.org/2000/svg">
-                            <path fill-rule="evenodd"
-                                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                                clip-rule="evenodd"></path>
-                        </svg>
-                        Выполнено
-                    </span>
-                    {% endif %}
+                    <div class="flex flex-col items-center text-center">
+                        <div class="bg-black rounded-full w-16 h-16 flex items-center justify-center mb-4">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-white" fill="none"
+                                viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                    d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                            </svg>
+                        </div>
+                        <h4 class="text-lg font-semibold mb-2 text-black">Путь к успеху</h4>
+                        <p class="text-gray-600">Получи персонализированные рекомендации по профессиям, где твои личные
+                            качества и интересы помогут достичь высоких результатов.</p>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<!-- Confirmation Modal for Retake Test Button -->
+<div id="retakeConfirmModal" class="fixed inset-0 z-50 flex items-center justify-center hidden">
+    <div class="fixed inset-0 bg-black opacity-50" id="modalOverlay"></div>
+    <div class="bg-white rounded-xl p-6 shadow-xl z-10 max-w-md mx-4 relative">
+        <h3 class="text-xl font-bold mb-4">Начать тест заново?</h3>
+        <p class="text-gray-600 mb-6">Твои текущие результаты останутся сохраненными, но ты сможешь получить новые
+            рекомендации. Начать тест заново?</p>
+        <div class="flex space-x-3 justify-end">
+            <button id="cancelRetake"
+                class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                Отмена
+            </button>
+            <a href="{{ url_for('restart_career_test') }}"
+                class="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-900 transition-colors">
+                Начать заново
+            </a>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Set up retake test button functionality for landing page
+    document.addEventListener('DOMContentLoaded', function () {
+        const retakeTestBtn = document.getElementById('retakeTestBtn');
+        if (retakeTestBtn) {
+            const retakeConfirmModal = document.getElementById('retakeConfirmModal');
+            const modalOverlay = document.getElementById('modalOverlay');
+            const cancelRetakeBtn = document.getElementById('cancelRetake');
+
+            // Function to show the modal
+            function showRetakeModal() {
+                retakeConfirmModal.classList.remove('hidden');
+                // Use a small timeout to ensure the transition works
+                setTimeout(() => {
+                    retakeConfirmModal.style.opacity = '1';
+                    retakeConfirmModal.style.transform = 'scale(1)';
+                }, 10);
+            }
+
+            // Function to hide the modal
+            function hideRetakeModal() {
+                retakeConfirmModal.style.opacity = '0';
+                retakeConfirmModal.style.transform = 'scale(0.95)';
+                setTimeout(() => {
+                    retakeConfirmModal.classList.add('hidden');
+                }, 200);
+            }
+
+            // Event listeners
+            retakeTestBtn.addEventListener('click', showRetakeModal);
+            modalOverlay.addEventListener('click', hideRetakeModal);
+            cancelRetakeBtn.addEventListener('click', hideRetakeModal);
+        }
+    });
+</script>
+
+<style>
+    /* Modal animation styles */
+    #retakeConfirmModal {
+        opacity: 0;
+        transform: scale(0.95);
+        transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+</style>
 {% endblock %}

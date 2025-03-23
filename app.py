@@ -7604,7 +7604,7 @@ def career_test_analyzing():
 @app.route('/career-test/stage/<int:stage>', methods=['GET', 'POST'])
 @login_required
 def career_test_stage(stage):
-    """Handle a specific stage of the career test with proper answer capturing"""
+    """Handle a specific stage of the career test with improved option handling"""
     user_id = session['user_id']
     
     # Validate stage
@@ -7669,24 +7669,98 @@ def career_test_stage(stage):
             print(f"Form question_id: {form_question_id}, Action: {action}")
             
             if action == 'next':
-                # Get current question data
-                question_data = stage_questions['questions'][form_question_id-1]
+                # Get current question data - with index validation
+                question_index = form_question_id - 1
+                if 0 <= question_index < len(stage_questions['questions']):
+                    question_data = stage_questions['questions'][question_index]
+                    
+                    # DEBUG: Log the full question data structure to debug option mapping
+                    print(f"Current question data: {json.dumps(question_data, ensure_ascii=False)}")
+                    
+                    # Get available options for this question
+                    options = question_data.get('options', [])
+                    
+                    # DEBUG: Log option data
+                    print(f"Available options: {json.dumps(options, ensure_ascii=False)}")
+                else:
+                    print(f"WARNING: Question index out of range: {question_index}")
+                    question_data = {}
+                    options = []
                 
-                # IMPORTANT: Get the actual selected answers with their values, not just empty strings
-                selected_answers = [answer for answer in request.form.getlist('answer') if answer]
+                # IMPORTANT: Get the actual selected answers with their values
+                raw_answers = request.form.getlist('answer')
+                
+                # Create a set to eliminate duplicates
+                unique_answers = set()
+                for answer in raw_answers:
+                    if answer.strip():  # Only add non-empty answers
+                        unique_answers.add(answer)
+                
+                # Convert back to list for storage
+                selected_answers = list(unique_answers)
                 
                 # Debug log to check the raw form data
                 print(f"Form data for question {form_question_id}: {dict(request.form)}")
-                print(f"Selected answer values: {selected_answers}")
+                print(f"Raw answer values: {raw_answers}")
+                print(f"Unique selected answer values: {selected_answers}")
                 
                 # Only save non-empty answers
                 if selected_answers and any(selected_answers):
                     if stage_key not in saved_answers:
                         saved_answers[stage_key] = {}
                     
-                    # Save the actual selected values
+                    # Save the selected values (IDs or values from form)
                     saved_answers[stage_key][str(form_question_id)] = selected_answers
                     print(f"Saved answers for {stage_key} question {form_question_id}: {selected_answers}")
+                    
+                    # Store the answer text (this is what we'll send to Gemini)
+                    answer_texts = []
+                    option_texts = {}
+                    
+                    # Create mappings from different option identifiers to text
+                    for opt in options:
+                        opt_id = str(opt.get('id', ''))
+                        opt_value = str(opt.get('value', opt_id))
+                        opt_text = opt.get('text', '')
+                        
+                        # Map both ID and value to text
+                        option_texts[opt_id] = opt_text
+                        option_texts[opt_value] = opt_text
+                        
+                        # Also map the text itself as a key for direct text matching
+                        option_texts[opt_text] = opt_text
+                    
+                    # DEBUG: Log the mapping table
+                    print(f"Option ID/value to text mapping: {option_texts}")
+                    
+                    # Try to map each selected answer to its text
+                    for answer in selected_answers:
+                        answer_str = str(answer)
+                        if answer_str in option_texts:
+                            answer_texts.append(option_texts[answer_str])
+                        else:
+                            # Special case for RIASEC numeric ratings
+                            if question_data.get('type') == 'riasec' and answer_str.isdigit():
+                                rating = int(answer_str)
+                                if 1 <= rating <= 5:
+                                    answer_texts.append(f"Оценка {rating} из 5")
+                                else:
+                                    answer_texts.append(f"Рейтинг: {answer_str}")
+                            else:
+                                # If we can't find a mapping, use the raw answer as text
+                                # This ensures we at least have some value for Gemini to use
+                                answer_texts.append(f"{answer_str}")
+                                print(f"WARNING: Could not find text for option '{answer_str}' in question {form_question_id}")
+                    
+                    # Save the text values
+                    if 'answer_texts' not in saved_answers:
+                        saved_answers['answer_texts'] = {}
+                    if stage_key not in saved_answers['answer_texts']:
+                        saved_answers['answer_texts'][stage_key] = {}
+                        
+                    saved_answers['answer_texts'][stage_key][str(form_question_id)] = answer_texts
+                    print(f"Saved answer texts: {answer_texts}")
+                    
                 else:
                     print(f"WARNING: No answers selected for question {form_question_id}")
                 
@@ -7704,6 +7778,7 @@ def career_test_stage(stage):
                     test_progress_ref.update(update_data)
                     print(f"Updated DB with next_question: {next_question}")
                     print(f"Current saved answers: {saved_answers}")
+                    
                     
                     if is_ajax:
                         # Рендерим следующий вопрос - УЛУЧШЕННАЯ ВЕРСИЯ
@@ -7821,7 +7896,6 @@ def career_test_stage(stage):
         flash(f'Error loading test stage: {str(e)}')
         return redirect(url_for('career_test'))
 
-
 @app.route('/career-test/results')
 @login_required
 def career_test_results():
@@ -7925,7 +7999,7 @@ def career_profession_detail(profession_slug):
 
 
 def analyze_career_test_results(answers):
-    """Analyze test answers with better handling of selected options"""
+    """Analyze test answers using the stored text values of options instead of IDs"""
     try:
         user_id = session.get('user_id')
         
@@ -7963,6 +8037,9 @@ def analyze_career_test_results(answers):
             # Create a lookup by question ID
             question_lookup = {str(q["id"]): q for q in stage_questions}
             
+            # IMPORTANT: Check if we have text answers stored directly
+            have_text_answers = 'answer_texts' in answers and stage_name in answers['answer_texts']
+            
             # Process each answer with full context
             for question_id, selected_options in stage_answers.items():
                 if question_id not in question_lookup:
@@ -7972,74 +8049,67 @@ def analyze_career_test_results(answers):
                 question_data = question_lookup[question_id]
                 question_text = question_data.get("text", "")
                 question_type = question_data.get("type", "")
-                options = question_data.get("options", [])
                 
-                # Create a lookup for options
-                option_lookup = {opt["id"]: opt["text"] for opt in options}
-                
-                # Get the selected options with full text
-                selected_texts = []
-                selected_option_ids = []
-                
-                for option_id in selected_options:
-                    # Skip empty options
-                    if not option_id:
-                        continue
+                # Get the selected option text - preferring stored text values if available
+                if have_text_answers and question_id in answers['answer_texts'][stage_name]:
+                    # Use the stored text values directly
+                    selected_texts = answers['answer_texts'][stage_name][question_id]
+                    selected_option_ids = selected_options  # Keep the raw IDs for reference
+                    
+                    print(f"Using pre-stored text values for question {question_id}: {selected_texts}")
+                else:
+                    # Fallback to looking up text from option data
+                    options = question_data.get("options", [])
+                    option_lookup = {}
+                    
+                    # Build a comprehensive lookup map for options
+                    for opt in options:
+                        opt_id = str(opt.get("id", ""))
+                        opt_value = str(opt.get("value", opt_id))
+                        opt_text = opt.get("text", "")
                         
-                    # For numerical answers (like in RIASEC test)
-                    if question_type == 'radio' and option_id.isdigit():
-                        rating = int(option_id)
-                        if 1 <= rating <= 5:
+                        # Map both ID and value to text
+                        option_lookup[opt_id] = opt_text
+                        option_lookup[opt_value] = opt_text
+                        
+                        # Also map the text itself for direct matching
+                        option_lookup[opt_text] = opt_text
+                    
+                    selected_texts = []
+                    selected_option_ids = selected_options
+                    
+                    # Try to map each option to its text
+                    for option_id in selected_options:
+                        option_str = str(option_id)
+                        
+                        if option_str in option_lookup:
+                            selected_texts.append(option_lookup[option_str])
+                        elif question_type == 'riasec' and option_str.isdigit():
+                            # Special case for RIASEC test ratings
+                            rating = int(option_str)
                             selected_texts.append(f"Оценка {rating} из 5")
-                            selected_option_ids.append(option_id)
-                    # For regular options
-                    elif option_id in option_lookup:
-                        selected_texts.append(option_lookup[option_id])
-                        selected_option_ids.append(option_id)
+                        else:
+                            # If we can't find a mapping, use the raw value
+                            selected_texts.append(option_str)
+                            print(f"WARNING: Could not find text for option '{option_str}' in question {question_id}")
                 
                 # Add the enriched data with both question and selected answer text
                 enriched_data[stage_name].append({
                     "question_id": question_id,
                     "question_text": question_text,
                     "type": question_type,
-                    "selected_options": selected_texts,
-                    "selected_option_ids": selected_option_ids
+                    "selected_options": selected_texts,  # This now contains the actual text of options
+                    "selected_option_ids": selected_option_ids  # This contains the raw IDs/values
                 })
         
-        # Подробный вывод для отладки перед отправкой в API
-        print("DEBUG: Sending to Gemini with data:")
-        print(f"Enriched data: {json.dumps(enriched_data, ensure_ascii=False, indent=2)}")
-  
-        # Initialize Gemini AI model
+        # Initialize Gemini AI model - THIS WAS MISSING
         model = genai.GenerativeModel('gemini-1.5-pro-latest')
         
-        # Check if the answers are mostly empty
-        empty_selections = True
-        for stage in enriched_data.values():
-            for question in stage:
-                if question.get('selected_options'):
-                    empty_selections = False
-                    break
-            if not empty_selections:
-                break
-        
-        # If mostly empty, provide a helpful prompt explaining the issue
-        if empty_selections:
-            print("WARNING: Most answers are empty. The career test results may not be accurate.")
-            # Here we could add special handling for empty answers
-        
-        # Prepare the enriched context for analysis
-        formatted_answers = json.dumps(answers, ensure_ascii=False, indent=2)
-        formatted_enriched = json.dumps(enriched_data, ensure_ascii=False, indent=2)
-        
-        # Create enhanced prompt with full question context
+        # Create enhanced prompt with text focus
         prompt = f"""Как карьерный консультант со специализацией на рынке труда Казахстана, проанализируй эти результаты тестов и рекомендуй 10 наиболее подходящих профессий для этого человека.
 
-ИСХОДНЫЕ ОТВЕТЫ ТЕСТА (ID вопросов и ID ответов):
-{formatted_answers}
-
 ОБОГАЩЕННЫЕ ДАННЫЕ ТЕСТА (полный текст вопросов и ответов):
-{formatted_enriched}
+{json.dumps(enriched_data, ensure_ascii=False, indent=2)}
 
 Тест включает два раздела:
 1. Базовый тест с вопросами об интересах, предпочтениях в работе и мотивации
@@ -8051,6 +8121,8 @@ def analyze_career_test_results(answers):
 3. Определи основные мотивационные факторы из ответов первого теста
 4. Оцени конкретные интересы и склонности на основе выбранных вариантов ответа
 5. Сопоставь полученные данные с требованиями профессий на рынке труда Казахстана
+
+ВАЖНО: Анализируй смысл текста выбранных ответов, а не их числовые коды или идентификаторы.
 
 Для каждой рекомендуемой профессии предоставь:
 1. Точное название профессии на русском языке
@@ -8083,7 +8155,7 @@ def analyze_career_test_results(answers):
 """
 
         # Print the AI prompt to console
-        print("\n===== CAREER TEST AI PROMPT WITH FULL CONTEXT AND ACTUAL ANSWERS =====")
+        print("\n===== CAREER TEST AI PROMPT WITH TEXT VALUES =====")
         print(prompt)
         print("=================================\n")
 
@@ -8184,7 +8256,6 @@ def analyze_career_test_results(answers):
                 }
             }
         ]
-
 
 
 
@@ -8493,7 +8564,50 @@ def admin_test_career_prompt():
         import traceback
         traceback.print_exc()
         return f"Error: {str(e)}", 500
-
+@app.route('/career-test/restart', methods=['GET'])
+@login_required
+def restart_career_test():
+    """Reset career test progress and start fresh"""
+    user_id = session['user_id']
+    
+    try:
+        # Get reference to test progress document
+        test_progress_ref = db.collection('users').document(user_id).collection('test_progress').document('career_test')
+        
+        # Check if progress exists
+        test_progress = test_progress_ref.get()
+        
+        if test_progress.exists:
+            # Reset the progress data but maintain the document
+            test_progress_ref.update({
+                'current_stage': 1,
+                'current_question': {'stage_1': 1},
+                'answers': {},  # Clear all answers
+                # Keep completed_stages for record but reset navigation
+                'reset_count': firestore.Increment(1),
+                'last_reset_at': datetime.datetime.now(tz=datetime.timezone.utc)
+            })
+            
+            print(f"Career test progress reset for user: {user_id}")
+        else:
+            # Create initial progress document
+            test_progress_ref.set({
+                'current_stage': 1,
+                'current_question': {'stage_1': 1},
+                'completed_stages': [],
+                'answers': {},
+                'reset_count': 0
+            })
+            
+            print(f"New career test progress created for user: {user_id}")
+            
+        # Redirect to the first stage of the test
+        return redirect(url_for('career_test_stage', stage=1))
+        
+    except Exception as e:
+        print(f"Error resetting career test progress: {e}")
+        flash('Произошла ошибка при перезапуске теста. Попробуйте еще раз.')
+        return redirect(url_for('career_test'))
 @app.errorhandler(404)
 def page_not_found(e):
 

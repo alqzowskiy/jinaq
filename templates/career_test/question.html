@@ -4,12 +4,28 @@
     <div class="container mx-auto px-4">
         <div class="max-w-4xl mx-auto">
             <!-- Header with Test Name and Progress -->
-            <div class="mb-6">
-                <h1 class="text-2xl font-bold text-black">{{ stage_name }}</h1>
-                <div class="flex justify-between items-center mt-2">
-                    <p class="text-gray-600">Этап {{ stage }} из 2</p>
-                    <p class="text-gray-600 question-counter">Вопрос {{ question_number }} из {{ total_questions }}</p>
+            <div class="mb-6 flex flex-col md:flex-row md:items-center md:justify-between">
+                <div>
+                    <h1 class="text-2xl font-bold text-black">
+                        <p class="text-gray-600">Этап {{ stage }}
+                            из 2 </p>
+                    </h1>
+                    <div class="flex justify-between items-center mt-2">
+                        <p class="text-gray-600 question-counter">Вопрос {{ question_number }} из {{ total_questions }}
+                        </p>
+
+                    </div>
                 </div>
+                <!-- Retake Test Button in Header -->
+                <button id="retakeTestBtn" type="button"
+                    class="mt-4 md:mt-0 text-gray-600 hover:text-black flex items-center text-sm font-medium transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Пройти тест заново
+                </button>
             </div>
 
             <!-- Animated Progress Bar -->
@@ -24,7 +40,7 @@
                     <div class="bg-white shadow-md rounded-xl p-8 mb-8 question-card">
                         <h2 class="text-xl font-semibold mb-8">{{ question.text }}</h2>
 
-                        <form id="questionForm" method="post">
+                        <form id="questionForm" method="post" onsubmit="return false;">
                             <!-- Добавляем дополнительный скрытый элемент для защиты от возможных рассинхронизаций -->
                             <input type="hidden" name="stage" value="{{ stage }}">
                             <input type="hidden" name="question_id" value="{{ question_number }}">
@@ -35,14 +51,18 @@
                             <div class="space-y-4 options-container">
                                 {% for option in question.options %}
                                 <div class="relative option-item" style="--delay: {{ loop.index0 * 100 }}ms">
+                                    <!-- Use consistent value for option by preferring value, falling back to id -->
+                                    {% set option_value = option.value if option.value is defined else option.id %}
                                     <input type="checkbox" id="option_{{ loop.index }}" name="answer"
-                                        value="{{ option.value }}" class="hidden" {{ 'checked' if option.value in
-                                        selected_answers }}>
+                                        value="{{ option_value }}" data-value="{{ option_value }}"
+                                        data-text="{{ option.text }}" class="hidden" {{ 'checked' if option_value|string
+                                        in selected_answers or option.text in selected_answers }}>
                                     <label for="option_{{ loop.index }}"
-                                        class="option-label flex items-center w-full p-4 border border-gray-200 rounded-lg cursor-pointer transition-all duration-200 hover:bg-gray-50 {{ 'selected-option' if option.value in selected_answers }}">
+                                        class="option-label flex items-center w-full p-4 border border-gray-200 rounded-lg cursor-pointer transition-all duration-200 hover:bg-gray-50 {{ 'selected-option' if option_value|string in selected_answers or option.text in selected_answers }}">
                                         <span
-                                            class="checkbox-custom mr-3 w-5 h-5 border border-gray-300 rounded flex-shrink-0 flex items-center justify-center {{ 'checked' if option.value in selected_answers }}">
-                                            {% if option.value in selected_answers %}
+                                            class="checkbox-custom mr-3 w-5 h-5 border border-gray-300 rounded flex-shrink-0 flex items-center justify-center {{ 'checked' if option_value|string in selected_answers or option.text in selected_answers }}">
+                                            {% if option_value|string in selected_answers or option.text in
+                                            selected_answers %}
                                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-black"
                                                 fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -50,6 +70,7 @@
                                             </svg>
                                             {% endif %}
                                         </span>
+                                        <!-- Show option text -->
                                         {{ option.text }}
                                     </label>
                                 </div>
@@ -59,8 +80,8 @@
                             <!-- Fallback options for questions without options -->
                             <div class="space-y-4 options-container">
                                 <div class="relative option-item" style="--delay: 0ms">
-                                    <input type="checkbox" id="option_yes" name="answer" value="yes" class="hidden"
-                                        {{ 'checked' if 'yes' in selected_answers }}>
+                                    <input type="checkbox" id="option_yes" name="answer" value="yes" data-value="yes"
+                                        class="hidden" {{ 'checked' if 'yes' in selected_answers }}>
                                     <label for="option_yes"
                                         class="option-label flex items-center w-full p-4 border border-gray-200 rounded-lg cursor-pointer transition-all duration-200 hover:bg-gray-50 {{ 'selected-option' if 'yes' in selected_answers }}">
                                         <span
@@ -78,7 +99,8 @@
                                 </div>
                                 <div class="relative option-item" style="--delay: 100ms">
                                     <input type="checkbox" id="option_somewhat" name="answer" value="somewhat"
-                                        class="hidden" {{ 'checked' if 'somewhat' in selected_answers }}>
+                                        data-value="somewhat" class="hidden" {{ 'checked' if 'somewhat' in
+                                        selected_answers }}>
                                     <label for="option_somewhat"
                                         class="option-label flex items-center w-full p-4 border border-gray-200 rounded-lg cursor-pointer transition-all duration-200 hover:bg-gray-50 {{ 'selected-option' if 'somewhat' in selected_answers }}">
                                         <span
@@ -95,8 +117,8 @@
                                     </label>
                                 </div>
                                 <div class="relative option-item" style="--delay: 200ms">
-                                    <input type="checkbox" id="option_no" name="answer" value="no" class="hidden"
-                                        {{ 'checked' if 'no' in selected_answers }}>
+                                    <input type="checkbox" id="option_no" name="answer" value="no" data-value="no"
+                                        class="hidden" {{ 'checked' if 'no' in selected_answers }}>
                                     <label for="option_no"
                                         class="option-label flex items-center w-full p-4 border border-gray-200 rounded-lg cursor-pointer transition-all duration-200 hover:bg-gray-50 {{ 'selected-option' if 'no' in selected_answers }}">
                                         <span
@@ -116,7 +138,7 @@
                             {% endif %}
 
                             <div class="mt-8 flex justify-between buttons-container">
-                                <button type="submit" name="action" value="prev"
+                                <button type="button" id="prevButton"
                                     class="px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-all duration-200 text-gray-700 flex items-center prev-button">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none"
                                         viewBox="0 0 24 24" stroke="currentColor">
@@ -126,7 +148,7 @@
                                     Назад
                                 </button>
 
-                                <button type="submit" name="action" value="next"
+                                <button type="button" id="nextButton"
                                     class="px-6 py-3 bg-black text-white rounded-lg hover:bg-gray-900 transition-all duration-200 flex items-center next-button">
                                     Далее
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 ml-2" fill="none"
@@ -140,6 +162,26 @@
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- Confirmation Modal for Retake Test Button -->
+<div id="retakeConfirmModal" class="fixed inset-0 z-50 flex items-center justify-center hidden">
+    <div class="fixed inset-0 bg-black opacity-50" id="modalOverlay"></div>
+    <div class="bg-white rounded-xl p-6 shadow-xl z-10 max-w-md mx-4 relative">
+        <h3 class="text-xl font-bold mb-4">Начать тест заново?</h3>
+        <p class="text-gray-600 mb-6">Весь текущий прогресс будет сброшен. Вы уверены, что хотите начать тест заново?
+        </p>
+        <div class="flex space-x-3 justify-end">
+            <button id="cancelRetake"
+                class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                Отмена
+            </button>
+            <a href="{{ url_for('restart_career_test') }}"
+                class="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-900 transition-colors">
+                Начать заново
+            </a>
         </div>
     </div>
 </div>
@@ -285,17 +327,27 @@
             transform: translateX(200%);
         }
     }
+
+    /* Modal animation styles */
+    #retakeConfirmModal {
+        opacity: 0;
+        transform: scale(0.95);
+        transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+
+    #retakeConfirmModal.show {
+        opacity: 1;
+        transform: scale(1);
+    }
 </style>
 
 <script>
-    // Enhanced script with fixes for counter synchronization
-    // Enhanced script with fixes for form submission and checkbox handling
-    // Enhanced script with more robust form handling and debug logs
     document.addEventListener('DOMContentLoaded', function () {
         // Get animation wrapper and container
         const animationWrapper = document.getElementById('questionAnimationWrapper');
         const questionContainer = document.getElementById('questionContainer');
         const progressBar = document.getElementById('progressBar');
+        const questionForm = document.getElementById('questionForm');
 
         // Initialize page with animation
         animateQuestionIn();
@@ -306,188 +358,245 @@
             progressBar.style.width = `${currentWidth}%`;
         }, 100);
 
+        // Debug all input elements on page to help diagnose issues
+        debugFormElements();
+
         // Setup checkbox handlers initially
         setupCheckboxHandlers();
 
-        // Handle form submission with animations and proper data handling
-        const questionForm = document.getElementById('questionForm');
-        if (questionForm) {
-            questionForm.addEventListener('submit', function (e) {
+        // Handle button clicks with dedicated event listeners (iOS fix)
+        const prevButton = document.getElementById('prevButton');
+        const nextButton = document.getElementById('nextButton');
+
+        if (prevButton) {
+            prevButton.addEventListener('click', function (e) {
                 e.preventDefault();
+                e.stopPropagation();
+                handleFormSubmission(this, 'prev');
+            });
+        }
 
-                // iOS-specific detection
-                const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+        if (nextButton) {
+            nextButton.addEventListener('click', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                handleFormSubmission(this, 'next');
+            });
+        }
 
-                // Get active button
-                const submitButton = document.activeElement;
-                const originalText = submitButton.innerHTML;
-                submitButton.disabled = true;
+        // Set up retake test button and modal
+        const retakeTestBtn = document.getElementById('retakeTestBtn');
+        const retakeConfirmModal = document.getElementById('retakeConfirmModal');
+        const modalOverlay = document.getElementById('modalOverlay');
+        const cancelRetakeBtn = document.getElementById('cancelRetake');
 
-                // Get the action from the button
-                const action = submitButton.value;
+        // Show confirmation modal when retake button is clicked
+        retakeTestBtn.addEventListener('click', function () {
+            retakeConfirmModal.classList.remove('hidden');
+            setTimeout(() => {
+                retakeConfirmModal.classList.add('show');
+            }, 10);
+        });
 
-                // FIXED: Handle form data collection in a way that works on iOS
-                // Create a plain JavaScript object to store values - more reliable cross-platform
-                const formValues = {
-                    action: action,
-                    stage: document.querySelector('input[name="stage"]').value,
-                    question_id: document.querySelector('input[name="question_id"]').value,
-                    total_questions: document.querySelector('input[name="total_questions"]').value,
-                    answer: []
-                };
+        // Hide modal when cancel is clicked or overlay is clicked
+        cancelRetakeBtn.addEventListener('click', hideModal);
+        modalOverlay.addEventListener('click', hideModal);
 
-                // Get all checked options
-                const checkedOptions = [];
-                document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
-                    if (checkbox.checked) {
-                        const value = checkbox.value || checkbox.getAttribute('data-value') || checkbox.id.replace('option_', '');
-                        console.log(`Adding checked option: ${value} from ${checkbox.id}`);
-                        checkedOptions.push(value);
-                        formValues.answer.push(value);
+        function hideModal() {
+            retakeConfirmModal.classList.remove('show');
+            setTimeout(() => {
+                retakeConfirmModal.classList.add('hidden');
+            }, 200);
+        }
+
+        // Function to handle form submission with animations
+        function handleFormSubmission(button, action) {
+            // Debug all form elements before submission
+            debugFormElements();
+
+            // Get active button
+            const submitButton = button;
+            const originalText = submitButton.innerHTML;
+            submitButton.disabled = true;
+
+            // Explicitly check and add checkbox values - IMPROVED METHOD WITH TEXT STORAGE
+            const checkedOptions = new Set(); // Use a Set to prevent duplicates
+            const formData = new FormData(questionForm);
+            formData.append('action', action);
+
+            // Reset any previous answers from the form
+            const oldAnswers = formData.getAll('answer');
+            oldAnswers.forEach(() => {
+                formData.delete('answer');
+            });
+
+            // Build a map of all available options and their text
+            const optionMap = new Map();
+            document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+                const value = checkbox.value || checkbox.getAttribute('data-value');
+                const text = checkbox.getAttribute('data-text');
+                if (value) optionMap.set(value, text);
+            });
+
+            console.log("Available options map:", Object.fromEntries(optionMap));
+
+            // Collect all checked checkboxes
+            document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+                if (checkbox.checked) {
+                    const value = checkbox.value || checkbox.getAttribute('data-value');
+
+                    if (value) {
+                        console.log(`Adding checked option: ${value} from ${checkbox.id} with text: ${checkbox.getAttribute('data-text')}`);
+                        checkedOptions.add(value);
                     }
-                });
-
-                // Only validate if going forward (not when going back)
-                if (action === 'next' && checkedOptions.length === 0) {
-                    // Show warning if no option selected
-                    alert('Пожалуйста, выберите хотя бы один вариант ответа');
-                    submitButton.disabled = false;
-                    return;
                 }
+            });
 
-                // Animation direction based on button clicked
-                const direction = action === 'next' ? 'right' : 'left';
+            // Now add each unique value to formData
+            if (checkedOptions.size === 0 && action === 'next') {
+                // Show warning if no option selected
+                alert('Пожалуйста, выберите хотя бы один вариант ответа');
+                submitButton.disabled = false;
+                return;
+            } else {
+                // Convert Set to Array and add each value
+                Array.from(checkedOptions).forEach(value => {
+                    formData.append('answer', value);
+                });
+            }
 
-                // FIXED: Only start animation after we've captured all form data
-                animateQuestionOut(direction);
+            // DEBUG: Log the form data we're about to send
+            console.log("Final form data to submit:");
+            for (let pair of formData.entries()) {
+                console.log(pair[0] + ': ' + pair[1]);
+            }
 
-                // Add loading animation to button
+            // Animation direction based on button clicked
+            const direction = action === 'next' ? 'right' : 'left';
+
+            // Animate the current question out
+            animateQuestionOut(direction);
+
+            // Add loading animation to button
+            if (action === 'next') {
                 submitButton.innerHTML = `
                 <div class="flex items-center">
-                    <svg class="animate-spin -ml-1 mr-2 h-4 w-4 ${action === 'next' ? 'text-white' : 'text-gray-700'}" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    <span>${action === 'next' ? 'Далее...' : 'Назад...'}</span>
+                    <span>Далее...</span>
                 </div>
             `;
+            } else {
+                submitButton.innerHTML = `
+                <div class="flex items-center">
+                    <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-gray-700" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>Назад...</span>
+                </div>
+            `;
+            }
 
-                // FIXED: Convert our form values to FormData for the fetch request
-                const formData = new FormData();
-                for (const key in formValues) {
-                    if (Array.isArray(formValues[key])) {
-                        formValues[key].forEach(value => {
-                            formData.append(key, value);
-                        });
-                    } else {
-                        formData.append(key, formValues[key]);
+            // Send AJAX request
+            fetch(window.location.href, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
                     }
-                }
+                    return response.json();
+                })
+                .then(data => {
+                    // Debug
+                    console.log("Received response:", data);
 
-                // Debug form data
-                console.log("Form data before submission:");
-                for (let pair of formData.entries()) {
-                    console.log(pair[0] + ': ' + pair[1]);
-                }
+                    if (data.redirect) {
+                        // Page change needed - smooth transition
+                        document.body.style.opacity = '0';
+                        document.body.style.transition = 'opacity 0.5s ease';
+                        setTimeout(() => {
+                            window.location.href = data.redirect;
+                        }, 500);
+                    } else if (data.html) {
+                        // Update the question content with animation
+                        setTimeout(() => {
+                            // Update DOM with new content
+                            questionContainer.innerHTML = data.html;
 
-                // FIXED: Add a slight delay for iOS devices to ensure animation completes first
-                const submitDelay = isIOS ? 100 : 0;
-
-                // Send AJAX request with delay
-                setTimeout(() => {
-                    fetch(window.location.href, {
-                        method: 'POST',
-                        body: formData,
-                        headers: {
-                            'X-Requested-With': 'XMLHttpRequest'
-                        }
-                    })
-                        .then(response => {
-                            if (!response.ok) {
-                                throw new Error('Network response was not ok');
-                            }
-                            return response.json();
-                        })
-                        .then(data => {
-                            console.log("Received response:", data);
-
-                            if (data.redirect) {
-                                // Page change needed - smooth transition
-                                document.body.style.opacity = '0';
-                                document.body.style.transition = 'opacity 0.5s ease';
-                                setTimeout(() => {
-                                    window.location.href = data.redirect;
-                                }, 500);
-                            } else if (data.html) {
-                                // FIXED: Longer delay for iOS to ensure compatibility
-                                const updateDelay = isIOS ? 600 : 500;
-
-                                setTimeout(() => {
-                                    // Update DOM with new content
-                                    questionContainer.innerHTML = data.html;
-
-                                    // IMPORTANT: Execute JS-script to update all counters
-                                    if (data.fixed_counter_js) {
-                                        try {
-                                            const scriptEl = document.createElement('script');
-                                            scriptEl.textContent = data.fixed_counter_js;
-                                            document.head.appendChild(scriptEl);
-                                            setTimeout(() => {
-                                                document.head.removeChild(scriptEl);
-                                            }, 100);
-                                        } catch (scriptError) {
-                                            console.error("Error executing counter script:", scriptError);
-                                        }
-                                    }
-
-                                    // Animate new question in from opposite direction
-                                    animateQuestionIn(direction === 'right' ? 'left' : 'right');
-
-                                    // Re-initialize handlers for the new question
-                                    setupCheckboxHandlers();
-
-                                    // Get stage number for progress bar
-                                    const stageText = document.querySelector('.text-gray-600').textContent;
-                                    const stageMatch = stageText.match(/Этап (\d+) из 2/);
-                                    const stage = stageMatch ? parseInt(stageMatch[1]) : 1;
-
-                                    // Animate progress bar - Updated for 2 stages
-                                    const progressValue = (stage / 2) * 100;
-                                    progressBar.style.width = `${progressValue}%`;
-                                }, updateDelay);
-                            }
-                        })
-                        .catch(error => {
-                            console.error('Error:', error);
-
-                            // FIXED: More specific iOS error handling
-                            if (isIOS) {
-                                console.log("iOS specific error handling");
-                                // Instead of alert which can cause issues on iOS
-                                const errorMessage = document.createElement('div');
-                                errorMessage.className = 'p-4 bg-red-100 text-red-700 rounded mb-4';
-                                errorMessage.textContent = 'Произошла ошибка. Пожалуйста, попробуйте еще раз.';
-
-                                const questionCard = document.querySelector('.question-card');
-                                if (questionCard && questionCard.parentNode) {
-                                    questionCard.parentNode.insertBefore(errorMessage, questionCard);
-
-                                    // Auto remove after 3 seconds
+                            // IMPORTANT: Execute JS-script to update all counters
+                            if (data.fixed_counter_js) {
+                                console.log("Executing forced counter update script");
+                                try {
+                                    // Create and execute script with code from server
+                                    const scriptEl = document.createElement('script');
+                                    scriptEl.textContent = data.fixed_counter_js;
+                                    document.head.appendChild(scriptEl);
+                                    // Remove script after execution
                                     setTimeout(() => {
-                                        errorMessage.remove();
-                                    }, 3000);
+                                        document.head.removeChild(scriptEl);
+                                    }, 100);
+                                } catch (scriptError) {
+                                    console.error("Error executing counter script:", scriptError);
                                 }
-                            } else {
-                                alert('Произошла ошибка. Пожалуйста, попробуйте еще раз.');
                             }
 
-                            // Reset animation and button
-                            animateQuestionIn();
-                            submitButton.disabled = false;
-                            submitButton.innerHTML = originalText;
-                        });
-                }, submitDelay);
-            });
+                            // Animate new question in from opposite direction
+                            animateQuestionIn(direction === 'right' ? 'left' : 'right');
+
+                            // Re-initialize handlers for the new question
+                            setupCheckboxHandlers();
+
+                            // Rebind button event listeners for the new elements
+                            const newPrevButton = document.getElementById('prevButton');
+                            const newNextButton = document.getElementById('nextButton');
+
+                            if (newPrevButton) {
+                                newPrevButton.addEventListener('click', function (e) {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    handleFormSubmission(this, 'prev');
+                                });
+                            }
+
+                            if (newNextButton) {
+                                newNextButton.addEventListener('click', function (e) {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    handleFormSubmission(this, 'next');
+                                });
+                            }
+
+                            // Debug new form elements
+                            debugFormElements();
+
+                            // Get stage number for progress bar
+                            const stageText = document.querySelector('.text-gray-600').textContent;
+                            const stageMatch = stageText.match(/Этап (\d+) из 2/);
+                            const stage = stageMatch ? parseInt(stageMatch[1]) : 1;
+
+                            // Animate progress bar - Updated for 2 stages
+                            const progressValue = (stage / 2) * 100;
+                            progressBar.style.width = `${progressValue}%`;
+                        }, 500); // Wait for exit animation to finish
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Произошла ошибка. Пожалуйста, попробуйте еще раз.');
+
+                    // Reset animation and button
+                    animateQuestionIn();
+                    submitButton.disabled = false;
+                    submitButton.innerHTML = originalText;
+                });
         }
 
         // Debug function to print all form elements to console
@@ -500,21 +609,21 @@
             console.log("== END FORM ELEMENT DEBUG ==");
         }
 
-        // Function to set up checkbox interactions - iOS optimized
+        // Function to set up checkbox interactions
         function setupCheckboxHandlers() {
             const checkboxes = document.querySelectorAll('input[type="checkbox"]');
             console.log(`Setting up ${checkboxes.length} checkbox handlers`);
-
-            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 
             checkboxes.forEach(checkbox => {
                 // Add data-value attribute as a backup
                 if (checkbox.value) {
                     checkbox.setAttribute('data-value', checkbox.value);
                 } else if (checkbox.id) {
+                    // If value is missing, use ID as fallback
                     const valueFromId = checkbox.id.replace('option_', '');
                     checkbox.value = valueFromId;
                     checkbox.setAttribute('data-value', valueFromId);
+                    console.log(`Added value ${valueFromId} to checkbox ${checkbox.id}`);
                 }
 
                 // Ensure initial state is correctly set
@@ -534,71 +643,32 @@
                     }
                 }
 
-                // FIXED: iOS optimized event handling
-                if (isIOS) {
-                    // For iOS, make label handle click logic instead of checkbox
-                    const label = document.querySelector(`label[for="${checkbox.id}"]`);
+                // Handle change event
+                checkbox.addEventListener('change', function () {
+                    console.log(`Checkbox ${this.id} changed, checked=${this.checked}, value=${this.value}`);
+                    const label = document.querySelector(`label[for="${this.id}"]`);
                     if (label) {
-                        // Remove existing listeners
-                        const newLabel = label.cloneNode(true);
-                        label.parentNode.replaceChild(newLabel, label);
-
-                        // Add iOS specific handler
-                        newLabel.addEventListener('click', function (e) {
-                            e.preventDefault();
-
-                            // Toggle the checkbox explicitly
-                            checkbox.checked = !checkbox.checked;
-
-                            // Update visual state
-                            if (checkbox.checked) {
-                                newLabel.classList.add('selected-option');
-                                const checkboxCustom = newLabel.querySelector('.checkbox-custom');
-                                if (checkboxCustom) {
-                                    checkboxCustom.classList.add('checked');
-                                    checkboxCustom.innerHTML = `
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                                    </svg>
-                                `;
-                                }
-                            } else {
-                                newLabel.classList.remove('selected-option');
-                                const checkboxCustom = newLabel.querySelector('.checkbox-custom');
-                                if (checkboxCustom) {
-                                    checkboxCustom.classList.remove('checked');
-                                    checkboxCustom.innerHTML = '';
-                                }
+                        if (this.checked) {
+                            label.classList.add('selected-option');
+                            const checkboxCustom = label.querySelector('.checkbox-custom');
+                            if (checkboxCustom) {
+                                checkboxCustom.classList.add('checked');
+                                checkboxCustom.innerHTML = `
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                </svg>
+                            `;
                             }
-                        });
-                    }
-                } else {
-                    // Standard event handlers for non-iOS
-                    checkbox.addEventListener('change', function () {
-                        const label = document.querySelector(`label[for="${this.id}"]`);
-                        if (label) {
-                            if (this.checked) {
-                                label.classList.add('selected-option');
-                                const checkboxCustom = label.querySelector('.checkbox-custom');
-                                if (checkboxCustom) {
-                                    checkboxCustom.classList.add('checked');
-                                    checkboxCustom.innerHTML = `
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                                    </svg>
-                                `;
-                                }
-                            } else {
-                                label.classList.remove('selected-option');
-                                const checkboxCustom = label.querySelector('.checkbox-custom');
-                                if (checkboxCustom) {
-                                    checkboxCustom.classList.remove('checked');
-                                    checkboxCustom.innerHTML = '';
-                                }
+                        } else {
+                            label.classList.remove('selected-option');
+                            const checkboxCustom = label.querySelector('.checkbox-custom');
+                            if (checkboxCustom) {
+                                checkboxCustom.classList.remove('checked');
+                                checkboxCustom.innerHTML = '';
                             }
                         }
-                    });
-                }
+                    }
+                });
             });
         }
 

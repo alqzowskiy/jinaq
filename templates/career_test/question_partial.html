@@ -2,7 +2,7 @@
 <div class="bg-white shadow-md rounded-xl p-8 mb-8 question-card">
     <h2 class="text-xl font-semibold mb-8">{{ question.text }}</h2>
 
-    <form id="questionForm" method="post">
+    <form id="questionForm" method="post" onsubmit="return false;">
         <!-- Enhanced form with reliable data handling -->
         <input type="hidden" name="stage" value="{{ stage }}">
         <input type="hidden" name="question_id" value="{{ question_number }}">
@@ -90,7 +90,7 @@
         {% endif %}
 
         <div class="mt-8 flex justify-between buttons-container">
-            <button type="submit" name="action" value="prev"
+            <button type="button" id="prevButton"
                 class="px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-all duration-200 text-gray-700 flex items-center prev-button">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24"
                     stroke="currentColor">
@@ -99,7 +99,7 @@
                 Назад
             </button>
 
-            <button type="submit" name="action" value="next"
+            <button type="button" id="nextButton"
                 class="px-6 py-3 bg-black text-white rounded-lg hover:bg-gray-900 transition-all duration-200 flex items-center next-button">
                 Далее
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 ml-2" fill="none" viewBox="0 0 24 24"
