@@ -306,135 +306,190 @@
             progressBar.style.width = `${currentWidth}%`;
         }, 100);
 
-        // Debug all input elements on page to help diagnose issues
-        debugFormElements();
-
         // Setup checkbox handlers initially
         setupCheckboxHandlers();
 
         // Handle form submission with animations and proper data handling
-        // Найдите в файле paste-3.txt обработчик формы и замените его на этот:
         const questionForm = document.getElementById('questionForm');
         if (questionForm) {
             questionForm.addEventListener('submit', function (e) {
                 e.preventDefault();
 
-                // Предотвращаем множественные отправки - критично для мобильных устройств
-                if (this.hasAttribute('data-submitting')) {
-                    console.log("Форма уже отправляется, предотвращаем дублирование");
-                    return false;
-                }
-                this.setAttribute('data-submitting', 'true');
+                // iOS-specific detection
+                const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 
-                // Получаем активную кнопку
+                // Get active button
                 const submitButton = document.activeElement;
                 const originalText = submitButton.innerHTML;
                 submitButton.disabled = true;
 
-                // Создаем новый FormData для избежания дублирования полей
-                const formData = new FormData();
+                // Get the action from the button
                 const action = submitButton.value;
-                formData.append('action', action);
 
-                // Добавляем скрытые поля
-                const stageInput = document.querySelector('input[name="stage"]');
-                const questionIdInput = document.querySelector('input[name="question_id"]');
-                const totalQuestionsInput = document.querySelector('input[name="total_questions"]');
+                // FIXED: Handle form data collection in a way that works on iOS
+                // Create a plain JavaScript object to store values - more reliable cross-platform
+                const formValues = {
+                    action: action,
+                    stage: document.querySelector('input[name="stage"]').value,
+                    question_id: document.querySelector('input[name="question_id"]').value,
+                    total_questions: document.querySelector('input[name="total_questions"]').value,
+                    answer: []
+                };
 
-                if (stageInput) formData.append('stage', stageInput.value);
-                if (questionIdInput) formData.append('question_id', questionIdInput.value);
-                if (totalQuestionsInput) formData.append('total_questions', totalQuestionsInput.value);
-
-                // Добавляем выбранные ответы явным образом
+                // Get all checked options
                 const checkedOptions = [];
-                document.querySelectorAll('input[type="checkbox"]:checked').forEach(checkbox => {
-                    const value = checkbox.value || checkbox.getAttribute('data-value') || checkbox.id.replace('option_', '');
-                    checkedOptions.push(value);
-                    formData.append('answer', value);
+                document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+                    if (checkbox.checked) {
+                        const value = checkbox.value || checkbox.getAttribute('data-value') || checkbox.id.replace('option_', '');
+                        console.log(`Adding checked option: ${value} from ${checkbox.id}`);
+                        checkedOptions.push(value);
+                        formValues.answer.push(value);
+                    }
                 });
 
-                // Проверяем только при движении вперед
+                // Only validate if going forward (not when going back)
                 if (action === 'next' && checkedOptions.length === 0) {
+                    // Show warning if no option selected
                     alert('Пожалуйста, выберите хотя бы один вариант ответа');
                     submitButton.disabled = false;
-                    this.removeAttribute('data-submitting');
-                    return false;
+                    return;
                 }
 
-                // Направление для анимаций
+                // Animation direction based on button clicked
                 const direction = action === 'next' ? 'right' : 'left';
+
+                // FIXED: Only start animation after we've captured all form data
                 animateQuestionOut(direction);
 
-                // Добавляем временную метку для предотвращения кеширования
-                const timestamp = new Date().getTime();
-                const url = new URL(window.location.href);
-                url.searchParams.set('_', timestamp);
+                // Add loading animation to button
+                submitButton.innerHTML = `
+                <div class="flex items-center">
+                    <svg class="animate-spin -ml-1 mr-2 h-4 w-4 ${action === 'next' ? 'text-white' : 'text-gray-700'}" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>${action === 'next' ? 'Далее...' : 'Назад...'}</span>
+                </div>
+            `;
 
-                // Отправляем AJAX запрос с дополнительными заголовками для мобильных устройств
-                fetch(url.toString(), {
-                    method: 'POST',
-                    body: formData,
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'Cache-Control': 'no-cache, no-store, max-age=0, must-revalidate',
-                        'Pragma': 'no-cache',
-                        'Expires': '0'
-                    },
-                    cache: 'no-store'
-                })
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error('Network response was not ok');
+                // FIXED: Convert our form values to FormData for the fetch request
+                const formData = new FormData();
+                for (const key in formValues) {
+                    if (Array.isArray(formValues[key])) {
+                        formValues[key].forEach(value => {
+                            formData.append(key, value);
+                        });
+                    } else {
+                        formData.append(key, formValues[key]);
+                    }
+                }
+
+                // Debug form data
+                console.log("Form data before submission:");
+                for (let pair of formData.entries()) {
+                    console.log(pair[0] + ': ' + pair[1]);
+                }
+
+                // FIXED: Add a slight delay for iOS devices to ensure animation completes first
+                const submitDelay = isIOS ? 100 : 0;
+
+                // Send AJAX request with delay
+                setTimeout(() => {
+                    fetch(window.location.href, {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
                         }
-                        return response.json();
                     })
-                    .then(data => {
-                        // Снимаем флаг отправки после получения ответа
-                        this.removeAttribute('data-submitting');
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error('Network response was not ok');
+                            }
+                            return response.json();
+                        })
+                        .then(data => {
+                            console.log("Received response:", data);
 
-                        // Оставшаяся часть обработчика без изменений...
-                        console.log("Received response:", data);
+                            if (data.redirect) {
+                                // Page change needed - smooth transition
+                                document.body.style.opacity = '0';
+                                document.body.style.transition = 'opacity 0.5s ease';
+                                setTimeout(() => {
+                                    window.location.href = data.redirect;
+                                }, 500);
+                            } else if (data.html) {
+                                // FIXED: Longer delay for iOS to ensure compatibility
+                                const updateDelay = isIOS ? 600 : 500;
 
-                        if (data.redirect) {
-                            document.body.style.opacity = '0';
-                            document.body.style.transition = 'opacity 0.5s ease';
-                            setTimeout(() => {
-                                window.location.href = data.redirect;
-                            }, 500);
-                        } else if (data.html) {
-                            setTimeout(() => {
-                                questionContainer.innerHTML = data.html;
+                                setTimeout(() => {
+                                    // Update DOM with new content
+                                    questionContainer.innerHTML = data.html;
 
-                                // Обновляем счетчики
-                                if (data.fixed_counter_js) {
-                                    try {
-                                        // Создаем и выполняем функцию напрямую
-                                        const updateCounters = new Function(data.fixed_counter_js);
-                                        updateCounters();
-                                    } catch (scriptError) {
-                                        console.error("Error executing counter script:", scriptError);
+                                    // IMPORTANT: Execute JS-script to update all counters
+                                    if (data.fixed_counter_js) {
+                                        try {
+                                            const scriptEl = document.createElement('script');
+                                            scriptEl.textContent = data.fixed_counter_js;
+                                            document.head.appendChild(scriptEl);
+                                            setTimeout(() => {
+                                                document.head.removeChild(scriptEl);
+                                            }, 100);
+                                        } catch (scriptError) {
+                                            console.error("Error executing counter script:", scriptError);
+                                        }
                                     }
+
+                                    // Animate new question in from opposite direction
+                                    animateQuestionIn(direction === 'right' ? 'left' : 'right');
+
+                                    // Re-initialize handlers for the new question
+                                    setupCheckboxHandlers();
+
+                                    // Get stage number for progress bar
+                                    const stageText = document.querySelector('.text-gray-600').textContent;
+                                    const stageMatch = stageText.match(/Этап (\d+) из 2/);
+                                    const stage = stageMatch ? parseInt(stageMatch[1]) : 1;
+
+                                    // Animate progress bar - Updated for 2 stages
+                                    const progressValue = (stage / 2) * 100;
+                                    progressBar.style.width = `${progressValue}%`;
+                                }, updateDelay);
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+
+                            // FIXED: More specific iOS error handling
+                            if (isIOS) {
+                                console.log("iOS specific error handling");
+                                // Instead of alert which can cause issues on iOS
+                                const errorMessage = document.createElement('div');
+                                errorMessage.className = 'p-4 bg-red-100 text-red-700 rounded mb-4';
+                                errorMessage.textContent = 'Произошла ошибка. Пожалуйста, попробуйте еще раз.';
+
+                                const questionCard = document.querySelector('.question-card');
+                                if (questionCard && questionCard.parentNode) {
+                                    questionCard.parentNode.insertBefore(errorMessage, questionCard);
+
+                                    // Auto remove after 3 seconds
+                                    setTimeout(() => {
+                                        errorMessage.remove();
+                                    }, 3000);
                                 }
+                            } else {
+                                alert('Произошла ошибка. Пожалуйста, попробуйте еще раз.');
+                            }
 
-                                animateQuestionIn(direction === 'right' ? 'left' : 'right');
-                                setupCheckboxHandlers();
-                            }, 300); // Уменьшено для лучшего отклика на мобильных
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        alert('Произошла ошибка. Пожалуйста, попробуйте еще раз.');
-
-                        // Снимаем флаг отправки
-                        this.removeAttribute('data-submitting');
-
-                        // Сбрасываем анимацию и кнопку
-                        animateQuestionIn();
-                        submitButton.disabled = false;
-                        submitButton.innerHTML = originalText;
-                    });
+                            // Reset animation and button
+                            animateQuestionIn();
+                            submitButton.disabled = false;
+                            submitButton.innerHTML = originalText;
+                        });
+                }, submitDelay);
             });
         }
+
         // Debug function to print all form elements to console
         function debugFormElements() {
             console.log("== FORM ELEMENT DEBUG ==");
@@ -445,21 +500,21 @@
             console.log("== END FORM ELEMENT DEBUG ==");
         }
 
-        // Function to set up checkbox interactions
+        // Function to set up checkbox interactions - iOS optimized
         function setupCheckboxHandlers() {
             const checkboxes = document.querySelectorAll('input[type="checkbox"]');
             console.log(`Setting up ${checkboxes.length} checkbox handlers`);
+
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 
             checkboxes.forEach(checkbox => {
                 // Add data-value attribute as a backup
                 if (checkbox.value) {
                     checkbox.setAttribute('data-value', checkbox.value);
                 } else if (checkbox.id) {
-                    // If value is missing, use ID as fallback
                     const valueFromId = checkbox.id.replace('option_', '');
                     checkbox.value = valueFromId;
                     checkbox.setAttribute('data-value', valueFromId);
-                    console.log(`Added value ${valueFromId} to checkbox ${checkbox.id}`);
                 }
 
                 // Ensure initial state is correctly set
@@ -479,32 +534,71 @@
                     }
                 }
 
-                // Handle change event
-                checkbox.addEventListener('change', function () {
-                    console.log(`Checkbox ${this.id} changed, checked=${this.checked}, value=${this.value}`);
-                    const label = document.querySelector(`label[for="${this.id}"]`);
+                // FIXED: iOS optimized event handling
+                if (isIOS) {
+                    // For iOS, make label handle click logic instead of checkbox
+                    const label = document.querySelector(`label[for="${checkbox.id}"]`);
                     if (label) {
-                        if (this.checked) {
-                            label.classList.add('selected-option');
-                            const checkboxCustom = label.querySelector('.checkbox-custom');
-                            if (checkboxCustom) {
-                                checkboxCustom.classList.add('checked');
-                                checkboxCustom.innerHTML = `
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                                </svg>
-                            `;
+                        // Remove existing listeners
+                        const newLabel = label.cloneNode(true);
+                        label.parentNode.replaceChild(newLabel, label);
+
+                        // Add iOS specific handler
+                        newLabel.addEventListener('click', function (e) {
+                            e.preventDefault();
+
+                            // Toggle the checkbox explicitly
+                            checkbox.checked = !checkbox.checked;
+
+                            // Update visual state
+                            if (checkbox.checked) {
+                                newLabel.classList.add('selected-option');
+                                const checkboxCustom = newLabel.querySelector('.checkbox-custom');
+                                if (checkboxCustom) {
+                                    checkboxCustom.classList.add('checked');
+                                    checkboxCustom.innerHTML = `
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                    </svg>
+                                `;
+                                }
+                            } else {
+                                newLabel.classList.remove('selected-option');
+                                const checkboxCustom = newLabel.querySelector('.checkbox-custom');
+                                if (checkboxCustom) {
+                                    checkboxCustom.classList.remove('checked');
+                                    checkboxCustom.innerHTML = '';
+                                }
                             }
-                        } else {
-                            label.classList.remove('selected-option');
-                            const checkboxCustom = label.querySelector('.checkbox-custom');
-                            if (checkboxCustom) {
-                                checkboxCustom.classList.remove('checked');
-                                checkboxCustom.innerHTML = '';
+                        });
+                    }
+                } else {
+                    // Standard event handlers for non-iOS
+                    checkbox.addEventListener('change', function () {
+                        const label = document.querySelector(`label[for="${this.id}"]`);
+                        if (label) {
+                            if (this.checked) {
+                                label.classList.add('selected-option');
+                                const checkboxCustom = label.querySelector('.checkbox-custom');
+                                if (checkboxCustom) {
+                                    checkboxCustom.classList.add('checked');
+                                    checkboxCustom.innerHTML = `
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                    </svg>
+                                `;
+                                }
+                            } else {
+                                label.classList.remove('selected-option');
+                                const checkboxCustom = label.querySelector('.checkbox-custom');
+                                if (checkboxCustom) {
+                                    checkboxCustom.classList.remove('checked');
+                                    checkboxCustom.innerHTML = '';
+                                }
                             }
                         }
-                    }
-                });
+                    });
+                }
             });
         }
 
