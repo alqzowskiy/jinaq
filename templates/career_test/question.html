@@ -313,85 +313,74 @@
         setupCheckboxHandlers();
 
         // Handle form submission with animations and proper data handling
+        // Найдите в файле paste-3.txt обработчик формы и замените его на этот:
         const questionForm = document.getElementById('questionForm');
         if (questionForm) {
             questionForm.addEventListener('submit', function (e) {
                 e.preventDefault();
 
-                // Debug all form elements before submission
-                debugFormElements();
+                // Предотвращаем множественные отправки - критично для мобильных устройств
+                if (this.hasAttribute('data-submitting')) {
+                    console.log("Форма уже отправляется, предотвращаем дублирование");
+                    return false;
+                }
+                this.setAttribute('data-submitting', 'true');
 
-                // Get active button
+                // Получаем активную кнопку
                 const submitButton = document.activeElement;
                 const originalText = submitButton.innerHTML;
                 submitButton.disabled = true;
 
-                // Create form data with proper selection handling
-                const formData = new FormData(questionForm);
+                // Создаем новый FormData для избежания дублирования полей
+                const formData = new FormData();
                 const action = submitButton.value;
                 formData.append('action', action);
 
-                // Explicitly check and add checkbox values - MORE ROBUST METHOD
+                // Добавляем скрытые поля
+                const stageInput = document.querySelector('input[name="stage"]');
+                const questionIdInput = document.querySelector('input[name="question_id"]');
+                const totalQuestionsInput = document.querySelector('input[name="total_questions"]');
+
+                if (stageInput) formData.append('stage', stageInput.value);
+                if (questionIdInput) formData.append('question_id', questionIdInput.value);
+                if (totalQuestionsInput) formData.append('total_questions', totalQuestionsInput.value);
+
+                // Добавляем выбранные ответы явным образом
                 const checkedOptions = [];
-                document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
-                    if (checkbox.checked) {
-                        const value = checkbox.value || checkbox.getAttribute('data-value') || checkbox.id.replace('option_', '');
-                        console.log(`Adding checked option: ${value} from ${checkbox.id}`);
-                        checkedOptions.push(value);
-                        formData.append('answer', value);
-                    }
+                document.querySelectorAll('input[type="checkbox"]:checked').forEach(checkbox => {
+                    const value = checkbox.value || checkbox.getAttribute('data-value') || checkbox.id.replace('option_', '');
+                    checkedOptions.push(value);
+                    formData.append('answer', value);
                 });
 
-                // Only validate if going forward (not when going back)
+                // Проверяем только при движении вперед
                 if (action === 'next' && checkedOptions.length === 0) {
-                    // Show warning if no option selected
                     alert('Пожалуйста, выберите хотя бы один вариант ответа');
                     submitButton.disabled = false;
-                    return;
+                    this.removeAttribute('data-submitting');
+                    return false;
                 }
 
-                // Debug form data
-                console.log("Form data before submission:");
-                for (let pair of formData.entries()) {
-                    console.log(pair[0] + ': ' + pair[1]);
-                }
-
-                // Animation direction based on button clicked
+                // Направление для анимаций
                 const direction = action === 'next' ? 'right' : 'left';
-
-                // Animate the current question out
                 animateQuestionOut(direction);
 
-                // Add loading animation to button
-                if (action === 'next') {
-                    submitButton.innerHTML = `
-                <div class="flex items-center">
-                    <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    <span>Далее...</span>
-                </div>
-            `;
-                } else {
-                    submitButton.innerHTML = `
-                <div class="flex items-center">
-                    <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-gray-700" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    <span>Назад...</span>
-                </div>
-            `;
-                }
+                // Добавляем временную метку для предотвращения кеширования
+                const timestamp = new Date().getTime();
+                const url = new URL(window.location.href);
+                url.searchParams.set('_', timestamp);
 
-                // Send AJAX request
-                fetch(window.location.href, {
+                // Отправляем AJAX запрос с дополнительными заголовками для мобильных устройств
+                fetch(url.toString(), {
                     method: 'POST',
                     body: formData,
                     headers: {
-                        'X-Requested-With': 'XMLHttpRequest'
-                    }
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Cache-Control': 'no-cache, no-store, max-age=0, must-revalidate',
+                        'Pragma': 'no-cache',
+                        'Expires': '0'
+                    },
+                    cache: 'no-store'
                 })
                     .then(response => {
                         if (!response.ok) {
@@ -400,71 +389,52 @@
                         return response.json();
                     })
                     .then(data => {
-                        // Debug
+                        // Снимаем флаг отправки после получения ответа
+                        this.removeAttribute('data-submitting');
+
+                        // Оставшаяся часть обработчика без изменений...
                         console.log("Received response:", data);
 
                         if (data.redirect) {
-                            // Page change needed - smooth transition
                             document.body.style.opacity = '0';
                             document.body.style.transition = 'opacity 0.5s ease';
                             setTimeout(() => {
                                 window.location.href = data.redirect;
                             }, 500);
                         } else if (data.html) {
-                            // Update the question content with animation
                             setTimeout(() => {
-                                // Update DOM with new content
                                 questionContainer.innerHTML = data.html;
 
-                                // IMPORTANT: Execute JS-script to update all counters
+                                // Обновляем счетчики
                                 if (data.fixed_counter_js) {
-                                    console.log("Executing forced counter update script");
                                     try {
-                                        // Create and execute script with code from server
-                                        const scriptEl = document.createElement('script');
-                                        scriptEl.textContent = data.fixed_counter_js;
-                                        document.head.appendChild(scriptEl);
-                                        // Remove script after execution
-                                        setTimeout(() => {
-                                            document.head.removeChild(scriptEl);
-                                        }, 100);
+                                        // Создаем и выполняем функцию напрямую
+                                        const updateCounters = new Function(data.fixed_counter_js);
+                                        updateCounters();
                                     } catch (scriptError) {
                                         console.error("Error executing counter script:", scriptError);
                                     }
                                 }
 
-                                // Animate new question in from opposite direction
                                 animateQuestionIn(direction === 'right' ? 'left' : 'right');
-
-                                // Re-initialize handlers for the new question
                                 setupCheckboxHandlers();
-
-                                // Debug new form elements
-                                debugFormElements();
-
-                                // Get stage number for progress bar
-                                const stageText = document.querySelector('.text-gray-600').textContent;
-                                const stageMatch = stageText.match(/Этап (\d+) из 2/);
-                                const stage = stageMatch ? parseInt(stageMatch[1]) : 1;
-
-                                // Animate progress bar - Updated for 2 stages
-                                const progressValue = (stage / 2) * 100;
-                                progressBar.style.width = `${progressValue}%`;
-                            }, 500); // Wait for exit animation to finish
+                            }, 300); // Уменьшено для лучшего отклика на мобильных
                         }
                     })
                     .catch(error => {
                         console.error('Error:', error);
                         alert('Произошла ошибка. Пожалуйста, попробуйте еще раз.');
 
-                        // Reset animation and button
+                        // Снимаем флаг отправки
+                        this.removeAttribute('data-submitting');
+
+                        // Сбрасываем анимацию и кнопку
                         animateQuestionIn();
                         submitButton.disabled = false;
                         submitButton.innerHTML = originalText;
                     });
             });
         }
-
         // Debug function to print all form elements to console
         function debugFormElements() {
             console.log("== FORM ELEMENT DEBUG ==");
