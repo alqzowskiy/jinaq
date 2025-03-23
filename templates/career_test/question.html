@@ -289,6 +289,8 @@
 
 <script>
     // Enhanced script with fixes for counter synchronization
+    // Enhanced script with fixes for form submission and checkbox handling
+    // Enhanced script with more robust form handling and debug logs
     document.addEventListener('DOMContentLoaded', function () {
         // Get animation wrapper and container
         const animationWrapper = document.getElementById('questionAnimationWrapper');
@@ -304,27 +306,55 @@
             progressBar.style.width = `${currentWidth}%`;
         }, 100);
 
-        // Handle checkbox interaction
+        // Debug all input elements on page to help diagnose issues
+        debugFormElements();
+
+        // Setup checkbox handlers initially
         setupCheckboxHandlers();
 
-        // Handle form submission with animations
+        // Handle form submission with animations and proper data handling
         const questionForm = document.getElementById('questionForm');
         if (questionForm) {
             questionForm.addEventListener('submit', function (e) {
                 e.preventDefault();
+
+                // Debug all form elements before submission
+                debugFormElements();
 
                 // Get active button
                 const submitButton = document.activeElement;
                 const originalText = submitButton.innerHTML;
                 submitButton.disabled = true;
 
-                // Get form data
+                // Create form data with proper selection handling
                 const formData = new FormData(questionForm);
                 const action = submitButton.value;
                 formData.append('action', action);
 
-                // Log form data for debugging
-                console.log("Submitting form with question_id:", formData.get('question_id'));
+                // Explicitly check and add checkbox values - MORE ROBUST METHOD
+                const checkedOptions = [];
+                document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+                    if (checkbox.checked) {
+                        const value = checkbox.value || checkbox.getAttribute('data-value') || checkbox.id.replace('option_', '');
+                        console.log(`Adding checked option: ${value} from ${checkbox.id}`);
+                        checkedOptions.push(value);
+                        formData.append('answer', value);
+                    }
+                });
+
+                // Only validate if going forward (not when going back)
+                if (action === 'next' && checkedOptions.length === 0) {
+                    // Show warning if no option selected
+                    alert('Пожалуйста, выберите хотя бы один вариант ответа');
+                    submitButton.disabled = false;
+                    return;
+                }
+
+                // Debug form data
+                console.log("Form data before submission:");
+                for (let pair of formData.entries()) {
+                    console.log(pair[0] + ': ' + pair[1]);
+                }
 
                 // Animation direction based on button clicked
                 const direction = action === 'next' ? 'right' : 'left';
@@ -335,24 +365,24 @@
                 // Add loading animation to button
                 if (action === 'next') {
                     submitButton.innerHTML = `
-                    <div class="flex items-center">
-                        <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        <span>Далее...</span>
-                    </div>
-                `;
+                <div class="flex items-center">
+                    <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>Далее...</span>
+                </div>
+            `;
                 } else {
                     submitButton.innerHTML = `
-                    <div class="flex items-center">
-                        <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-gray-700" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        <span>Назад...</span>
-                    </div>
-                `;
+                <div class="flex items-center">
+                    <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-gray-700" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>Назад...</span>
+                </div>
+            `;
                 }
 
                 // Send AJAX request
@@ -386,15 +416,15 @@
                                 // Update DOM with new content
                                 questionContainer.innerHTML = data.html;
 
-                                // IMPORTANT: Выполняем JS-скрипт для обновления всех счетчиков
+                                // IMPORTANT: Execute JS-script to update all counters
                                 if (data.fixed_counter_js) {
                                     console.log("Executing forced counter update script");
                                     try {
-                                        // Создаем и выполняем script с кодом от сервера
+                                        // Create and execute script with code from server
                                         const scriptEl = document.createElement('script');
                                         scriptEl.textContent = data.fixed_counter_js;
                                         document.head.appendChild(scriptEl);
-                                        // Удаляем script после выполнения
+                                        // Remove script after execution
                                         setTimeout(() => {
                                             document.head.removeChild(scriptEl);
                                         }, 100);
@@ -406,8 +436,11 @@
                                 // Animate new question in from opposite direction
                                 animateQuestionIn(direction === 'right' ? 'left' : 'right');
 
-                                // Re-initialize handlers
+                                // Re-initialize handlers for the new question
                                 setupCheckboxHandlers();
+
+                                // Debug new form elements
+                                debugFormElements();
 
                                 // Get stage number for progress bar
                                 const stageText = document.querySelector('.text-gray-600').textContent;
@@ -432,11 +465,53 @@
             });
         }
 
+        // Debug function to print all form elements to console
+        function debugFormElements() {
+            console.log("== FORM ELEMENT DEBUG ==");
+            const inputs = document.querySelectorAll('input');
+            inputs.forEach(input => {
+                console.log(`Input: id=${input.id}, name=${input.name}, type=${input.type}, value=${input.value}, checked=${input.checked}`);
+            });
+            console.log("== END FORM ELEMENT DEBUG ==");
+        }
+
         // Function to set up checkbox interactions
         function setupCheckboxHandlers() {
             const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+            console.log(`Setting up ${checkboxes.length} checkbox handlers`);
+
             checkboxes.forEach(checkbox => {
+                // Add data-value attribute as a backup
+                if (checkbox.value) {
+                    checkbox.setAttribute('data-value', checkbox.value);
+                } else if (checkbox.id) {
+                    // If value is missing, use ID as fallback
+                    const valueFromId = checkbox.id.replace('option_', '');
+                    checkbox.value = valueFromId;
+                    checkbox.setAttribute('data-value', valueFromId);
+                    console.log(`Added value ${valueFromId} to checkbox ${checkbox.id}`);
+                }
+
+                // Ensure initial state is correctly set
+                const label = document.querySelector(`label[for="${checkbox.id}"]`);
+                if (label) {
+                    if (checkbox.checked) {
+                        label.classList.add('selected-option');
+                        const checkboxCustom = label.querySelector('.checkbox-custom');
+                        if (checkboxCustom) {
+                            checkboxCustom.classList.add('checked');
+                            checkboxCustom.innerHTML = `
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                            </svg>
+                        `;
+                        }
+                    }
+                }
+
+                // Handle change event
                 checkbox.addEventListener('change', function () {
+                    console.log(`Checkbox ${this.id} changed, checked=${this.checked}, value=${this.value}`);
                     const label = document.querySelector(`label[for="${this.id}"]`);
                     if (label) {
                         if (this.checked) {
