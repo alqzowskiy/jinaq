@@ -364,25 +364,22 @@
         // Setup checkbox handlers initially
         setupCheckboxHandlers();
 
-        // Handle button clicks with dedicated event listeners (iOS fix)
-        const prevButton = document.getElementById('prevButton');
-        const nextButton = document.getElementById('nextButton');
+        // Use event delegation for iOS compatibility
+        document.addEventListener('click', function (e) {
+            // Find closest button if any was clicked
+            const button = e.target.closest('#nextButton, #prevButton');
 
-        if (prevButton) {
-            prevButton.addEventListener('click', function (e) {
+            if (button) {
                 e.preventDefault();
                 e.stopPropagation();
-                handleFormSubmission(this, 'prev');
-            });
-        }
 
-        if (nextButton) {
-            nextButton.addEventListener('click', function (e) {
-                e.preventDefault();
-                e.stopPropagation();
-                handleFormSubmission(this, 'next');
-            });
-        }
+                const action = button.id === 'nextButton' ? 'next' : 'prev';
+                handleFormSubmission(button, action);
+            }
+        });
+
+        // Add specific iOS touch event handlers
+        addTouchHandlers();
 
         // Set up retake test button and modal
         const retakeTestBtn = document.getElementById('retakeTestBtn');
@@ -409,8 +406,35 @@
             }, 200);
         }
 
+        // Add specific iOS touch events
+        function addTouchHandlers() {
+            const buttons = document.querySelectorAll('#nextButton, #prevButton');
+            buttons.forEach(button => {
+                button.addEventListener('touchstart', function () {
+                    this.classList.add('touch-active');
+                }, { passive: true });
+
+                button.addEventListener('touchend', function (e) {
+                    this.classList.remove('touch-active');
+                    if (e.cancelable) {
+                        e.preventDefault();
+                    }
+
+                    const action = this.id === 'nextButton' ? 'next' : 'prev';
+                    setTimeout(() => {
+                        handleFormSubmission(this, action);
+                    }, 10);
+                });
+            });
+        }
+
         // Function to handle form submission with animations
         function handleFormSubmission(button, action) {
+            // Prevent multiple submissions
+            if (button.disabled) {
+                return;
+            }
+
             // Debug all form elements before submission
             debugFormElements();
 
@@ -421,7 +445,7 @@
 
             // Explicitly check and add checkbox values - IMPROVED METHOD WITH TEXT STORAGE
             const checkedOptions = new Set(); // Use a Set to prevent duplicates
-            const formData = new FormData(questionForm);
+            const formData = new FormData(questionForm || document.getElementById('questionForm'));
             formData.append('action', action);
 
             // Reset any previous answers from the form
@@ -480,24 +504,24 @@
             // Add loading animation to button
             if (action === 'next') {
                 submitButton.innerHTML = `
-                <div class="flex items-center">
-                    <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    <span>Далее...</span>
-                </div>
-            `;
+            <div class="flex items-center">
+                <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span>Далее...</span>
+            </div>
+        `;
             } else {
                 submitButton.innerHTML = `
-                <div class="flex items-center">
-                    <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-gray-700" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    <span>Назад...</span>
-                </div>
-            `;
+            <div class="flex items-center">
+                <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-gray-700" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span>Назад...</span>
+            </div>
+        `;
             }
 
             // Send AJAX request
@@ -554,37 +578,27 @@
                             // Re-initialize handlers for the new question
                             setupCheckboxHandlers();
 
-                            // Rebind button event listeners for the new elements
-                            const newPrevButton = document.getElementById('prevButton');
-                            const newNextButton = document.getElementById('nextButton');
-
-                            if (newPrevButton) {
-                                newPrevButton.addEventListener('click', function (e) {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    handleFormSubmission(this, 'prev');
-                                });
-                            }
-
-                            if (newNextButton) {
-                                newNextButton.addEventListener('click', function (e) {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    handleFormSubmission(this, 'next');
-                                });
-                            }
+                            // Add iOS-specific touch handlers to new buttons
+                            addTouchHandlers();
 
                             // Debug new form elements
                             debugFormElements();
 
                             // Get stage number for progress bar
-                            const stageText = document.querySelector('.text-gray-600').textContent;
-                            const stageMatch = stageText.match(/Этап (\d+) из 2/);
-                            const stage = stageMatch ? parseInt(stageMatch[1]) : 1;
+                            const stageText = document.querySelector('.text-gray-600')?.textContent;
+                            if (stageText) {
+                                const stageMatch = stageText.match(/Этап (\d+) из 2/);
+                                const stage = stageMatch ? parseInt(stageMatch[1]) : 1;
 
-                            // Animate progress bar - Updated for 2 stages
-                            const progressValue = (stage / 2) * 100;
-                            progressBar.style.width = `${progressValue}%`;
+                                // Animate progress bar - Updated for 2 stages
+                                const progressValue = (stage / 2) * 100;
+                                if (progressBar) {
+                                    progressBar.style.width = `${progressValue}%`;
+                                }
+                            }
+
+                            // Log to confirm iOS handlers are added
+                            console.log("iOS touch handlers initialized for new content");
                         }, 500); // Wait for exit animation to finish
                     }
                 })
@@ -635,41 +649,60 @@
                         if (checkboxCustom) {
                             checkboxCustom.classList.add('checked');
                             checkboxCustom.innerHTML = `
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                            </svg>
-                        `;
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                        </svg>
+                    `;
                         }
                     }
                 }
 
-                // Handle change event
-                checkbox.addEventListener('change', function () {
-                    console.log(`Checkbox ${this.id} changed, checked=${this.checked}, value=${this.value}`);
-                    const label = document.querySelector(`label[for="${this.id}"]`);
-                    if (label) {
-                        if (this.checked) {
-                            label.classList.add('selected-option');
-                            const checkboxCustom = label.querySelector('.checkbox-custom');
-                            if (checkboxCustom) {
-                                checkboxCustom.classList.add('checked');
-                                checkboxCustom.innerHTML = `
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                                </svg>
-                            `;
-                            }
-                        } else {
-                            label.classList.remove('selected-option');
-                            const checkboxCustom = label.querySelector('.checkbox-custom');
-                            if (checkboxCustom) {
-                                checkboxCustom.classList.remove('checked');
-                                checkboxCustom.innerHTML = '';
-                            }
-                        }
+                // Handle change event (enhanced for iOS compatibility)
+                // Use both click and change events for better iOS support
+                checkbox.addEventListener('click', handleCheckboxChange);
+                checkbox.addEventListener('change', handleCheckboxChange);
+
+                // Add touch event for iOS
+                checkbox.addEventListener('touchend', function (e) {
+                    // Prevent default only if we can
+                    if (e.cancelable) {
+                        e.preventDefault();
                     }
+
+                    // Toggle checked state manually
+                    this.checked = !this.checked;
+
+                    // Trigger change handler
+                    handleCheckboxChange.call(this);
                 });
             });
+
+            // Function to handle checkbox state changes
+            function handleCheckboxChange() {
+                console.log(`Checkbox ${this.id} changed, checked=${this.checked}, value=${this.value}`);
+                const label = document.querySelector(`label[for="${this.id}"]`);
+                if (label) {
+                    if (this.checked) {
+                        label.classList.add('selected-option');
+                        const checkboxCustom = label.querySelector('.checkbox-custom');
+                        if (checkboxCustom) {
+                            checkboxCustom.classList.add('checked');
+                            checkboxCustom.innerHTML = `
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                        </svg>
+                    `;
+                        }
+                    } else {
+                        label.classList.remove('selected-option');
+                        const checkboxCustom = label.querySelector('.checkbox-custom');
+                        if (checkboxCustom) {
+                            checkboxCustom.classList.remove('checked');
+                            checkboxCustom.innerHTML = '';
+                        }
+                    }
+                }
+            }
         }
 
         // Function to animate question entering
@@ -724,6 +757,30 @@
                 questionCard.style.transform = 'translateX(-100px)';
             }
         }
+    });
+
+    // Add this CSS to make touch interactions more reliable on iOS
+    document.addEventListener('DOMContentLoaded', function () {
+        const style = document.createElement('style');
+        style.textContent = `
+        /* iOS touch improvements */
+        #nextButton, #prevButton {
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+        
+        .touch-active {
+            opacity: 0.8;
+        }
+        
+        /* Improve checkbox touch areas */
+        label.option-label {
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+    `;
+        document.head.appendChild(style);
     });
 </script>
 {% endblock %}
