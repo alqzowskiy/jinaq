@@ -7586,12 +7586,16 @@ def career_test_analyzing():
         progress_data = test_progress.to_dict()
         completed_stages = progress_data.get('completed_stages', [])
         
-        # If not all stages completed, redirect to appropriate stage
-        # Updated to check for 2 stages instead of 4
-        if len(completed_stages) < 2:
-            next_stage = min([i for i in range(1, 3) if i not in completed_stages])
+        # FIXED: Check explicitly for stages 1 AND 2, not just the length
+        if not (1 in completed_stages and 2 in completed_stages):
+            print(f"User attempted to access analysis without completing both stages. Completed: {completed_stages}")
+            # Find which stage is missing and redirect there
+            missing_stages = [stage for stage in [1, 2] if stage not in completed_stages]
+            next_stage = missing_stages[0] if missing_stages else 1
+            print(f"Redirecting to stage {next_stage}")
             return redirect(url_for('career_test_stage', stage=next_stage))
         
+        print(f"User has completed both stages. Showing analysis. Completed: {completed_stages}")
         # Render the analyzing template
         return render_template('career_test/analyzing.html')
         
@@ -7599,7 +7603,6 @@ def career_test_analyzing():
         print(f"Error in career test analyzing: {e}")
         flash('Error processing test data')
         return redirect(url_for('career_test'))
-    
 
 @app.route('/career-test/stage/<int:stage>', methods=['GET', 'POST'])
 @login_required
@@ -7622,7 +7625,7 @@ def career_test_stage(stage):
             completed_stages = progress_data.get('completed_stages', [])
             saved_answers = progress_data.get('answers', {})
             
-            # Получаем текущий вопрос из базы данных
+            # Get current question from database
             stage_key = f'stage_{stage}'
             current_question = progress_data.get('current_question', {}).get(stage_key, 1)
             
@@ -7632,7 +7635,7 @@ def career_test_stage(stage):
             saved_answers = {}
             current_question = 1
             
-            # Создаем начальную запись прогресса
+            # Create initial progress record
             initial_progress = {
                 'current_stage': stage,
                 'current_question': {f'stage_{stage}': 1},
@@ -7664,7 +7667,7 @@ def career_test_stage(stage):
             is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
             action = request.form.get('action')
             
-            # Получаем номер вопроса из формы
+            # Get question number from form
             form_question_id = int(request.form.get('question_id', 1))
             print(f"Form question_id: {form_question_id}, Action: {action}")
             
@@ -7674,7 +7677,7 @@ def career_test_stage(stage):
                 if 0 <= question_index < len(stage_questions['questions']):
                     question_data = stage_questions['questions'][question_index]
                     
-                    # DEBUG: Log the full question data structure to debug option mapping
+                    # DEBUG: Log the full question data structure
                     print(f"Current question data: {json.dumps(question_data, ensure_ascii=False)}")
                     
                     # Get available options for this question
@@ -7687,7 +7690,7 @@ def career_test_stage(stage):
                     question_data = {}
                     options = []
                 
-                # IMPORTANT: Get the actual selected answers with their values
+                # Get the actual selected answers with their values
                 raw_answers = request.form.getlist('answer')
                 
                 # Create a set to eliminate duplicates
@@ -7748,7 +7751,6 @@ def career_test_stage(stage):
                                     answer_texts.append(f"Рейтинг: {answer_str}")
                             else:
                                 # If we can't find a mapping, use the raw answer as text
-                                # This ensures we at least have some value for Gemini to use
                                 answer_texts.append(f"{answer_str}")
                                 print(f"WARNING: Could not find text for option '{answer_str}' in question {form_question_id}")
                     
@@ -7764,12 +7766,12 @@ def career_test_stage(stage):
                 else:
                     print(f"WARNING: No answers selected for question {form_question_id}")
                 
-                # Вычисляем следующий вопрос
+                # Calculate next question
                 next_question = form_question_id + 1
                 print(f"Calculated next_question: {next_question}")
                 
                 if next_question <= total_questions:
-                    # Обновляем прогресс в БД
+                    # Update progress in DB
                     update_data = {
                         'current_stage': stage,
                         'current_question': {stage_key: next_question},
@@ -7779,9 +7781,8 @@ def career_test_stage(stage):
                     print(f"Updated DB with next_question: {next_question}")
                     print(f"Current saved answers: {saved_answers}")
                     
-                    
                     if is_ajax:
-                        # Рендерим следующий вопрос - УЛУЧШЕННАЯ ВЕРСИЯ
+                        # Render next question - IMPROVED VERSION
                         question_data = stage_questions['questions'][next_question-1]
                         selected_answers = []
                         if stage_key in saved_answers and str(next_question) in saved_answers[stage_key]:
@@ -7798,22 +7799,22 @@ def career_test_stage(stage):
                             total_stages=2
                         )
                         
-                        # УЛУЧШЕННЫЙ JS для обновления ВСЕХ элементов с номером вопроса
+                        # IMPROVED JS to update ALL elements with question number
                         fix_all_counters_js = f"""
-                            // JavaScript для синхронизации всех счетчиков вопросов на странице
+                            // JavaScript to synchronize all question counters on the page
                             (function() {{
-                                // Находим и обновляем ВСЕ элементы с номером вопроса
+                                // Find and update ALL elements with question number
                                 const counters = document.querySelectorAll('.text-gray-600');
                                 
                                 counters.forEach(function(counter) {{
-                                    // Проверяем, содержит ли этот элемент текст "Вопрос"
+                                    // Check if this element contains "Question" text
                                     if (counter.textContent.includes('Вопрос')) {{
                                         counter.textContent = 'Вопрос {next_question} из {total_questions}';
                                         console.log('Updated counter: ' + counter.textContent);
                                     }}
                                 }});
                                 
-                                // Принудительно обновляем заголовок, если он есть
+                                // Force update the header, if present
                                 const header = document.querySelector('h1.text-2xl');
                                 if (header && header.textContent.includes('Вопрос')) {{
                                     header.textContent = 'Вопрос {next_question} из {total_questions}';
@@ -7837,36 +7838,165 @@ def career_test_stage(stage):
                         # Traditional redirect
                         return redirect(url_for('career_test_stage', stage=stage))
                 else:
-                    # Complete this stage
+                    # STAGE COMPLETION LOGIC - IMPORTANT FIXES HERE
+                    print(f"User finished all questions in stage {stage}.")
+                    print(f"Current completed_stages before update: {completed_stages}")
+                    
+                    # Explicitly mark only the current stage as completed
                     if stage not in completed_stages:
                         completed_stages.append(stage)
+                        print(f"Added stage {stage} to completed_stages. Now: {completed_stages}")
                     
-                    # Update progress
+                    # CRITICAL FIX: Logic for determining what happens after stage completion
+                    if stage == 1:
+                        # We just completed stage 1, must go to stage 2
+                        next_stage = 2
+                        
+                        # Update database with stage completion
+                        update_data = {
+                            'current_stage': next_stage,
+                            'current_question': {f'stage_{next_stage}': 1},  # Start at first question of stage 2
+                            'completed_stages': completed_stages,
+                            'answers': saved_answers,
+                        }
+                        
+                        print(f"User completed stage 1. Setting current_stage to {next_stage} in DB.")
+                        test_progress_ref.update(update_data)
+                        
+                        # Force redirect to stage 2
+                        print("Redirecting user to stage 2")
+                        if is_ajax:
+                            return jsonify({'redirect': url_for('career_test_stage', stage=2)})
+                        return redirect(url_for('career_test_stage', stage=2))
+                    
+                    elif stage == 2:
+                        # We just completed stage 2
+                        # Check if both stages are now completed
+                        if 1 in completed_stages and 2 in completed_stages:
+                            # Both stages are complete, we can proceed to analysis
+                            update_data = {
+                                'current_stage': 3,  # Mark as beyond normal stages
+                                'completed_stages': completed_stages,
+                                'answers': saved_answers,
+                            }
+                            
+                            print("User completed both stages 1 and 2. Marking as ready for analysis.")
+                            test_progress_ref.update(update_data)
+                            
+                            print("Redirecting to analysis page")
+                            if is_ajax:
+                                return jsonify({'redirect': url_for('career_test_analyzing')})
+                            return redirect(url_for('career_test_analyzing'))
+                        else:
+                            # Stage 2 is complete, but stage 1 is not (unusual)
+                            # Redirect to stage 1
+                            update_data = {
+                                'current_stage': 1,
+                                'current_question': {'stage_1': 1},
+                                'completed_stages': completed_stages,
+                                'answers': saved_answers,
+                            }
+                            
+                            print("User completed stage 2 but not stage 1. Redirecting to stage 1.")
+                            test_progress_ref.update(update_data)
+                            
+                            if is_ajax:
+                                return jsonify({'redirect': url_for('career_test_stage', stage=1)})
+                            return redirect(url_for('career_test_stage', stage=1))
+            
+            elif action == 'prev':
+                # Handle previous question logic
+                prev_question = form_question_id - 1
+                
+                if prev_question >= 1:
+                    # Update DB with previous question
                     update_data = {
-                        'current_stage': stage + 1 if stage < 2 else 2,
-                        'completed_stages': completed_stages,
-                        'answers': saved_answers,
+                        'current_stage': stage,
+                        'current_question': {stage_key: prev_question},
                     }
                     test_progress_ref.update(update_data)
                     
-                    # Print the final saved answers for debugging
-                    print(f"Final saved answers for stage {stage}: {json.dumps(saved_answers, ensure_ascii=False)}")
-                    
-                    # If all stages completed, go to results
-                    if len(completed_stages) >= 2:
-                        if is_ajax:
-                            return jsonify({'redirect': url_for('career_test_analyzing')})
-                        return redirect(url_for('career_test_analyzing'))
-                    
-                    # Otherwise go to next stage
                     if is_ajax:
-                        return jsonify({'redirect': url_for('career_test_stage', stage=stage+1)})
-                    return redirect(url_for('career_test_stage', stage=stage+1))
-                    
-            # Similar changes for 'prev' action - omitted for brevity
-            
+                        # Render previous question
+                        question_data = stage_questions['questions'][prev_question-1]
+                        selected_answers = []
+                        if stage_key in saved_answers and str(prev_question) in saved_answers[stage_key]:
+                            selected_answers = saved_answers[stage_key][str(prev_question)]
+                            
+                        html = render_template(
+                            'career_test/question_partial.html',
+                            stage=stage,
+                            stage_name=stage_questions['name'],
+                            question=question_data,
+                            question_number=prev_question,
+                            total_questions=total_questions,
+                            selected_answers=selected_answers,
+                            total_stages=2
+                        )
+                        
+                        # Similar JS update for previous question
+                        fix_all_counters_js = f"""
+                            // JavaScript to synchronize all question counters on the page
+                            (function() {{
+                                // Find and update ALL elements with question number
+                                const counters = document.querySelectorAll('.text-gray-600');
+                                
+                                counters.forEach(function(counter) {{
+                                    // Check if this element contains "Question" text
+                                    if (counter.textContent.includes('Вопрос')) {{
+                                        counter.textContent = 'Вопрос {prev_question} из {total_questions}';
+                                        console.log('Updated counter: ' + counter.textContent);
+                                    }}
+                                }});
+                                
+                                // Force update the header, if present
+                                const header = document.querySelector('h1.text-2xl');
+                                if (header && header.textContent.includes('Вопрос')) {{
+                                    header.textContent = 'Вопрос {prev_question} из {total_questions}';
+                                    console.log('Updated header: ' + header.textContent);
+                                }}
+                            }})();
+                        """
+                        
+                        return jsonify({
+                            'html': html,
+                            'question_number': prev_question,
+                            'fixed_counter_js': fix_all_counters_js
+                        })
+                    else:
+                        return redirect(url_for('career_test_stage', stage=stage))
+                else:
+                    # Go to previous stage if available
+                    if stage > 1:
+                        prev_stage = stage - 1
+                        # Get the last question of the previous stage
+                        prev_stage_key = f'stage_{prev_stage}'
+                        
+                        with open('static/js/career_test_questions.json', 'r', encoding='utf-8') as f:
+                            all_questions = json.load(f)
+                            
+                        if prev_stage_key in all_questions:
+                            prev_stage_questions = all_questions[prev_stage_key]
+                            last_question = len(prev_stage_questions['questions'])
+                            
+                            # Update DB to point to the last question of previous stage
+                            update_data = {
+                                'current_stage': prev_stage,
+                                'current_question': {prev_stage_key: last_question},
+                            }
+                            test_progress_ref.update(update_data)
+                        
+                        if is_ajax:
+                            return jsonify({'redirect': url_for('career_test_stage', stage=prev_stage)})
+                        return redirect(url_for('career_test_stage', stage=prev_stage))
+                    else:
+                        # Can't go back further, redirect to landing page
+                        if is_ajax:
+                            return jsonify({'redirect': url_for('career_test')})
+                        return redirect(url_for('career_test'))
+        
         # GET request - display current question
-        # Убедимся что current_question в пределах от 1 до total_questions
+        # Ensure current_question is within range of 1 to total_questions
         current_question = max(1, min(current_question, total_questions))
         question_data = stage_questions['questions'][current_question-1]
         
@@ -7895,7 +8025,8 @@ def career_test_stage(stage):
         traceback.print_exc()
         flash(f'Error loading test stage: {str(e)}')
         return redirect(url_for('career_test'))
-
+    
+    
 @app.route('/career-test/results')
 @login_required
 def career_test_results():
