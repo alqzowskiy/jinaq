@@ -1,0 +1,1564 @@
+{% extends "base.html" %}
+
+{% block head %}
+<title>Подбор университетов | Jinaq</title>
+<meta name="description" content="Найдите идеальный университет с помощью ИИ">
+
+<style>
+    /* Базовые стили карточки */
+    .uni-card {
+        border-radius: 8px;
+        overflow: hidden;
+        background-color: white;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+        margin-bottom: 16px;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+
+    /* Контейнер для изображения */
+    .uni-image-container {
+        position: relative;
+        height: 160px;
+        overflow: hidden;
+    }
+
+    /* Изображение университета */
+    .uni-image {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    /* Темный градиент поверх изображения */
+    .uni-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(to top, rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0) 70%);
+    }
+
+    /* Бейдж шанса поступления */
+    .uni-chance {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        padding: 4px 8px;
+        border-radius: 20px;
+        color: white;
+        font-size: 12px;
+        font-weight: bold;
+        z-index: 1;
+    }
+
+    /* Цвета бейджей */
+    .chance-high {
+        background-color: #10b981;
+    }
+
+    /* >80% */
+    .chance-good {
+        background-color: #3b82f6;
+    }
+
+    /* 60-80% */
+    .chance-medium {
+        background-color: #f59e0b;
+    }
+
+    /* 40-60% */
+    .chance-low {
+        background-color: #ef4444;
+    }
+
+    /* <40% */
+
+    /* Название университета */
+    .uni-title-area {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        padding: 12px;
+        color: white;
+        z-index: 1;
+    }
+
+    .uni-title {
+        font-size: 18px;
+        font-weight: bold;
+        margin-bottom: 2px;
+        line-height: 1.2;
+    }
+
+    .uni-location {
+        font-size: 12px;
+        opacity: 0.9;
+    }
+
+    /* Контент карточки */
+    .uni-content {
+        padding: 12px;
+        display: flex;
+        flex-direction: column;
+        flex-grow: 1;
+    }
+
+    /* Заголовок секции */
+    .uni-section-title {
+        font-size: 12px;
+        color: #6b7280;
+        margin-bottom: 6px;
+        display: flex;
+        align-items: center;
+    }
+
+    .uni-section-title svg {
+        width: 14px;
+        height: 14px;
+        margin-right: 4px;
+    }
+
+    /* Программы */
+    .uni-programs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        margin-bottom: 12px;
+    }
+
+    .uni-program {
+        background-color: #e0e7ff;
+        color: #4338ca;
+        border-radius: 12px;
+        padding: 4px 8px;
+        font-size: 11px;
+        white-space: nowrap;
+    }
+
+    /* Требования */
+    .uni-requirements {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        margin-bottom: 12px;
+        font-size: 12px;
+    }
+
+    .uni-requirement {
+        display: flex;
+        align-items: center;
+        margin-right: 8px;
+    }
+
+    .uni-requirement strong {
+        font-weight: bold;
+        margin-right: 2px;
+    }
+
+    .separator-dot {
+        width: 4px;
+        height: 4px;
+        background-color: #d1d5db;
+        border-radius: 50%;
+        margin: 0 8px;
+    }
+
+    /* Футер карточки */
+    .uni-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: auto;
+    }
+
+    /* Кнопки */
+    .uni-details-btn {
+        background-color: #4f46e5;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        padding: 6px 12px;
+        font-size: 12px;
+        cursor: pointer;
+    }
+
+    .uni-save-btn {
+        background: none;
+        border: none;
+        color: #9ca3af;
+        padding: 6px;
+        cursor: pointer;
+    }
+
+    .uni-save-btn.saved {
+        color: #4f46e5;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gradient py-6">
+    <div class="container mx-auto px-4">
+        <!-- Шапка страницы -->
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
+            <div>
+                <h1 class="text-2xl md:text-3xl font-bold mb-1">Подбор университетов</h1>
+                <p class="text-gray-600">Найдите идеальный университет на основе вашего академического профиля</p>
+            </div>
+            <div class="mt-4 md:mt-0">
+                <a href="{{ url_for('profile') }}"
+                    class="px-4 py-2 text-gray-700 hover:text-gray-900 flex items-center">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                    </svg>
+                    Назад к профилю
+                </a>
+            </div>
+        </div>
+
+        <!-- Основное содержимое -->
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            <!-- Левая колонка: академический профиль и форма выбора -->
+            <div class="lg:col-span-1">
+                <!-- Форма выбора страны и получения рекомендаций -->
+                <div class="bg-white rounded-xl shadow-sm mb-5 overflow-hidden">
+                    <div class="p-4 border-b border-gray-100">
+                        <h2 class="text-lg font-bold mb-1">Получить рекомендации</h2>
+                        <p class="text-sm text-gray-500">Выберите страну для обучения</p>
+                    </div>
+
+                    <div class="p-4">
+                        <form id="recommendationForm" class="space-y-4">
+                            <div class="form-control">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    Страна обучения
+                                </label>
+                                <select id="countrySelect"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                                    <option value="">Выберите страну</option>
+                                    <option value="Любая">Любая</option>
+                                    <option value="Казахстан">Казахстан</option>
+                                    <option value="США">США</option>
+                                    <option value="Великобритания">Великобритания</option>
+                                    <option value="Канада">Канада</option>
+                                    <option value="Австралия">Австралия</option>
+                                    <option value="Германия">Германия</option>
+                                    <option value="Франция">Франция</option>
+                                    <option value="Нидерланды">Нидерланды</option>
+                                    <option value="Швейцария">Швейцария</option>
+                                    <option value="Россия">Россия</option>
+                                    <option value="Китай">Китай</option>
+                                    <option value="Япония">Япония</option>
+                                    <option value="Сингапур">Сингапур</option>
+                                    <option value="Южная Корея">Южная Корея</option>
+                                    <option value="Испания">Испания</option>
+                                    <option value="Италия">Италия</option>
+                                </select>
+                            </div>
+
+                            <div class="flex justify-center">
+                                <button type="button" id="findUniversitiesBtn" onclick="getRecommendations()"
+                                    class="w-full px-4 py-2 bg-indigo-600 text-white font-medium rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                    disabled>
+                                    <span class="flex items-center justify-center">
+                                        <svg class="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                        </svg>
+                                        Найти университеты
+                                    </span>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Академический профиль -->
+                <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+                    <div class="p-4 border-b border-gray-100">
+                        <h2 class="text-lg font-bold mb-1">Ваш академический профиль</h2>
+                        <p class="text-sm text-gray-500">Данные для подбора университетов</p>
+                    </div>
+
+                    <div class="p-4 space-y-4">
+                        <!-- GPA и баллы - более компактное представление -->
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="data-block bg-white rounded-md p-3 border border-gray-200">
+                                <h3 class="text-xs text-gray-500 mb-1">GPA</h3>
+                                <p class="text-base font-semibold">
+                                    {{ academic_info.gpa if academic_info and academic_info.gpa else 'Не указан' }}
+                                </p>
+                            </div>
+                            <div class="data-block bg-white rounded-md p-3 border border-gray-200">
+                                <h3 class="text-xs text-gray-500 mb-1">SAT</h3>
+                                <p class="text-base font-semibold">
+                                    {{ academic_info.sat_score if academic_info and academic_info.sat_score else 'Не
+                                    указан' }}
+                                </p>
+                            </div>
+                            <div class="data-block bg-white rounded-md p-3 border border-gray-200">
+                                <h3 class="text-xs text-gray-500 mb-1">TOEFL</h3>
+                                <p class="text-base font-semibold">
+                                    {{ academic_info.toefl_score if academic_info and academic_info.toefl_score else 'Не
+                                    указан' }}
+                                </p>
+                            </div>
+                            <div class="data-block bg-white rounded-md p-3 border border-gray-200">
+                                <h3 class="text-xs text-gray-500 mb-1">IELTS</h3>
+                                <p class="text-base font-semibold">
+                                    {{ academic_info.ielts_score if academic_info and academic_info.ielts_score else 'Не
+                                    указан' }}
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Языки -->
+                        <div class="data-block bg-white rounded-md p-3 border border-gray-200">
+                            <h3 class="text-xs text-gray-500 mb-2">Языки</h3>
+                            {% if academic_info and academic_info.languages and academic_info.languages|length > 0 %}
+                            <div class="flex flex-wrap gap-1">
+                                {% for language in academic_info.languages %}
+                                <span class="px-2 py-0.5 bg-blue-50 text-blue-700 text-xs rounded-full">
+                                    {{ language.name }} ({{ language.level }})
+                                </span>
+                                {% endfor %}
+                            </div>
+                            {% else %}
+                            <p class="text-gray-500 text-xs italic">Языки не указаны</p>
+                            {% endif %}
+                        </div>
+
+                        <!-- Навыки -->
+                        <div class="data-block bg-white rounded-md p-3 border border-gray-200">
+                            <h3 class="text-xs text-gray-500 mb-2">Навыки</h3>
+                            {% if user_data.skills and user_data.skills|length > 0 %}
+                            <div class="flex flex-wrap gap-1">
+                                {% for skill in user_data.skills %}
+                                <span class="px-2 py-0.5 bg-purple-50 text-purple-700 text-xs rounded-full">
+                                    {{ skill }}
+                                </span>
+                                {% endfor %}
+                            </div>
+                            {% else %}
+                            <p class="text-gray-500 text-xs italic">Навыки не указаны</p>
+                            {% endif %}
+                        </div>
+
+                        <!-- Сертификаты - компактное отображение -->
+                        <div class="data-block bg-white rounded-md p-3 border border-gray-200">
+                            <h3 class="text-xs text-gray-500 mb-2">Сертификаты ({{ certificates|length }})</h3>
+                            {% if certificates and certificates|length > 0 %}
+                            <div class="space-y-1 max-h-24 overflow-y-auto">
+                                {% for cert in certificates %}
+                                <div class="flex items-center">
+                                    <svg class="w-3 h-3 text-green-500 mr-1 flex-shrink-0" fill="none"
+                                        viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    <span class="text-xs truncate">{{ cert.title }}</span>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% else %}
+                            <p class="text-gray-500 text-xs italic">Нет загруженных сертификатов</p>
+                            {% endif %}
+                        </div>
+
+                        <!-- Ссылка на обновление профиля -->
+                        <div class="text-center pt-2">
+                            <a href="{{ url_for('profile') }}"
+                                class="text-indigo-600 hover:text-indigo-800 text-sm font-medium">
+                                Обновить академический профиль
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Правая колонка: результаты рекомендаций -->
+            <div class="lg:col-span-3">
+                <!-- Секция загрузки -->
+                <div id="loadingSection" class="bg-white rounded-xl shadow-sm p-6 text-center mb-6 hidden">
+                    <div class="flex flex-col items-center gap-5">
+                        <div class="w-20 h-20 border-t-4 border-indigo-500 border-solid rounded-full animate-spin">
+                        </div>
+                        <div>
+                            <h2 class="text-xl font-bold mb-2">Анализируем ваш профиль</h2>
+                            <p class="text-gray-600 mb-4">Подбираем университеты, которые наилучшим образом
+                                соответствуют вашим академическим показателям</p>
+
+                            <div class="loading-bar mx-auto w-2/3 mb-2"></div>
+                            <div id="loadingStatus" class="text-sm text-gray-500">Анализ данных...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Пустое состояние -->
+                <div id="emptySection" class="bg-white rounded-xl shadow-sm p-6 text-center">
+                    <div class="flex flex-col items-center gap-6">
+                        <img src="{{ url_for('static', filename='university-illustration.svg') }}" alt="Illustration"
+                            class="w-40">
+                        <div>
+                            <h2 class="text-xl font-bold mb-2">Начните поиск университетов</h2>
+                            <p class="text-gray-600 mb-5">Выберите страну и нажмите кнопку "Найти университеты", чтобы
+                                получить персонализированные рекомендации</p>
+
+                            <div class="p-5 bg-gray-50 rounded-lg text-left max-w-lg mx-auto">
+                                <h3 class="font-medium mb-3">Как это работает:</h3>
+                                <ol class="space-y-2 list-decimal list-inside text-gray-700">
+                                    <li>Наш ИИ анализирует ваш академический профиль</li>
+                                    <li>Сопоставляет ваши данные с требованиями университетов</li>
+                                    <li>Оценивает ваши шансы на поступление</li>
+                                    <li>Выдает список университетов, наиболее подходящих вам</li>
+                                </ol>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Результаты рекомендаций -->
+                <div id="recommendationsSection" class="hidden space-y-5">
+                    <div class="bg-white rounded-xl shadow-sm p-5">
+                        <h2 class="text-xl font-bold mb-1">Рекомендуемые университеты</h2>
+                        <p class="text-gray-600">Университеты, подобранные на основе вашего профиля</p>
+
+                        <div id="recommendationsTabs" class="flex border-b border-gray-200 mt-4">
+                            <div class="history-tab active py-2 px-4" data-tab="all">Все рекомендации</div>
+                            <div class="history-tab py-2 px-4" data-tab="saved">Сохраненные</div>
+                        </div>
+                    </div>
+
+                    <div id="universitiesList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <!-- Университеты будут добавлены здесь скриптом -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно с детальной информацией об университете -->
+<div id="universityModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50 hidden">
+    <div class="bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto p-0">
+        <div class="sticky top-0 bg-white z-10 px-6 py-4 border-b flex justify-between items-start">
+            <h2 id="modalUniversityName" class="text-2xl font-bold"></h2>
+            <button id="closeModalBtn" class="text-gray-500 hover:text-gray-700">
+                <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+
+        <div id="modalContent" class="p-6">
+            <!-- Содержимое модального окна будет добавлено скриптом -->
+            <div class="animate-pulse">
+                <div class="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                <div class="h-4 bg-gray-200 rounded w-full mb-2"></div>
+                <div class="h-4 bg-gray-200 rounded w-5/6"></div>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- Country selection modal -->
+<div id="countrySelectionModal"
+    class="fixed inset-0 z-50 flex items-center justify-center hidden transition-opacity duration-300 opacity-0">
+    <div class="fixed inset-0 bg-black bg-opacity-50" onclick="closeCountrySelectionModal()"></div>
+    <div class="bg-white rounded-xl p-6 shadow-xl max-w-md w-full mx-4 z-10">
+        <div class="mb-2">
+            <span id="modalProfessionTag"
+                class="inline-block bg-indigo-100 text-indigo-800 text-sm font-medium px-3 py-1 rounded-full">
+                <!-- This will be filled by JavaScript -->
+            </span>
+        </div>
+
+        <h2 class="text-2xl font-bold text-black mb-4">Выберите страну для поиска университетов</h2>
+        <p class="text-gray-600 mb-6">Укажите страну, в которой вы хотите учиться по выбранной специальности.</p>
+
+        <div id="modalError" class="bg-red-50 text-red-600 p-3 rounded-lg mb-4 hidden">
+            Пожалуйста, выберите страну из списка
+        </div>
+
+        <div class="mb-6">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Страна обучения</label>
+            <select id="modalCountrySelect"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                <option value="">Выберите страну</option>
+                <option value="Любая">Любая</option>
+                <option value="Казахстан">Казахстан</option>
+                <option value="США">США</option>
+                <option value="Великобритания">Великобритания</option>
+                <option value="Канада">Канада</option>
+                <option value="Австралия">Австралия</option>
+                <option value="Германия">Германия</option>
+                <option value="Франция">Франция</option>
+                <option value="Нидерланды">Нидерланды</option>
+                <option value="Швейцария">Швейцария</option>
+                <option value="Россия">Россия</option>
+                <option value="Китай">Китай</option>
+                <option value="Япония">Япония</option>
+                <option value="Сингапур">Сингапур</option>
+                <option value="Южная Корея">Южная Корея</option>
+                <option value="Испания">Испания</option>
+                <option value="Италия">Италия</option>
+            </select>
+        </div>
+
+        <div class="flex justify-between">
+            <button type="button" onclick="closeCountrySelectionModal()"
+                class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                Отмена
+            </button>
+            <button type="button" onclick="selectCountryAndSearch()"
+                class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">
+                Найти университеты
+            </button>
+        </div>
+    </div>
+</div>
+<script>
+    // Глобальные переменные
+    let currentRecommendations = null;
+    let savedUniversities = loadSavedUniversities();
+
+    // Инициализация при загрузке страницы
+    document.addEventListener('DOMContentLoaded', function () {
+        // Активировать кнопку при выборе страны
+        const countrySelect = document.getElementById('countrySelect');
+        const findButton = document.getElementById('findUniversitiesBtn');
+
+        countrySelect.addEventListener('change', function () {
+            findButton.disabled = !this.value;
+        });
+
+        // Настройка вкладок
+        const tabs = document.querySelectorAll('.history-tab');
+        tabs.forEach(tab => {
+            tab.addEventListener('click', function () {
+                tabs.forEach(t => t.classList.remove('active'));
+                this.classList.add('active');
+
+                const tabName = this.getAttribute('data-tab');
+                if (tabName === 'saved') {
+                    showSavedUniversities();
+                } else {
+                    if (currentRecommendations) {
+                        renderRecommendations(currentRecommendations);
+                    }
+                }
+            });
+        });
+
+        // Настройка модального окна
+        document.getElementById('closeModalBtn').addEventListener('click', closeUniversityModal);
+
+        // Показываем пустое состояние по умолчанию
+        document.getElementById('emptySection').style.display = 'block';
+    });
+
+    // Получить рекомендации университетов
+    function getRecommendations() {
+        const country = document.getElementById('countrySelect').value;
+
+        if (!country) {
+            showNotification('Пожалуйста, выберите страну', 'error');
+            return;
+        }
+
+        // Показать загрузку, скрыть другие секции
+        document.getElementById('loadingSection').style.display = 'block';
+        document.getElementById('emptySection').style.display = 'none';
+        document.getElementById('recommendationsSection').style.display = 'none';
+
+        // Имитация прогресса загрузки
+        const loadingStatus = document.getElementById('loadingStatus');
+        let progressTexts = [
+            'Анализируем академический профиль...',
+            'Изучаем требования университетов...',
+            'Сопоставляем данные...',
+            'Рассчитываем шансы на поступление...',
+            'Формируем рекомендации...',
+            'Почти готово...'
+        ];
+
+        let currentText = 0;
+        const updateText = setInterval(() => {
+            if (currentText < progressTexts.length) {
+                loadingStatus.textContent = progressTexts[currentText];
+                currentText++;
+            } else {
+                clearInterval(updateText);
+            }
+        }, 1000);
+
+        // Отправить запрос на сервер
+        fetch('/get-university-recommendations', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({
+                country: country,
+                profile: getProfileData(),
+                academic: getAcademicData()
+            })
+        })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`Сервер вернул ошибку: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('Получены рекомендации:', data);
+
+                // Остановить индикатор прогресса
+                clearInterval(updateText);
+
+                // Сохранить результаты
+                currentRecommendations = data;
+
+                // Скрыть загрузку, показать результаты
+                document.getElementById('loadingSection').style.display = 'none';
+                document.getElementById('recommendationsSection').style.display = 'block';
+
+                // Отрисовать результаты
+                renderRecommendations(data);
+
+                // Показать/скрыть соответствующие табы
+                document.querySelector('.history-tab[data-tab="all"]').classList.add('active');
+                document.querySelector('.history-tab[data-tab="saved"]').classList.remove('active');
+            })
+            .catch(error => {
+                console.error('Ошибка получения рекомендаций:', error);
+
+                // Скрыть загрузку, показать ошибку
+                document.getElementById('loadingSection').style.display = 'none';
+                document.getElementById('emptySection').style.display = 'block';
+                document.getElementById('emptySection').innerHTML = `
+            <div class="flex flex-col items-center gap-6">
+                <svg class="w-20 h-20 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <div>
+                    <h2 class="text-2xl font-bold mb-2">Ошибка получения рекомендаций</h2>
+                    <p class="text-gray-600 mb-6">${error.message || 'Произошла неизвестная ошибка'}</p>
+                    <button onclick="getRecommendations()" class="px-6 py-2 bg-indigo-600 text-white font-medium rounded-md shadow-sm hover:bg-indigo-700">
+                        Попробовать снова
+                    </button>
+                </div>
+            </div>
+        `;
+            });
+    }
+
+    // Функция для создания карточек университетов (замените вашу текущую)
+    function createUniversityCard(universityName, details, imageUrl, chance, index) {
+        // Обработка шанса поступления
+        let chanceColor = "#f59e0b"; // Желтый (средний)
+        if (chance >= 70) {
+            chanceColor = "#10b981"; // Зеленый (высокий)
+        } else if (chance >= 55) {
+            chanceColor = "#3b82f6"; // Синий (хороший)
+        } else if (chance < 40) {
+            chanceColor = "#ef4444"; // Красный (низкий)
+        }
+
+        // Проверка на сохранение
+        const isSaved = savedUniversities.includes(universityName);
+
+        // Создаем карточку
+        const card = document.createElement('div');
+
+        // Простые программы
+        let programsHTML = '';
+        if (details.programs && details.programs.length > 0) {
+            let programNames = [];
+            details.programs.forEach(program => {
+                // Извлекаем только названия программ
+                let name = program;
+                if (program.includes('**')) {
+                    const match = program.match(/\*\*([^*]+)\*\*/);
+                    if (match) name = match[1];
+                }
+                programNames.push(name.split('.')[0]); // Берем первую часть до точки
+            });
+
+            programsHTML = programNames.join(', ');
+            if (programsHTML.length > 100) {
+                programsHTML = programsHTML.substring(0, 100) + '...';
+            }
+        }
+
+        // Простые требования
+        let gpa = '', toefl = '', ielts = '';
+        if (details.requirements && details.requirements.length > 0) {
+            details.requirements.forEach(req => {
+                if (req.includes('GPA')) {
+                    const match = req.match(/\d+\.?\d*\/\d+\.?\d*/);
+                    if (match) gpa = match[0];
+                }
+                if (req.includes('TOEFL')) {
+                    const match = req.match(/\d+\+?/);
+                    if (match) toefl = match[0];
+                }
+                if (req.includes('IELTS')) {
+                    const match = req.match(/\d+\.?\d*\+?/);
+                    if (match) ielts = match[0];
+                }
+            });
+        }
+
+        // Полностью встроенные стили для надежности
+        card.style.cssText = 'display: flex; flex-direction: column; background-color: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.12); height: 100%;';
+
+        // HTML карточки с inline-стилями
+        card.innerHTML = `
+        <div style="position: relative;">
+            <img src="${imageUrl || 'https://via.placeholder.com/400x160?text=University'}" 
+                alt="${universityName}" 
+                style="width: 100%; height: 160px; object-fit: cover;">
+            
+            <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(to top, rgba(0,0,0,0.7), transparent 70%);"></div>
+            
+            <div style="position: absolute; top: 8px; right: 8px; background-color: ${chanceColor}; color: white; padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: bold; z-index: 1;">
+                ${chance}% шанс
+            </div>
+            
+            <div style="position: absolute; bottom: 0; left: 0; padding: 12px; z-index: 1;">
+                <h3 style="color: white; font-size: 18px; font-weight: bold; margin: 0 0 2px 0;">${universityName}</h3>
+                <p style="color: white; opacity: 0.9; font-size: 12px; margin: 0;">${details.location || ''}</p>
+            </div>
+        </div>
+        
+        <div style="padding: 12px; display: flex; flex-direction: column; flex-grow: 1;">
+            <!-- Программы -->
+            <div style="margin-bottom: 12px;">
+                <div style="display: flex; align-items: center; margin-bottom: 4px; font-size: 12px; color: #6b7280;">
+                    <svg style="width: 14px; height: 14px; margin-right: 4px;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                    </svg>
+                    Программы
+                </div>
+                <div style="font-size: 12px; color: #4b5563;">${programsHTML}</div>
+            </div>
+            
+            <!-- Требования -->
+            <div style="margin-bottom: 12px;">
+                <div style="display: flex; align-items: center; margin-bottom: 4px; font-size: 12px; color: #6b7280;">
+                    <svg style="width: 14px; height: 14px; margin-right: 4px;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                    </svg>
+                    Требования
+                </div>
+                <div style="font-size: 12px; color: #4b5563;">
+                    ${gpa ? `<span style="font-weight: bold;">GPA:</span> ${gpa}` : ''}
+                    ${gpa && toefl ? '<span style="display: inline-block; width: 4px; height: 4px; background-color: #d1d5db; border-radius: 50%; margin: 0 8px; vertical-align: middle;"></span>' : ''}
+                    ${toefl ? `<span style="font-weight: bold;">TOEFL:</span> ${toefl}` : ''}
+                    ${toefl && ielts ? '<span style="display: inline-block; width: 4px; height: 4px; background-color: #d1d5db; border-radius: 50%; margin: 0 8px; vertical-align: middle;"></span>' : ''}
+                    ${ielts ? `<span style="font-weight: bold;">IELTS:</span> ${ielts}` : ''}
+                </div>
+            </div>
+            
+            <!-- Кнопки -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: auto;">
+                <button onclick="showUniversityDetails('${universityName}')" 
+                    style="background-color: #4f46e5; color: white; border: none; border-radius: 4px; padding: 6px 12px; font-size: 12px; cursor: pointer;">
+                    Подробнее
+                </button>
+                
+                <button onclick="toggleSaveUniversity('${universityName}')" class="save-btn"
+                    data-university="${universityName}" 
+                    style="background: none; border: none; padding: 6px; cursor: pointer; color: ${isSaved ? '#4f46e5' : '#9ca3af'};">
+                    <svg style="width: 20px; height: 20px;" fill="${isSaved ? 'currentColor' : 'none'}" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                            d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+    `;
+
+        return card;
+    }
+
+    // Замените также функцию renderRecommendations
+    function renderRecommendations(data) {
+        const container = document.getElementById('universitiesList');
+        container.innerHTML = '';
+
+        const universities = data.universities || [];
+        const images = data.images || {};
+        const chances = data.admission_chances || {};
+
+        if (universities.length === 0) {
+            container.innerHTML = `
+            <div style="grid-column: 1 / -1; background-color: white; border-radius: 0.75rem; box-shadow: 0 1px 3px rgba(0,0,0,0.12); padding: 24px; text-align: center;">
+                <svg style="width: 64px; height: 64px; margin: 0 auto 16px auto; color: #9ca3af;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                        d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <h3 style="font-size: 20px; font-weight: 500; margin-bottom: 8px;">Университеты не найдены</h3>
+                <p style="color: #6b7280;">Попробуйте выбрать другую страну или обновить свой академический профиль</p>
+            </div>
+        `;
+            return;
+        }
+
+        // Создаем карточки для университетов
+        universities.forEach((universityName, index) => {
+            const rawDetails = extractUniversityDetails(data.recommendations, universityName);
+            const chance = chances[universityName] || 50;
+            const imageUrl = images[universityName];
+
+            const card = createUniversityCard(universityName, rawDetails, imageUrl, chance, index);
+            container.appendChild(card);
+        });
+    }    // Обработка деталей университета для извлечения требований
+    function processUniversityDetails(details) {
+        let gpa = '', toefl = '', ielts = '';
+
+        // Если есть требования
+        if (details.requirements && details.requirements.length > 0) {
+            // Ищем GPA
+            for (const req of details.requirements) {
+                if (req.includes('GPA')) {
+                    const match = req.match(/\d+\.?\d*\/\d+\.?\d*/);
+                    if (match) gpa = match[0];
+                }
+                if (req.includes('TOEFL')) {
+                    const match = req.match(/\d+\+?/);
+                    if (match) toefl = match[0];
+                }
+                if (req.includes('IELTS')) {
+                    const match = req.match(/\d+\.?\d*\+?/);
+                    if (match) ielts = match[0];
+                }
+            }
+        }
+
+        // Очищаем программы от длинных описаний - оставляем только названия
+        let cleanPrograms = [];
+        if (details.programs && details.programs.length > 0) {
+            cleanPrograms = details.programs.map(program => {
+                // Извлекаем название программы из текста
+                const match = program.match(/\*\*([^*]+)\*\*/);
+                if (match) return match[1];
+                return program.split('.')[0]; // Берем первое предложение, если нет выделенного названия
+            });
+        }
+
+        return {
+            ...details,
+            gpa,
+            toefl,
+            ielts,
+            programs: cleanPrograms
+        };
+    }
+
+    // Извлечение деталей университета из текста рекомендаций
+    function extractUniversityDetails(text, universityName) {
+        if (!text) return {
+            location: '',
+            programs: [],
+            requirements: [],
+            strengths: [],
+            costs: [],
+            deadlines: []
+        };
+
+        const details = {
+            location: '',
+            programs: [],
+            requirements: [],
+            strengths: [],
+            costs: [],
+            deadlines: []
+        };
+
+        const lines = text.split('\n');
+        let inUniversity = false;
+        let currentSection = null;
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (!line) continue;
+
+            // Проверяем, начинается ли раздел университета
+            if (line.includes(`**University: ${universityName}**`) || line.includes(`**University:${universityName}**`)) {
+                inUniversity = true;
+                continue;
+            }
+
+            // Проверяем, не перешли ли уже к следующему университету
+            if (inUniversity && line.includes('**University:') && !line.includes(universityName)) {
+                break;
+            }
+
+            // Обрабатываем строку, если мы находимся в правильном разделе университета
+            if (inUniversity) {
+                // Проверяем заголовки разделов
+                if (line.startsWith('**Location:**')) {
+                    currentSection = 'location';
+                    details.location = line.replace('**Location:**', '').trim();
+                } else if (line.startsWith('**Relevant Programs:**')) {
+                    currentSection = 'programs';
+                } else if (line.startsWith('**Admission Requirements:**')) {
+                    currentSection = 'requirements';
+                } else if (line.startsWith('**Application Deadlines:**')) {
+                    currentSection = 'deadlines';
+                } else if (line.startsWith('**Estimated Costs:**')) {
+                    currentSection = 'costs';
+                } else if (line.startsWith('**Notable Strengths:**')) {
+                    currentSection = 'strengths';
+                } else if (line.startsWith('*') && line.length > 2) {
+                    // Это маркированный список в разделе
+                    const content = line.substring(1).trim();
+                    if (currentSection && currentSection !== 'location') {
+                        details[currentSection].push(content);
+                    }
+                }
+            }
+        }
+
+        return details;
+    }
+
+    // Показать детальную информацию об университете
+    function showUniversityDetails(universityName) {
+        const modal = document.getElementById('universityModal');
+        const modalTitle = document.getElementById('modalUniversityName');
+        const modalContent = document.getElementById('modalContent');
+
+        // Установить название университета
+        modalTitle.textContent = universityName;
+
+        // Показать загрузку
+        modalContent.innerHTML = `
+        <div class="animate-pulse">
+            <div class="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+            <div class="h-4 bg-gray-200 rounded w-full mb-2"></div>
+            <div class="h-4 bg-gray-200 rounded w-5/6"></div>
+        </div>
+    `;
+
+        // Показать модальное окно
+        modal.classList.remove('hidden');
+
+        // Получить детальную информацию
+        fetch('/get-university-details', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({
+                university: universityName,
+                country: document.getElementById('countrySelect').value,
+                profile: getProfileData(),
+                academic: getAcademicData()
+            })
+        })
+            .then(response => response.json())
+            .then(data => {
+                // Создать HTML для деталей
+                modalContent.innerHTML = renderUniversityDetails(universityName, data.details);
+            })
+            .catch(error => {
+                modalContent.innerHTML = `
+            <div class="p-4 bg-red-50 rounded-lg text-red-800">
+                <p>Ошибка загрузки информации: ${error.message}</p>
+                <button onclick="showUniversityDetails('${universityName}')" class="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg">
+                    Попробовать снова
+                </button>
+            </div>
+        `;
+            });
+    }
+
+    // Закрыть модальное окно
+    function closeUniversityModal() {
+        document.getElementById('universityModal').classList.add('hidden');
+    }
+
+    // Рендеринг детальной информации об университете
+    function renderUniversityDetails(universityName, details) {
+        let html = '';
+
+        // Обзор
+        if (details.overview) {
+            html += `
+            <div class="mb-5">
+                <h3 class="text-lg font-bold mb-2">Обзор</h3>
+                <p class="text-gray-700">${details.overview}</p>
+            </div>
+        `;
+        }
+
+        // Образование
+        if (details.education && details.education.length > 0) {
+            html += `
+            <div class="mb-5 p-4 bg-indigo-50 rounded-lg">
+                <h3 class="text-md font-bold mb-2 text-indigo-800">Образование и квалификация</h3>
+                <ul class="space-y-1.5">
+                    ${details.education.map(item => `
+                        <li class="flex items-start">
+                            <svg class="w-4 h-4 text-indigo-600 mr-2 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span>${item}</span>
+                        </li>
+                    `).join('')}
+                </ul>
+            </div>
+        `;
+        }
+
+        // Зарплата и стоимость
+        if (details.salary) {
+            html += `
+            <div class="mb-5 p-4 bg-green-50 rounded-lg">
+                <h3 class="text-md font-bold mb-2 text-green-800">Стоимость обучения</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <h4 class="font-medium mb-1">Казахстан</h4>
+                        <p class="text-sm text-gray-700 mb-1">Диапазон: ${details.salary.kz.range}</p>
+                        <p class="text-sm text-gray-700">Средняя: ${details.salary.kz.average}</p>
+                    </div>
+                    <div>
+                        <h4 class="font-medium mb-1">Мировая</h4>
+                        <p class="text-sm text-gray-700 mb-1">Диапазон: ${details.salary.global.range}</p>
+                        <p class="text-sm text-gray-700">Средняя: ${details.salary.global.average}</p>
+                    </div>
+                </div>
+            </div>
+        `;
+        }
+
+        // Перспективы работы
+        if (details.job_outlook) {
+            html += `
+            <div class="mb-5">
+                <h3 class="text-md font-bold mb-2">Перспективы трудоустройства</h3>
+                <p class="text-gray-700">${details.job_outlook}</p>
+            </div>
+        `;
+        }
+
+        // Навыки и личные качества
+        if ((details.skills && details.skills.length > 0) || (details.personality && details.personality.length > 0)) {
+            html += `
+            <div class="mb-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+        `;
+
+            if (details.skills && details.skills.length > 0) {
+                html += `
+                <div class="p-4 bg-purple-50 rounded-lg">
+                    <h3 class="text-md font-bold mb-2 text-purple-800">Необходимые навыки</h3>
+                    <div class="flex flex-wrap gap-1.5">
+                        ${details.skills.map(skill => `
+                            <span class="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full">
+                                ${skill}
+                            </span>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+            }
+
+            if (details.personality && details.personality.length > 0) {
+                html += `
+                <div class="p-4 bg-blue-50 rounded-lg">
+                    <h3 class="text-md font-bold mb-2 text-blue-800">Личные качества</h3>
+                    <div class="flex flex-wrap gap-1.5">
+                        ${details.personality.map(trait => `
+                            <span class="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">
+                                ${trait}
+                            </span>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+            }
+
+            html += `</div>`;
+        }
+
+        // Рабочие задачи
+        if (details.daily_work && details.daily_work.length > 0) {
+            html += `
+            <div class="mb-5 p-4 bg-yellow-50 rounded-lg">
+                <h3 class="text-md font-bold mb-2 text-yellow-800">Условия обучения</h3>
+                <ul class="space-y-1.5">
+                    ${details.daily_work.map(task => `
+                        <li class="flex items-start">
+                            <svg class="w-4 h-4 text-yellow-600 mr-2 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span>${task}</span>
+                        </li>
+                    `).join('')}
+                </ul>
+            </div>
+        `;
+        }
+
+        // Карьерный рост
+        if (details.advancement && details.advancement.length > 0) {
+            html += `
+            <div class="mb-5">
+                <h3 class="text-md font-bold mb-2">Карьерный рост</h3>
+                <ul class="space-y-1.5">
+                    ${details.advancement.map(path => `
+                        <li class="flex items-start">
+                            <svg class="w-4 h-4 text-gray-600 mr-2 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                    d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                            </svg>
+                            <span>${path}</span>
+                        </li>
+                    `).join('')}
+                </ul>
+            </div>
+        `;
+        }
+
+        // Связанные профессии
+        if (details.related_professions && details.related_professions.length > 0) {
+            html += `
+            <div class="mb-5">
+                <h3 class="text-md font-bold mb-2">Смежные специальности</h3>
+                <div class="flex flex-wrap gap-1.5">
+                    ${details.related_professions.map(prof => `
+                        <span class="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full">
+                            ${prof}
+                        </span>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+        }
+
+        // Работодатели
+        if (details.top_employers && details.top_employers.length > 0) {
+            html += `
+            <div class="mb-5">
+                <h3 class="text-md font-bold mb-2">Ведущие работодатели</h3>
+                <div class="flex flex-wrap gap-1.5">
+                    ${details.top_employers.map(employer => `
+                        <span class="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full">
+                            ${employer}
+                        </span>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+        }
+
+        // Кнопки действий
+        html += `
+        <div class="mt-6 flex flex-wrap gap-3 justify-center">
+            <a href="https://www.google.com/search?q=${encodeURIComponent(universityName + ' поступление')}" 
+               target="_blank"
+               class="px-4 py-2 bg-indigo-600 text-white font-medium rounded-md shadow-sm hover:bg-indigo-700 transition-colors">
+                Узнать о поступлении
+            </a>
+            <a href="https://www.google.com/search?q=${encodeURIComponent(universityName)}" 
+               target="_blank"
+               class="px-4 py-2 bg-gray-200 text-gray-700 font-medium rounded-md shadow-sm hover:bg-gray-300 transition-colors">
+                Посетить сайт
+            </a>
+        </div>
+    `;
+
+        return html;
+    }
+
+    // Сохранение и загрузка избранных университетов
+    function toggleSaveUniversity(universityName) {
+        const savedUniversities = loadSavedUniversities();
+
+        if (savedUniversities.includes(universityName)) {
+            // Удалить из избранного
+            const index = savedUniversities.indexOf(universityName);
+            savedUniversities.splice(index, 1);
+            showNotification(`Университет ${universityName} удален из избранного`);
+        } else {
+            // Добавить в избранное
+            savedUniversities.push(universityName);
+            showNotification(`Университет ${universityName} добавлен в избранное`);
+        }
+
+        // Сохранить изменения
+        localStorage.setItem('savedUniversities', JSON.stringify(savedUniversities));
+
+        // Обновить кнопки на странице
+        updateSaveButtons();
+    }
+
+    function loadSavedUniversities() {
+        try {
+            return JSON.parse(localStorage.getItem('savedUniversities') || '[]');
+        } catch (error) {
+            console.error('Ошибка загрузки избранного:', error);
+            return [];
+        }
+    }
+
+    function updateSaveButtons() {
+        const savedUniversities = loadSavedUniversities();
+        const buttons = document.querySelectorAll('.save-btn');
+
+        buttons.forEach(button => {
+            const university = button.getAttribute('data-university');
+            const isSaved = savedUniversities.includes(university);
+
+            // Обновить иконку
+            const svg = button.querySelector('svg');
+            if (svg) {
+                if (isSaved) {
+                    svg.classList.add('text-indigo-600', 'fill-current');
+                } else {
+                    svg.classList.remove('text-indigo-600', 'fill-current');
+                }
+            }
+
+            // Обновить подсказку
+            button.setAttribute('aria-label', isSaved ? 'Удалить из сохраненных' : 'Сохранить университет');
+        });
+    }
+
+    // Показать сохраненные университеты
+    function showSavedUniversities() {
+        const container = document.getElementById('universitiesList');
+        container.innerHTML = '';
+
+        const savedUniversities = loadSavedUniversities();
+
+        if (savedUniversities.length === 0) {
+            container.innerHTML = `
+            <div class="col-span-full bg-white rounded-xl shadow-sm p-6 text-center">
+                <svg class="w-16 h-16 mx-auto text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                        d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                </svg>
+                <h3 class="text-xl font-medium mb-2">Нет сохраненных университетов</h3>
+                <p class="text-gray-500">Сохраняйте понравившиеся университеты, нажимая на иконку закладки</p>
+            </div>
+        `;
+            return;
+        }
+
+        // Если доступны текущие рекомендации, используем данные оттуда
+        if (currentRecommendations) {
+            savedUniversities.forEach((universityName, index) => {
+                const rawDetails = extractUniversityDetails(currentRecommendations.recommendations, universityName);
+                const details = processUniversityDetails(rawDetails);
+
+                const chance = currentRecommendations.admission_chances?.[universityName] || 50;
+                const imageUrl = currentRecommendations.images?.[universityName];
+
+                setTimeout(() => {
+                    const card = createUniversityCard(universityName, details, imageUrl, chance, index);
+                    container.appendChild(card);
+                }, index * 50);
+            });
+        } else {
+            // Простой вариант без детальной информации
+            savedUniversities.forEach((universityName, index) => {
+                const card = document.createElement('div');
+                card.className = 'university-card animate-fade-in-up';
+                card.dataset.university = universityName;
+                card.style.animationDelay = `${index * 50}ms`;
+
+                card.innerHTML = `
+                <div class="university-image-container">
+                    <div class="bg-gray-200 university-image flex items-center justify-center">
+                        <svg class="w-16 h-16 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" 
+                                d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                        </svg>
+                    </div>
+                    <div class="image-overlay"></div>
+                    
+                    <div class="university-title-container">
+                        <h3 class="text-lg font-bold text-white">${universityName}</h3>
+                        <p class="text-xs text-white/80">Сохраненный университет</p>
+                    </div>
+                </div>
+                
+                <div class="university-content">
+                    <div class="flex items-center justify-center py-4">
+                        <p class="text-gray-500 text-sm">Информация временно недоступна</p>
+                    </div>
+                    
+                    <div class="card-footer">
+                        <button onclick="showUniversityDetails('${universityName}')" class="more-button">
+                            Подробнее
+                        </button>
+                        
+                        <button onclick="toggleSaveUniversity('${universityName}')" class="save-button save-btn"
+                                data-university="${universityName}" aria-label="Удалить из сохраненных">
+                            <svg class="w-5 h-5 text-indigo-600 fill-current" fill="currentColor" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                    d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            `;
+
+                container.appendChild(card);
+            });
+        }
+    }
+
+    // Получение данных профиля для запроса
+    function getProfileData() {
+        return {
+            specialty: document.querySelector('[data-profile="specialty"]')?.textContent || '',
+            goals: document.querySelector('[data-profile="goals"]')?.textContent || '',
+            education: document.querySelector('[data-profile="education"]')?.textContent || '',
+            skills: Array.from(document.querySelectorAll('[data-skill]')).map(el => el.textContent.trim())
+        };
+    }
+
+    // Получение академических данных для запроса
+    function getAcademicData() {
+        return {
+            gpa: document.querySelector('[data-academic="gpa"]')?.textContent || '',
+            satScore: document.querySelector('[data-academic="sat"]')?.textContent || '',
+            toeflScore: document.querySelector('[data-academic="toefl"]')?.textContent || '',
+            ieltsScore: document.querySelector('[data-academic="ielts"]')?.textContent || ''
+        };
+    }
+
+    // Показ уведомления
+    function showNotification(message, type = 'success') {
+        const notification = document.createElement('div');
+        notification.className = `fixed bottom-4 right-4 px-4 py-3 rounded-lg shadow-lg z-50 ${type === 'error' ? 'bg-red-500' : 'bg-green-500'} text-white transform translate-y-4 opacity-0 transition-all duration-300`;
+        notification.innerHTML = message;
+        document.body.appendChild(notification);
+
+        // Показываем уведомление
+        setTimeout(() => {
+            notification.classList.remove('translate-y-4', 'opacity-0');
+        }, 10);
+
+        // Скрываем уведомление
+        setTimeout(() => {
+            notification.classList.add('translate-y-4', 'opacity-0');
+            setTimeout(() => {
+                notification.remove();
+            }, 300);
+        }, 3000);
+    }
+    // Country selection modal handling with profession context
+    document.addEventListener('DOMContentLoaded', function () {
+        // Check if there's a parameter indicating we should show the modal
+        const urlParams = new URLSearchParams(window.location.search);
+        const showModal = urlParams.get('showModal') === 'true';
+        const profession = urlParams.get('profession') || '';
+
+        // Store profession in a data attribute for later use
+        if (profession) {
+            document.body.setAttribute('data-profession', profession);
+
+            // Also update any UI elements showing the profession
+            const professionLabel = document.getElementById('selectedProfessionLabel');
+            if (professionLabel) {
+                professionLabel.textContent = profession;
+                professionLabel.closest('.profession-indicator').classList.remove('hidden');
+            }
+        }
+
+        if (showModal) {
+            // Show country selection modal automatically
+            showCountrySelectionModal();
+        }
+
+        // Enable find universities button when country is selected
+        const modalCountrySelect = document.getElementById('modalCountrySelect');
+        if (modalCountrySelect) {
+            modalCountrySelect.addEventListener('change', function () {
+                document.getElementById('modalError').classList.add('hidden');
+            });
+        }
+    });
+
+    function showCountrySelectionModal() {
+        // Get profession if available
+        const profession = document.body.getAttribute('data-profession') || '';
+
+        // Update profession tag in modal
+        const professionTag = document.getElementById('modalProfessionTag');
+        if (professionTag && profession) {
+            professionTag.textContent = `Профессия: ${profession}`;
+            professionTag.classList.remove('hidden');
+        } else if (professionTag) {
+            professionTag.classList.add('hidden');
+        }
+
+        // Show the modal
+        const modal = document.getElementById('countrySelectionModal');
+        modal.classList.remove('hidden');
+        setTimeout(() => {
+            modal.classList.add('opacity-100');
+        }, 50);
+    }
+
+    function closeCountrySelectionModal() {
+        // Hide the modal
+        const modal = document.getElementById('countrySelectionModal');
+        modal.classList.remove('opacity-100');
+        setTimeout(() => {
+            modal.classList.add('hidden');
+        }, 300);
+    }
+
+    function selectCountryAndSearch() {
+        // Get selected country from modal
+        const modalCountrySelect = document.getElementById('modalCountrySelect');
+        const selectedCountry = modalCountrySelect.value;
+
+        if (!selectedCountry) {
+            // Show error in modal if no country selected
+            document.getElementById('modalError').classList.remove('hidden');
+            return;
+        }
+
+        // Set the value in the main form
+        const countrySelect = document.getElementById('countrySelect');
+        countrySelect.value = selectedCountry;
+
+        // Enable the find button (in case it was disabled)
+        const findButton = document.getElementById('findUniversitiesBtn');
+        findButton.disabled = false;
+
+        // Close the modal
+        closeCountrySelectionModal();
+
+        // Trigger recommendations search with profession context
+        getRecommendationsWithProfession();
+    }
+
+    // Modified version of getRecommendations that includes profession data
+    function getRecommendationsWithProfession() {
+        const country = document.getElementById('countrySelect').value;
+        const profession = document.body.getAttribute('data-profession') || '';
+
+        if (!country) {
+            showNotification('Пожалуйста, выберите страну', 'error');
+            return;
+        }
+
+        // Show loading, hide other sections
+        document.getElementById('loadingSection').style.display = 'block';
+        document.getElementById('emptySection').style.display = 'none';
+        document.getElementById('recommendationsSection').style.display = 'none';
+
+        // Imitate loading progress (from original code)
+        const loadingStatus = document.getElementById('loadingStatus');
+        let progressTexts = [
+            'Анализируем академический профиль...',
+            'Изучаем требования университетов...',
+            'Сопоставляем данные...',
+            'Рассчитываем шансы на поступление...',
+            'Формируем рекомендации...',
+            'Почти готово...'
+        ];
+
+        let currentText = 0;
+        const updateText = setInterval(() => {
+            if (currentText < progressTexts.length) {
+                loadingStatus.textContent = progressTexts[currentText];
+                currentText++;
+            } else {
+                clearInterval(updateText);
+            }
+        }, 1000);
+
+        // Prepare profile data with profession included
+        const profileData = getProfileData();
+        if (profession) {
+            profileData.targetProfession = profession;
+        }
+
+        // Send request to server
+        fetch('/get-university-recommendations', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({
+                country: country,
+                profile: profileData,
+                academic: getAcademicData(),
+                profession: profession // Include profession in request
+            })
+        })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`Сервер вернул ошибку: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('Получены рекомендации:', data);
+
+                // Stop progress indicator
+                clearInterval(updateText);
+
+                // Save results
+                currentRecommendations = data;
+
+                // Hide loading, show results
+                document.getElementById('loadingSection').style.display = 'none';
+                document.getElementById('recommendationsSection').style.display = 'block';
+
+                // Render results
+                renderRecommendations(data);
+
+                // Show/hide appropriate tabs
+                document.querySelector('.history-tab[data-tab="all"]').classList.add('active');
+                document.querySelector('.history-tab[data-tab="saved"]').classList.remove('active');
+            })
+            .catch(error => {
+                console.error('Ошибка получения рекомендаций:', error);
+
+                // Hide loading, show error
+                document.getElementById('loadingSection').style.display = 'none';
+                document.getElementById('emptySection').style.display = 'block';
+                document.getElementById('emptySection').innerHTML = `
+            <div class="flex flex-col items-center gap-6">
+                <svg class="w-20 h-20 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <div>
+                    <h2 class="text-2xl font-bold mb-2">Ошибка получения рекомендаций</h2>
+                    <p class="text-gray-600 mb-6">${error.message || 'Произошла неизвестная ошибка'}</p>
+                    <button onclick="getRecommendationsWithProfession()" class="px-6 py-2 bg-indigo-600 text-white font-medium rounded-md shadow-sm hover:bg-indigo-700">
+                        Попробовать снова
+                    </button>
+                </div>
+            </div>
+        `;
+            });
+    }
+</script>
+
+
+
+
+{% endblock %}

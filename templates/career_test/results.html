@@ -1,64 +1,161 @@
 {% extends "base.html" %}
 {% block content %}
+<!-- Enhanced Loading Animation for profession pages -->
+<!-- Enhanced Loading Animation for profession pages -->
+<div id="loadingOverlay" class="fixed inset-0 z-50 bg-white flex items-center justify-center"
+    style="display: none; opacity: 0; transition: opacity 0.3s ease;">
+    <div class="text-center max-w-md mx-auto px-6">
+        <!-- Космическая анимация загрузки -->
+        <div class="relative h-32 w-32 mx-auto mb-6">
+            <!-- Центральный круг (планета) -->
+            <div class="absolute inset-0 flex items-center justify-center">
+                <div class="animate-spin rounded-full h-16 w-16 border-b-4 border-t-4 border-black duration-700"></div>
+            </div>
+            <div class="absolute inset-0 flex items-center justify-center">
+                <div class="h-6 w-6 bg-black rounded-full"></div>
+            </div>
+
+            <!-- Первая орбита -->
+            <div class="absolute inset-0 animate-spin" style="animation-duration: 2.5s;">
+                <div class="h-3 w-3 bg-black rounded-full absolute orbit-dot"
+                    style="top: 0; left: 50%; transform: translateX(-50%);"></div>
+            </div>
+
+            <!-- Вторая орбита -->
+            <div class="absolute inset-0 animate-spin" style="animation-duration: 3.7s; animation-direction: reverse;">
+                <div class="h-2 w-2 bg-gray-600 rounded-full absolute orbit-dot"
+                    style="bottom: 0; left: 50%; transform: translateX(-50%);"></div>
+            </div>
+
+            <!-- Третья орбита -->
+            <div class="absolute inset-0 animate-spin" style="animation-duration: 4.2s;">
+                <div class="h-2 w-2 bg-gray-600 rounded-full absolute orbit-dot"
+                    style="left: 0; top: 50%; transform: translateY(-50%);"></div>
+            </div>
+
+            <!-- Четвертая орбита -->
+            <div class="absolute inset-0 animate-spin" style="animation-duration: 1.8s; animation-direction: reverse;">
+                <div class="h-3 w-3 bg-black rounded-full absolute orbit-dot"
+                    style="right: 0; top: 50%; transform: translateY(-50%);"></div>
+            </div>
+
+            <!-- Звезды в фоне -->
+            <div class="absolute" style="top: -10px; left: 10px;">
+                <div class="h-1 w-1 bg-gray-400 rounded-full animate-pulse"></div>
+            </div>
+            <div class="absolute" style="bottom: 5px; right: 15px;">
+                <div class="h-1 w-1 bg-gray-400 rounded-full animate-pulse" style="animation-delay: 0.3s;"></div>
+            </div>
+            <div class="absolute" style="top: 20px; right: 5px;">
+                <div class="h-1 w-1 bg-gray-400 rounded-full animate-pulse" style="animation-delay: 0.7s;"></div>
+            </div>
+            <div class="absolute" style="bottom: 20px; left: 5px;">
+                <div class="h-1 w-1 bg-gray-400 rounded-full animate-pulse" style="animation-delay: 1s;"></div>
+            </div>
+        </div>
+
+        <h2 class="text-2xl font-bold text-black mb-3">Загрузка информации о профессии</h2>
+        <p class="text-gray-600 mb-4" id="loadingMessage">Анализируем данные и собираем информацию...</p>
+
+        <div class="w-full bg-gray-200 rounded-full h-2.5 mb-2 overflow-hidden">
+            <div id="loadingProgressBar" class="bg-black h-2.5 rounded-full transition-all duration-300 relative"
+                style="width: 0%">
+                <!-- Эффект свечения на прогресс-баре -->
+                <div class="absolute inset-0 w-full">
+                    <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer"
+                        style="width: 50%; transform: translateX(-100%);"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex justify-between text-sm mb-1">
+            <span id="loadingStage" class="text-gray-500">Подготовка...</span>
+            <span id="loadingPercentage" class="font-medium text-black">0%</span>
+        </div>
+
+        <div class="text-xs text-gray-400 mt-2">
+            Расчетное время загрузки: <span id="estimatedTime" class="font-medium">определяется...</span>
+        </div>
+    </div>
+</div>
+
 <div class="bg-white min-h-screen py-12">
     <div class="container mx-auto px-4">
         <div class="max-w-5xl mx-auto">
-            <!-- Header Section with Test Completion Badge -->
-            <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
-                <div>
-                    <h1 class="text-3xl md:text-4xl font-bold mb-2 text-black">Результаты карьерного теста</h1>
-                    <p class="text-gray-600">
-                        Профессии, которые лучше всего соответствуют твоему профилю
-                    </p>
-                </div>
-                <div class="mt-4 md:mt-0 flex flex-col sm:flex-row gap-3">
-                    <!-- Retake Test Button -->
-                    <button id="retakeTestBtn" type="button"
-                        class="inline-flex items-center justify-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-full hover:bg-gray-50 transition-colors">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24"
-                            stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                        </svg>
-                        Пройти тест заново
-                    </button>
-                    <span
-                        class="inline-flex items-center px-4 py-2 bg-black text-white text-sm font-medium rounded-full">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1.5" fill="none" viewBox="0 0 24 24"
-                            stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        Тест пройден
-                    </span>
+            <!-- Заголовок страницы -->
+            <div class="bg-black text-white p-8 rounded-xl shadow-md mb-10">
+                <div class="flex flex-col md:flex-row md:items-center md:justify-between">
+                    <div>
+                        <h1 class="text-3xl md:text-4xl font-bold mb-2">Результаты карьерного теста</h1>
+                        <p class="text-gray-300">
+                            Профессии, которые лучше всего соответствуют твоему профилю
+                        </p>
+                    </div>
+                    <div class="mt-4 md:mt-0 flex flex-col sm:flex-row gap-3">
+                        <!-- Кнопка перепрохождения теста -->
+                        <button id="retakeTestBtn" type="button"
+                            class="inline-flex items-center justify-center px-4 py-2 border border-gray-600 text-sm font-medium rounded-lg text-white hover:bg-white hover:text-black transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1.5" fill="none"
+                                viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                            Пройти тест заново
+                        </button>
+                        <span
+                            class="inline-flex items-center px-4 py-2 bg-white text-black text-sm font-medium rounded-lg">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1.5" fill="none"
+                                viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            Тест пройден
+                        </span>
+                    </div>
                 </div>
             </div>
 
-            <!-- Animation for Top Recommendations -->
-            <div class="relative overflow-hidden mb-4">
-                <div class="absolute top-0 left-0 w-full h-1 bg-gray-200">
-                    <div class="absolute top-0 left-0 h-full bg-black animate-pulse"></div>
-                </div>
-                <h2 class="text-xl font-bold text-black pt-4">Топ рекомендации</h2>
-            </div>
-
-            <!-- Top Recommendations Card Grid - FIXED UI -->
+            <!-- Топ рекомендации -->
+            <h2 class="text-2xl font-bold text-black mb-6">Топ рекомендации</h2>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
                 {% for profession in recommendations[:4] %}
                 <div
-                    class="bg-white border border-gray-200 rounded-xl shadow-md overflow-hidden transition-all duration-300 hover:shadow-lg hover:translate-y-[-4px]">
-                    <!-- Fixed header with consistent padding and alignment -->
-                    <div class="bg-black text-white p-4 flex items-center justify-between">
-                        <h3 class="text-xl font-semibold">{{ profession.name }}</h3>
-                        <!-- Fixed match percentage badge with consistent styling -->
-                        <span class="bg-white text-black text-sm font-medium px-3 py-1 rounded-full">
-                            {{ profession.compatibility }}% совпадение
-                        </span>
+                    class="profession-card bg-white border border-gray-200 rounded-xl shadow-md overflow-hidden hover:shadow-lg hover:-translate-y-1 transition-all duration-300">
+                    <!-- Заголовок с профессией -->
+                    <div class="profession-header text-white p-4" id="profession-header-{{ loop.index }}" {% if
+                        loop.index0==0 %}style="background-color:#1e7e34" {% elif loop.index0==1
+                        %}style="background-color:#c82333" {% else %}style="background-color:#4f46e5" {% endif %}>
+                        <div class="flex justify-between items-center">
+                            <h3 class="text-xl font-semibold">{{ profession.name }}</h3>
+                            <span class="bg-white text-black text-sm font-medium px-3 py-1 rounded-full">
+                                {{ profession.compatibility }}% совпадение
+                            </span>
+                        </div>
                     </div>
-                    <div class="p-6">
-                        <p class="text-gray-600 mb-4">{{ profession.description }}</p>
 
-                        <!-- Fixed salary section with consistent alignment -->
+                    <!-- Контейнер для изображения с встроенным фолбеком -->
+                    <div class="profession-image-container w-full h-48 relative" data-index="{{ loop.index0 }}"
+                        data-profession="{{ profession.name }}">
+                        <!-- Фолбек изображение показывается сразу -->
+                        <div class="fallback-image w-full h-full flex items-center justify-center absolute top-0 left-0 z-10"
+                            style="{% if loop.index0 == 0 %}background-color:#1e7e34{% elif loop.index0 == 1 %}background-color:#c82333{% else %}background-color:#4f46e5{% endif %}; opacity: 0.2;">
+                            <div class="text-center p-4">
+                                <svg class="w-12 h-12 mx-auto text-white" fill="currentColor" viewBox="0 0 20 20"
+                                    xmlns="http://www.w3.org/2000/svg">
+                                    <path fill-rule="evenodd"
+                                        d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm9 1a1 1 0 10-2 0v4a1 1 0 102 0V5zm-3 5a1 1 0 10-2 0v2a1 1 0 102 0v-2z"
+                                        clip-rule="evenodd"></path>
+                                </svg>
+                                <p class="text-white font-medium mt-2">{{ profession.name }}</p>
+                            </div>
+                        </div>
+                        <!-- Основное изображение будет загружено через JavaScript -->
+                    </div>
+
+                    <div class="p-6">
+                        <p class="text-gray-600 mb-4 min-h-[80px]">{{ profession.description }}</p>
+
+                        <!-- Информация о зарплате -->
                         <div class="mb-5 border-t border-b border-gray-100 py-3">
                             <div class="flex items-center mb-1">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-500 mr-1" fill="none"
@@ -80,13 +177,12 @@
                             </div>
                         </div>
 
-                        <!-- Fixed button with consistent padding and styling -->
+                        <!-- Кнопка подробнее -->
                         <a href="{{ url_for('career_profession_detail', profession_slug=profession.slug) }}"
-                            class="group block w-full text-center bg-black hover:bg-gray-900 text-white px-4 py-3 rounded-lg transition-all duration-300 shadow-sm">
+                            class="profession-link block w-full text-center bg-black hover:bg-gray-900 text-white px-4 py-3 rounded-lg transition-all duration-300 shadow-sm hover:scale-105">
                             <span class="inline-flex items-center">
                                 Подробнее о профессии
-                                <svg xmlns="http://www.w3.org/2000/svg"
-                                    class="h-4 w-4 ml-1 group-hover:translate-x-1 transition-transform" fill="none"
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ml-1" fill="none"
                                     viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                         d="M9 5l7 7-7 7" />
@@ -98,32 +194,43 @@
                 {% endfor %}
             </div>
 
-            <!-- Additional Recommendations Section -->
-            <div class="relative overflow-hidden mb-4">
-                <div class="absolute top-0 left-0 w-full h-1 bg-gray-200">
-                    <div class="absolute top-0 left-0 h-full bg-black w-2/3"></div>
-                </div>
-                <h2 class="text-xl font-bold text-black pt-4">Дополнительные рекомендации</h2>
-            </div>
-
-            <!-- Fixed Additional Recommendations List -->
+            <!-- Дополнительные рекомендации -->
+            <h2 class="text-2xl font-bold text-black mb-6">Дополнительные рекомендации</h2>
             <div class="bg-white border border-gray-200 rounded-xl shadow-md p-6 mb-10">
                 <ul class="divide-y divide-gray-200">
                     {% for profession in recommendations[4:] %}
                     <li class="py-4 hover:bg-gray-50 rounded-lg transition-colors px-2">
                         <div class="flex flex-col md:flex-row md:justify-between md:items-center">
-                            <div class="mb-3 md:mb-0 md:mr-4">
-                                <h3 class="text-lg font-medium text-black">{{ profession.name }}</h3>
-                                <p class="text-gray-600 text-sm mt-1">{{ profession.description }}</p>
+                            <div class="mb-3 md:mb-0 md:mr-4 flex items-center">
+                                <!-- Миниатюра профессии с встроенным фолбеком -->
+                                <div class="mini-profession-image-container flex-shrink-0 mr-3 w-16 h-16 rounded-full overflow-hidden relative"
+                                    data-index="{{ loop.index + 3 }}" data-profession="{{ profession.name }}">
+                                    <!-- Фолбек изображение показывается сразу -->
+                                    <div class="mini-fallback-image w-full h-full flex items-center justify-center absolute top-0 left-0 z-10"
+                                        style="background-color: {% if loop.index % 2 == 0 %}#1e7e34{% else %}#c82333{% endif %}; opacity: 0.2;">
+                                        <div class="text-center">
+                                            <svg class="w-8 h-8 mx-auto text-gray-600" fill="currentColor"
+                                                viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                                                <path fill-rule="evenodd"
+                                                    d="M6 6V5a3 3 0 013-3h2a3 3 0 013 3v1h2a2 2 0 012 2v3.57A22.952 22.952 0 0110 13a22.95 22.95 0 01-8-1.43V8a2 2 0 012-2h2zm2-1a1 1 0 011-1h2a1 1 0 011 1v1H8V5zm1 5a1 1 0 011-1h.01a1 1 0 110 2H10a1 1 0 01-1-1z"
+                                                    clip-rule="evenodd"></path>
+                                            </svg>
+                                        </div>
+                                    </div>
+                                    <!-- Основное изображение будет загружено через JavaScript -->
+                                </div>
+                                <div>
+                                    <h3 class="text-lg font-medium text-black">{{ profession.name }}</h3>
+                                    <p class="text-gray-600 text-sm mt-1">{{ profession.description }}</p>
+                                </div>
                             </div>
                             <div class="flex items-center">
-                                <!-- Fixed match percentage consistency -->
                                 <span
                                     class="bg-gray-100 text-black text-sm font-medium px-3 py-1 rounded-lg mr-3 whitespace-nowrap">
                                     {{ profession.compatibility }}%
                                 </span>
                                 <a href="{{ url_for('career_profession_detail', profession_slug=profession.slug) }}"
-                                    class="text-black hover:text-gray-700 font-medium flex items-center whitespace-nowrap">
+                                    class="profession-link text-black hover:text-gray-700 font-medium flex items-center whitespace-nowrap hover:underline">
                                     Подробнее
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ml-1" fill="none"
                                         viewBox="0 0 24 24" stroke="currentColor">
@@ -138,11 +245,12 @@
                 </ul>
             </div>
 
-            <!-- Next Steps Card -->
-            <div class="bg-gray-50 rounded-xl p-8 border border-gray-200 shadow-inner">
+            <!-- Блок "Что дальше" -->
+            <div class="bg-gray-50 rounded-xl p-8 border border-gray-200 shadow-sm">
                 <div class="flex flex-col md:flex-row md:items-start">
                     <div class="flex-shrink-0 mb-4 md:mb-0 md:mr-6">
-                        <div class="bg-black text-white p-3 rounded-full w-14 h-14 flex items-center justify-center">
+                        <div
+                            class="bg-black text-white p-3 rounded-full w-14 h-14 flex items-center justify-center pulse-animate">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24"
                                 stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -158,8 +266,8 @@
                             Затем ты можешь подобрать университеты, которые предлагают образование в этих областях.
                         </p>
                         <div class="flex flex-col sm:flex-row gap-4">
-                            <a href="{{ url_for('university_recommendation') }}"
-                                class="inline-flex items-center px-5 py-3 bg-black text-white font-medium rounded-lg hover:bg-gray-900 transition-colors shadow-sm">
+                            <a href="{{ url_for('university_finder') }}?showModal=true&profession={{ recommendations[0].name|urlencode if recommendations and recommendations|length > 0 else '' }}"
+                                class="inline-flex items-center px-5 py-3 bg-black text-white font-medium rounded-lg hover:bg-gray-900 transition-colors shadow-sm hover:scale-105">
                                 Подобрать университеты
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 ml-2" fill="none"
                                     viewBox="0 0 24 24" stroke="currentColor">
@@ -167,9 +275,10 @@
                                         d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                                 </svg>
                             </a>
-                            <!-- Additional Retake Test Button at the bottom -->
+
+                            <!-- Дополнительная кнопка перепрохождения -->
                             <button id="retakeTestBtnBottom" type="button"
-                                class="inline-flex items-center justify-center px-5 py-3 border border-gray-300 font-medium rounded-lg hover:bg-gray-50 transition-colors">
+                                class="inline-flex items-center justify-center px-5 py-3 border border-gray-300 font-medium rounded-lg hover:bg-gray-50 transition-colors hover:scale-105">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none"
                                     viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -185,7 +294,7 @@
     </div>
 </div>
 
-<!-- Confirmation Modal for Retake Test Button -->
+<!-- Модальное окно для подтверждения перепрохождения теста -->
 <div id="retakeConfirmModal" class="fixed inset-0 z-50 flex items-center justify-center hidden">
     <div class="fixed inset-0 bg-black opacity-50" id="modalOverlay"></div>
     <div class="bg-white rounded-xl p-6 shadow-xl z-10 max-w-md mx-4 relative">
@@ -206,38 +315,159 @@
 </div>
 
 <script>
-    // Check if recommendations were generated from cache or newly created
-    const fromCache = {{ 'true' if from_cache else 'false' }};
-
-    if (fromCache) {
-        console.log("Career recommendations loaded from cache.");
-    } else {
-        console.log("New career recommendations were generated.");
-        console.log("Check server console for the full AI prompt that was sent.");
-    }
-
-    // Log the recommendations that were returned
-    console.log("Career recommendations:", {{ recommendations| tojson }});
-
-    // Set up retake test button functionality
     document.addEventListener('DOMContentLoaded', function () {
+        // Базовые изображения для профессий
+        const professionImages = {
+            // Изображения для конкретных типов профессий - первый элемент наиболее специфичный
+            "teacher": [
+                "https://images.unsplash.com/photo-1577896851231-70ef18881754?ixlib=rb-1.2.1&auto=format&fit=crop&w=600&q=80",
+                "https://images.unsplash.com/photo-1509062522246-3755977927d7?ixlib=rb-1.2.1&auto=format&fit=crop&w=600&q=80",
+                "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?ixlib=rb-1.2.1&auto=format&fit=crop&w=600&q=80"
+            ],
+            "social": [
+                "https://images.unsplash.com/photo-1553877522-43269d4ea984?ixlib=rb-1.2.1&auto=format&fit=crop&w=600&q=80",
+                "https://images.unsplash.com/photo-1574279606130-09958dc756f7?ixlib=rb-1.2.1&auto=format&fit=crop&w=600&q=80",
+                "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?ixlib=rb-1.2.1&auto=format&fit=crop&w=600&q=80"
+            ],
+            "general": [
+                "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?ixlib=rb-1.2.1&auto=format&fit=crop&w=600&q=80",
+                "https://images.unsplash.com/photo-1576091160550-2173dba999ef?ixlib=rb-1.2.1&auto=format&fit=crop&w=600&q=80",
+                "https://images.unsplash.com/photo-1581092921461-7a0e8d3028bd?ixlib=rb-1.2.1&auto=format&fit=crop&w=600&q=80",
+                "https://images.unsplash.com/photo-1587440871875-191322ee64b0?ixlib=rb-1.2.1&auto=format&fit=crop&w=600&q=80",
+                "https://images.unsplash.com/photo-1507679799987-c73779587ccf?ixlib=rb-1.2.1&auto=format&fit=crop&w=600&q=80"
+            ]
+        };
+
+        // Функция для определения категории профессии
+        function getProfessionCategory(professionName) {
+            professionName = professionName.toLowerCase();
+
+            if (professionName.includes('учитель') || professionName.includes('педагог') ||
+                professionName.includes('преподаватель') || professionName.includes('образован')) {
+                return "teacher";
+            }
+
+            if (professionName.includes('социальн') || professionName.includes('психолог') ||
+                professionName.includes('работ') || professionName.includes('помощ')) {
+                return "social";
+            }
+
+            return "general";
+        }
+
+        // Функция получения изображения для профессии
+        function getImageForProfession(professionName, index) {
+            const category = getProfessionCategory(professionName);
+            const categoryImages = professionImages[category];
+
+            // Если index меньше длины массива для данной категории, берем соответствующее изображение
+            // иначе берем случайное изображение из категории
+            if (index < categoryImages.length) {
+                return categoryImages[index];
+            } else {
+                const randomIndex = Math.floor(Math.random() * categoryImages.length);
+                return categoryImages[randomIndex];
+            }
+        }
+
+        // Счетчик попыток загрузки
+        let loadAttempts = {};
+
+        // Функция загрузки изображения с надежным fallback
+        function loadImageWithFallback(container, professionName, index, isMini = false) {
+            // Идентификатор для отслеживания попыток загрузки
+            const id = `${professionName}_${index}_${isMini ? 'mini' : 'large'}`;
+
+            // Если уже были попытки загрузки и они превысили лимит, сразу оставляем фолбек
+            if (loadAttempts[id] && loadAttempts[id] >= 2) {
+                console.log(`Слишком много попыток загрузки для ${id}, оставляем фолбек`);
+                return;
+            }
+
+            // Увеличиваем счетчик попыток
+            loadAttempts[id] = (loadAttempts[id] || 0) + 1;
+
+            // Получаем соответствующее изображение
+            const imageUrl = getImageForProfession(professionName, index);
+
+            // Создаем новый элемент img
+            const img = new Image();
+            img.src = imageUrl;
+            img.alt = professionName;
+            img.className = "w-full h-full object-cover";
+
+            // Устанавливаем позицию и z-index
+            img.style.position = "absolute";
+            img.style.top = "0";
+            img.style.left = "0";
+            img.style.zIndex = "5"; // Ниже чем у фолбека, чтобы он всегда был виден пока изображение не загрузится
+
+            // Добавляем обработчик успешной загрузки
+            img.onload = function () {
+                // Скрываем фолбек
+                const fallback = container.querySelector(isMini ? '.mini-fallback-image' : '.fallback-image');
+                if (fallback) {
+                    fallback.style.opacity = "0";
+                    setTimeout(() => {
+                        fallback.style.zIndex = "1"; // Помещаем фолбек под изображение
+                    }, 300);
+                }
+
+                // Устанавливаем z-index и добавляем анимацию появления
+                img.style.zIndex = "20";
+                img.classList.add('fade-in');
+            };
+
+            // Добавляем обработчик ошибки загрузки
+            img.onerror = function () {
+                console.log(`Ошибка загрузки изображения для ${professionName}, пробуем следующее...`);
+
+                // Если это была первая попытка, пробуем загрузить другое изображение
+                if (loadAttempts[id] <= 2) {
+                    // Случайное изображение из категории "general"
+                    const randomIndex = Math.floor(Math.random() * professionImages.general.length);
+                    img.src = professionImages.general[randomIndex];
+                } else {
+                    // Оставляем фолбек видимым
+                    console.log(`Не удалось загрузить изображение для ${professionName} после нескольких попыток`);
+                }
+            };
+
+            // Добавляем изображение в контейнер
+            container.appendChild(img);
+        }
+
+        // Загружаем все изображения для больших карточек профессий
+        document.querySelectorAll('.profession-image-container').forEach((container) => {
+            const index = parseInt(container.dataset.index);
+            const professionName = container.dataset.profession;
+            loadImageWithFallback(container, professionName, index, false);
+        });
+
+        // Загружаем все изображения для миниатюр
+        document.querySelectorAll('.mini-profession-image-container').forEach((container) => {
+            const index = parseInt(container.dataset.index);
+            const professionName = container.dataset.profession;
+            loadImageWithFallback(container, professionName, index, true);
+        });
+
+        // Настройка кнопок перепрохождения теста
         const retakeTestBtn = document.getElementById('retakeTestBtn');
         const retakeTestBtnBottom = document.getElementById('retakeTestBtnBottom');
         const retakeConfirmModal = document.getElementById('retakeConfirmModal');
         const modalOverlay = document.getElementById('modalOverlay');
         const cancelRetakeBtn = document.getElementById('cancelRetake');
 
-        // Function to show the modal
+        // Функция для показа модального окна
         function showRetakeModal() {
             retakeConfirmModal.classList.remove('hidden');
-            // Use a small timeout to ensure the transition works
             setTimeout(() => {
                 retakeConfirmModal.style.opacity = '1';
                 retakeConfirmModal.style.transform = 'scale(1)';
             }, 10);
         }
 
-        // Function to hide the modal
+        // Функция для скрытия модального окна
         function hideRetakeModal() {
             retakeConfirmModal.style.opacity = '0';
             retakeConfirmModal.style.transform = 'scale(0.95)';
@@ -246,20 +476,337 @@
             }, 200);
         }
 
-        // Event listeners
-        retakeTestBtn.addEventListener('click', showRetakeModal);
-        retakeTestBtnBottom.addEventListener('click', showRetakeModal);
-        modalOverlay.addEventListener('click', hideRetakeModal);
-        cancelRetakeBtn.addEventListener('click', hideRetakeModal);
+        // Настройка обработчиков событий
+        if (retakeTestBtn) retakeTestBtn.addEventListener('click', showRetakeModal);
+        if (retakeTestBtnBottom) retakeTestBtnBottom.addEventListener('click', showRetakeModal);
+        if (modalOverlay) modalOverlay.addEventListener('click', hideRetakeModal);
+        if (cancelRetakeBtn) cancelRetakeBtn.addEventListener('click', hideRetakeModal);
+
+        // Загрузочный индикатор для ссылок на профессии
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const loadingProgressBar = document.getElementById('loadingProgressBar');
+        const loadingPercentage = document.getElementById('loadingPercentage');
+        const loadingStage = document.getElementById('loadingStage');
+        const estimatedTimeElement = document.getElementById('estimatedTime');
+        const loadingMessage = document.getElementById('loadingMessage');
+
+        // Фразы для состояний загрузки
+        const loadingStages = [
+            'Инициализация данных...',
+            'Подключение к серверу...',
+            'Анализ требований к образованию...',
+            'Сбор информации о зарплатах...',
+            'Анализ перспектив трудоустройства...',
+            'Оценка необходимых навыков...',
+            'Поиск смежных профессий...',
+            'Финальная обработка данных...'
+        ];
+
+        // Забавные сообщения для медленной загрузки
+        const slowConnectionMessages = [
+            'Данные поступают медленнее, чем обычно...',
+            'Информация о профессии собирается из разных источников...',
+            'Компьютер думает... пожалуйста, подождите...',
+            'Почти готово, осталось совсем чуть-чуть...'
+        ];
+
+        // Обработка ссылок на страницы профессий
+        // Обработка ссылок на страницы профессий
+        // Обработка ссылок на страницы профессий
+        const professionLinks = document.querySelectorAll('.profession-link');
+
+        professionLinks.forEach(link => {
+            link.addEventListener('click', function (event) {
+                // Сохраняем URL для последующего перенаправления
+                const targetUrl = this.href;
+
+                // Предотвращаем стандартный переход по ссылке
+                event.preventDefault();
+
+                // Показываем загрузку
+                loadingOverlay.style.display = 'flex';
+                setTimeout(() => {
+                    loadingOverlay.style.opacity = '1';
+                }, 10);
+
+                // Фиксированное время загрузки для надежности
+                const totalDuration = 3500;
+                estimatedTimeElement.textContent = (totalDuration / 1000).toFixed(1) + ' сек';
+
+                // Запускаем надежную анимацию загрузки
+                simpleLoadingAnimation(targetUrl, totalDuration);
+            });
+        });
+
+        // Простая и надежная функция анимации загрузки
+        function simpleLoadingAnimation(targetUrl, duration) {
+            // Установка начального состояния
+            loadingProgressBar.style.width = '0%';
+            loadingPercentage.textContent = '0%';
+            loadingStage.textContent = loadingStages[0];
+
+            // Переменная для отслеживания, был ли уже редирект
+            let hasRedirected = false;
+
+            // Функция для безопасного перенаправления
+            function safeRedirect() {
+                if (!hasRedirected) {
+                    hasRedirected = true;
+                    window.location.href = targetUrl;
+                }
+            }
+
+            // Создаем точки прогресса с заранее определенными значениями
+            const progressPoints = [
+                { progress: 15, time: duration * 0.15, stage: 0 },
+                { progress: 30, time: duration * 0.30, stage: 1 },
+                { progress: 45, time: duration * 0.45, stage: 2 },
+                { progress: 60, time: duration * 0.60, stage: 3 },
+                { progress: 75, time: duration * 0.75, stage: 4 },
+                { progress: 85, time: duration * 0.85, stage: 5 },
+                { progress: 95, time: duration * 0.95, stage: 6 },
+                { progress: 100, time: duration, stage: 7 }
+            ];
+
+            // Установка таймаутов для каждой точки прогресса
+            progressPoints.forEach(point => {
+                setTimeout(() => {
+                    // Обновляем прогресс-бар
+                    loadingProgressBar.style.width = `${point.progress}%`;
+                    loadingPercentage.textContent = `${point.progress}%`;
+
+                    // Обновляем текст этапа загрузки
+                    if (point.stage < loadingStages.length) {
+                        loadingStage.textContent = loadingStages[point.stage];
+                    }
+
+                    // Если достигли 100%, подготавливаем редирект
+                    if (point.progress === 100) {
+                        loadingStage.textContent = 'Готово!';
+                        loadingMessage.textContent = 'Загрузка завершена!';
+
+                        // Небольшая задержка перед редиректом
+                        setTimeout(safeRedirect, 300);
+                    }
+                }, point.time);
+            });
+
+            // Дополнительная защита: гарантированный редирект через максимальное время + запас
+            setTimeout(safeRedirect, duration + 1000);
+
+            // Возможность пропустить анимацию при клике на оверлей
+            loadingOverlay.addEventListener('click', function () {
+                // Показываем, что анимация пропускается
+                loadingMessage.textContent = 'Переход на страницу...';
+                loadingProgressBar.style.width = '100%';
+                loadingPercentage.textContent = '100%';
+
+                // Перенаправляем пользователя после небольшой задержки
+                setTimeout(safeRedirect, 100);
+            }, { once: true }); // Обработчик сработает только один раз
+        }
+        // Функция для анимации загрузки
+        function runLoadingAnimation(targetUrl, totalDuration) {
+            let progress = 0;
+            let currentStageIndex = 0;
+            const startTime = performance.now();
+
+            // Убираем случайные паузы, которые могли вызывать проблему
+            const loadingInterval = setInterval(() => {
+                // Расчет текущего прогресса (более надежный)
+                const elapsedTime = performance.now() - startTime;
+                progress = Math.min(99, (elapsedTime / totalDuration) * 100);
+
+                // Обновляем индикатор прогресса
+                loadingProgressBar.style.width = `${progress}%`;
+                loadingPercentage.textContent = `${Math.round(progress)}%`;
+
+                // Обновляем этап загрузки периодически
+                if (progress > (currentStageIndex + 1) * (90 / loadingStages.length)) {
+                    currentStageIndex = Math.min(currentStageIndex + 1, loadingStages.length - 1);
+                    loadingStage.textContent = loadingStages[currentStageIndex];
+                }
+
+                // Когда загрузка почти завершена
+                if (progress >= 99) {
+                    // Очищаем интервал
+                    clearInterval(loadingInterval);
+
+                    // Устанавливаем 100% прогресс
+                    loadingProgressBar.style.width = '100%';
+                    loadingPercentage.textContent = '100%';
+                    loadingStage.textContent = 'Готово!';
+                    loadingMessage.textContent = 'Загрузка завершена!';
+
+                    // Переходим на целевую страницу
+                    setTimeout(() => {
+                        window.location.href = targetUrl;
+                    }, 300);
+                }
+            }, 50);
+
+            // Гарантированный переход на страницу через максимальное время (для предотвращения зависания)
+            setTimeout(() => {
+                clearInterval(loadingInterval);
+                window.location.href = targetUrl;
+            }, totalDuration + 1000); // Добавляем 1 секунду для гарантии
+        }
+        // Анимация при прокрутке
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('animate-visible');
+                    observer.unobserve(entry.target);
+                }
+            });
+        }, { threshold: 0.1 });
+
+        document.querySelectorAll('.profession-card, h2, .bg-gray-50').forEach(el => {
+            observer.observe(el);
+            el.classList.add('animate-on-scroll');
+        });
+
+        // Добавление пульсирующих анимаций к элементам орбиты загрузки
+        const orbitElements = document.querySelectorAll('.orbit-dot');
+        orbitElements.forEach((element, index) => {
+            // Добавляем случайную задержку для более естественного вида
+            const delay = index * 0.2;
+            element.style.animationDelay = `${delay}s`;
+        });
     });
+
+
+
 </script>
 
 <style>
-    /* Modal animation styles */
+    /* Стили для карточек с фиксированной высотой */
+    .profession-card {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+    }
+
+    .profession-card>div:last-child {
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .profession-card p.text-gray-600 {
+        flex-grow: 1;
+    }
+
+    /* Стили для контейнеров изображений */
+    .profession-image-container,
+    .mini-profession-image-container {
+        overflow: hidden;
+        position: relative;
+    }
+
+    /* Стили для фолбеков */
+    .fallback-image,
+    .mini-fallback-image {
+        transition: opacity 0.3s ease, z-index 0s 0.3s;
+    }
+
+    /* Анимация появления изображений */
+    .fade-in {
+        animation: fadeIn 0.5s ease-in-out;
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+        }
+
+        to {
+            opacity: 1;
+        }
+    }
+
+    /* Анимация пульсации */
+    .pulse-animate {
+        animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+        0% {
+            box-shadow: 0 0 0 0 rgba(0, 0, 0, 0.2);
+        }
+
+        70% {
+            box-shadow: 0 0 0 10px rgba(0, 0, 0, 0);
+        }
+
+        100% {
+            box-shadow: 0 0 0 0 rgba(0, 0, 0, 0);
+        }
+    }
+
+    /* Модальное окно */
     #retakeConfirmModal {
         opacity: 0;
         transform: scale(0.95);
         transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+
+    /* Анимация при прокрутке */
+    .animate-on-scroll {
+        opacity: 0;
+        transform: translateY(20px);
+        transition: opacity 0.5s ease, transform 0.5s ease;
+    }
+
+    .animate-visible {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    /* Поддержка устаревших браузеров */
+    @media (prefers-reduced-motion: reduce) {
+        .animate-on-scroll {
+            opacity: 1;
+            transform: translateY(0);
+            transition: none;
+        }
+    }
+
+    /* Анимация полосы загрузки */
+    #loadingProgressBar {
+        position: relative;
+        overflow: hidden;
+    }
+
+    #loadingProgressBar::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 100px;
+        height: 100%;
+        background: linear-gradient(90deg,
+                rgba(0, 0, 0, 0) 0%,
+                rgba(255, 255, 255, 0.3) 50%,
+                rgba(0, 0, 0, 0) 100%);
+        animation: shimmer 2s infinite;
+    }
+
+    @keyframes shimmer {
+        from {
+            transform: translateX(-100%);
+        }
+
+        to {
+            transform: translateX(100%);
+        }
+    }
+
+    /* Hover-эффекты для кнопок */
+    a.hover\:scale-105:hover,
+    button.hover\:scale-105:hover {
+        transform: scale(1.05);
+        transition: transform 0.3s ease;
     }
 </style>
 {% endblock %}

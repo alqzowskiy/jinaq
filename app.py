@@ -3481,582 +3481,6 @@ def update_header():
 
 
 
-@app.route('/university-recommendation')
-@login_required
-def university_recommendation():
-    try:
-        user_id = session['user_id']
-        user_doc = db.collection('users').document(user_id).get()
-        
-        # Преобразуем DocumentSnapshot в словарь
-        user_data = user_doc.to_dict() or {}
-        
-        # Преобразуем все вложенные данные в базовые типы
-        academic_info = {}
-        if 'academic_info' in user_data:
-            academic_info = {
-                'gpa': user_data['academic_info'].get('gpa', ''),
-                'sat_score': user_data['academic_info'].get('sat_score', ''),
-                'toefl_score': user_data['academic_info'].get('toefl_score', ''),
-                'ielts_score': user_data['academic_info'].get('ielts_score', ''),
-                'languages': list(user_data['academic_info'].get('languages', [])),
-                'achievements': list(user_data['academic_info'].get('achievements', []))
-            }
-
-        skills = list(user_data.get('skills', []))
-        education = str(user_data.get('education', ''))
-        goals = str(user_data.get('goals', ''))
-        
-        # Получаем и преобразуем сертификаты
-        certificates_data = []
-        certs_query = db.collection('users').document(user_id).collection('certificates').stream()
-        
-        for cert_doc in certs_query:
-            cert_dict = cert_doc.to_dict()
-            # Преобразуем timestamp в строку, если он есть
-            if 'uploaded_at' in cert_dict:
-                cert_dict['uploaded_at'] = cert_dict['uploaded_at'].strftime('%Y-%m-%d %H:%M:%S') if isinstance(cert_dict['uploaded_at'], datetime.datetime) else str(cert_dict['uploaded_at'])
-            cert_dict['id'] = cert_doc.id
-            # Убеждаемся, что все значения сериализуемы
-            cert_dict = {
-                'id': cert_doc.id,
-                'title': cert_dict.get('title', ''),
-                'file_url': cert_dict.get('file_url', ''),
-                'uploaded_at': cert_dict.get('uploaded_at', '')
-            }
-            certificates_data.append(cert_dict)
-
-        # Подготавливаем безопасный для JSON объект с данными пользователя
-        safe_user_data = {
-            'username': user_data.get('username', ''),
-            'display_username': user_data.get('display_username', ''),
-            'email': user_data.get('email', ''),
-            'academic_info': academic_info,
-            'skills': skills,
-            'education': education,
-            'goals': goals
-        }
-
-        return render_template('university_recommendation.html',
-                             user_data=safe_user_data,
-                             academic_info=academic_info,
-                             skills=skills,
-                             education=education,
-                             goals=goals,
-                             certificates=certificates_data)
-                             
-    except Exception as e:
-        print(f"Error in university recommendation route: {e}")
-        # Логируем полную ошибку для отладки
-        import traceback
-        traceback.print_exc()
-        flash('Error loading profile data')
-        return redirect(url_for('profile'))
-
-
-
-@app.route('/get-university-recommendations', methods=['POST'])
-@login_required
-def get_university_recommendations():
-    user_id = session['user_id']
-    data = request.json
-    
-    # Ensure we received the required data
-    if not data or 'country' not in data:
-        return jsonify({'error': 'Country is required for recommendations'}), 400
-    
-    # Extract data from request
-    country = data.get('country')
-    
-    try:
-        # Get user data directly from database
-        user_doc = db.collection('users').document(user_id).get()
-        user_data = user_doc.to_dict() or {}
-        
-        # Get academic info
-        academic_info = user_data.get('academic_info', {})
-        if not isinstance(academic_info, dict):
-            academic_info = {}
-            
-        # Extract visible values from form (as seen in the screenshot)
-        gpa = data.get('academic', {}).get('gpa') or academic_info.get('gpa', '')
-        sat_score = data.get('academic', {}).get('satScore') or academic_info.get('sat_score', '')
-        toefl_score = data.get('academic', {}).get('toeflScore') or academic_info.get('toefl_score', '')
-        ielts_score = data.get('academic', {}).get('ieltsScore') or academic_info.get('ielts_score', '')
-        
-        # Make sure values are strings
-        gpa = str(gpa) if gpa else ''
-        sat_score = str(sat_score) if sat_score else ''
-        toefl_score = str(toefl_score) if toefl_score else ''
-        ielts_score = str(ielts_score) if ielts_score else ''
-        
-        # Get specialty and other profile data
-        specialty = data.get('profile', {}).get('specialty') or user_data.get('specialty', '')
-        education = data.get('profile', {}).get('education') or user_data.get('education', '')
-        goals = data.get('profile', {}).get('goals') or user_data.get('goals', '')
-        bio = user_data.get('bio', '')
-        
-        # Get skills
-        skills = data.get('profile', {}).get('skills') or user_data.get('skills', [])
-        if not isinstance(skills, list):
-            skills = []
-            
-        # Get certificates from database (more reliable than from request)
-        certificates = []
-        certs_query = db.collection('users').document(user_id).collection('certificates').stream()
-        for cert_doc in certs_query:
-            cert_data = cert_doc.to_dict()
-            certificates.append(cert_data)
-            
-        # Get certificate titles for analysis
-        certificate_titles = [cert.get('title', '') for cert in certificates]
-        
-        # Get languages
-        languages = []
-        if academic_info and 'languages' in academic_info:
-            for lang in academic_info.get('languages', []):
-                if isinstance(lang, dict) and 'name' in lang:
-                    languages.append(f"{lang['name']} ({lang.get('level', 'Conversational')})")
-                    
-        # Get achievements
-        achievements = []
-        if academic_info and 'achievements' in academic_info:
-            for achievement in academic_info.get('achievements', []):
-                if isinstance(achievement, dict) and 'title' in achievement:
-                    achievements.append(achievement['title'])
-                    
-        # Determine interests from certificates, specialty, and skills
-        interests = []
-        interest_mapping = {
-            'Computer Science': ['python', 'programming', 'code', 'software', 'developer', 'web', 'app', 'computer science', 'data science', 'algorithm'],
-            'Engineering': ['engineering', 'mechanical', 'electrical', 'civil', 'aerospace'],
-            'Business': ['business', 'management', 'finance', 'economics', 'marketing'],
-            'Medicine': ['medicine', 'medical', 'health', 'biology', 'doctor'],
-            'Arts': ['design', 'art', 'music', 'creative', 'media'],
-            'Law': ['law', 'legal', 'attorney', 'justice'],
-            'Education': ['teaching', 'education', 'pedagogy']
-        }
-        
-        # Check certificates, specialty and skills for keywords
-        all_text = ' '.join([' '.join(certificate_titles), specialty.lower(), ' '.join(skills), goals.lower()]).lower()
-        
-        for field, keywords in interest_mapping.items():
-            if any(keyword in all_text for keyword in keywords):
-                interests.append(field)
-                
-        # If no interests detected, add Computer Science if that's the specialty
-        if not interests and 'computer' in specialty.lower():
-            interests.append('Computer Science')
-            
-        # Still no interests? Use the specialty directly
-        if not interests and specialty:
-            interests.append(specialty)
-            
-        # Build complete profile for recommendations
-        profile = {
-            'gpa': gpa,
-            'sat_score': sat_score,
-            'toefl_score': toefl_score,
-            'ielts_score': ielts_score,
-            'skills': skills,
-            'education': education,
-            'goals': goals,
-            'bio': bio,
-            'interests': interests[:3],  # Top 3 interests
-            'languages': languages,
-            'achievements': achievements,
-            'certificates': certificate_titles,
-            'target_country': country
-        }
-        
-        # Create prompt for Gemini model
-        model = genai.GenerativeModel('gemini-1.5-pro-latest')
-        
-        prompt = f"""As a university admissions specialist with comprehensive knowledge of global higher education, provide DETAILED and SPECIFIC recommendations for 5 universities in {country} that perfectly match this student's profile:
-
-STUDENT PROFILE:
-- GPA: {profile['gpa'] or 'Not specified'}
-- SAT Score: {profile['sat_score'] or 'Not specified'}
-- TOEFL Score: {profile['toefl_score'] or 'Not specified'}
-- IELTS Score: {profile['ielts_score'] or 'Not specified'}
-- Skills: {', '.join(profile['skills']) if profile['skills'] else 'Not specified'}
-- Languages: {', '.join(profile['languages']) if profile['languages'] else 'Not specified'}
-- Achievements: {', '.join(profile['achievements']) if profile['achievements'] else 'Not specified'}
-- Certificates: {', '.join(profile['certificates']) if profile['certificates'] else 'Not specified'}
-- Areas of Interest: {', '.join(profile['interests']) if profile['interests'] else 'Not specified'}
-- Education Background: {profile['education'] or 'Not specified'}
-- Academic Goals: {profile['goals'] or 'Not specified'}
-
-IMPORTANT RULES - READ CAREFULLY:
-- NEVER say "similar to [other university]" or "as mentioned above" - each university must have 100% original content
-- NEVER write "check the university website" or "contact admissions" - provide the actual information
-- ALWAYS include EXACT figures for tuition, costs, deadlines, and requirements (specific numbers, not ranges)
-- PROVIDE unique, detailed information for EACH category - no skipping sections
-- ALL information must be specific to EACH university (do not copy/paste between recommendations)
-- Focus on providing ACTIONABLE details students can use immediately
-- Include EXACT program names, not just general fields of study
-- For rankings, provide SPECIFIC numbers (e.g., "ranked #25 globally, #12 for Computer Science")
-
-FORMAT FOR EACH UNIVERSITY:
-**University: [Name]**
-**Location:** [Exact city, region and country]
-**Relevant Programs:**
-* [List at least 4-5 specific degree programs with their exact names]
-* [Include specializations and unique features of each program]
-
-**Admission Requirements:**
-* GPA: [Exact minimum with scale, e.g., "3.5/4.0"]
-* TOEFL/IELTS: [Exact score requirements]
-* [Any additional requirements like portfolios, interviews, prerequisites]
-* [Application fees and processes]
-
-**Application Deadlines:**
-* [Exact calendar dates for each admission round]
-* [Scholarship application deadlines]
-* [Priority vs. regular deadlines]
-
-**Estimated Costs:**
-* Tuition: [Exact annual cost in local currency AND USD]
-* Housing: [Range of options with specific prices]
-* Living Expenses: [Detailed breakdown by category]
-* Financial Aid: [Available scholarships with award amounts]
-
-**Notable Strengths:**
-* [List 4-5 unique advantages specifically relevant to this student]
-* [Research facilities, special programs, internship opportunities]
-* [Industry connections and employment statistics]
-* [Student services and academic support]
-
-**QS World Ranking:** [Specific overall ranking AND subject-specific rankings]
-
-Remember: Each university recommendation MUST be COMPLETELY UNIQUE with SPECIFIC, DETAILED information in EVERY section. Your response will be used directly for university applications, so ensure all information is comprehensive, accurate, and immediately useful.
-"""
-        # Get recommendations
-        response = model.generate_content(prompt)
-        recommendations = response.text
-        
-        # Extract university names for images
-        universities = extract_universities(recommendations)
-        
-        # Calculate admission chances based on profile
-        admission_chances = calculate_admission_chances(universities, profile)
-        
-        # Reliable fallback for university images
-        images = {}
-        for university in universities:
-            # Get image using the direct Google API call
-            image_url = get_university_image(university, country)
-            if image_url:
-                images[university] = image_url
-            else:
-                # If the API call failed, use a generic image based on the university name
-                images[university] = f"https://ui-avatars.com/api/?name={university.replace(' ', '+')}&size=256&background=random"
-        
-        # Save recommendation to database
-        recommendation_data = {
-            'user_id': user_id,
-            'country': country,
-            'recommendations': recommendations,
-            'images': images,
-            'created_at': datetime.datetime.now(tz=datetime.timezone.utc),
-            'profile_snapshot': profile,
-            'admission_chances': admission_chances,
-            'universities': universities
-        }
-        
-        db.collection('university_recommendations').add(recommendation_data)
-        db.collection('university_recommendations').add(recommendation_data)
-        
-        # Update last recommendation in user profile
-        user_ref = db.collection('users').document(user_id)
-        user_ref.update({
-            'last_university_recommendation': {
-                'created_at': datetime.datetime.now(tz=datetime.timezone.utc),
-                'country': country,
-                'universities': universities
-            }
-        })
-        
-        return jsonify({
-            'recommendations': recommendations,
-            'images': images,
-            'admission_chances': admission_chances,
-            'universities': universities,
-            'profile_analyzed': {
-                'gpa': profile['gpa'],
-                'toefl': profile['toefl_score'],
-                'ielts': profile['ielts_score'],
-                'sat': profile['sat_score'],
-                'certificates_count': len(profile['certificates']),
-                'interests_identified': profile['interests'],
-                'skills_considered': len(profile['skills']),
-                'languages_considered': len(profile['languages']),
-                'achievements_considered': len(profile['achievements'])
-            }
-        })
-        
-    except Exception as e:
-        print(f"Error in university recommendation process: {e}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({'error': str(e)}), 500
-def calculate_admission_chances(universities, profile):
-    """Calculate realistic admission chances based on student profile and university selectivity"""
-    chances = {}
-    
-    # Get basic academic metrics
-    try:
-        gpa = float(profile.get('gpa', 0) or 0)
-        if gpa > 4.0:  # Adjust if using different scale
-            gpa = gpa / 10 * 4.0 if gpa <= 10 else 3.0
-    except (ValueError, TypeError):
-        gpa = 3.0
-    
-    try:
-        toefl = int(profile.get('toefl_score', 0) or 0)
-    except (ValueError, TypeError):
-        toefl = 90
-    
-    try:
-        ielts = float(profile.get('ielts_score', 0) or 0)
-    except (ValueError, TypeError):
-        ielts = 6.5
-        
-    try:
-        sat = int(profile.get('sat_score', 0) or 0)
-        if sat < 400 or sat > 1600:  # Old SAT format or invalid
-            sat = 1200
-    except (ValueError, TypeError):
-        sat = 1200
-    
-    # University selectivity tiers
-    university_tiers = {
-        # Ultra-selective (Tier 1)
-        'Harvard University': 95,
-        'Stanford University': 94,
-        'Massachusetts Institute of Technology': 95,
-        'California Institute of Technology': 94,
-        'Princeton University': 93,
-        'Yale University': 93,
-        'University of Oxford': 92,
-        'University of Cambridge': 92,
-        'Columbia University': 91,
-        'University of Chicago': 90,
-        
-        # Very selective (Tier 2)
-        'University of Toronto': 85,
-        'University of British Columbia': 84,
-        'McGill University': 83,
-        'University of California, Berkeley': 88,
-        'University of California, Los Angeles': 87,
-        'UCL': 86,
-        'University of Edinburgh': 85,
-        'University of Michigan': 84,
-        'Cornell University': 88,
-        'University of Pennsylvania': 89,
-        
-        # Selective (Tier 3)
-        'University of Washington': 80,
-        'University of Wisconsin-Madison': 79,
-        'Pennsylvania State University': 78,
-        'University of Minnesota': 78,
-        'Purdue University': 77,
-        'University of Manchester': 76,
-        'University of Amsterdam': 75,
-        'University of Melbourne': 78,
-        'University of Sydney': 77,
-        
-        # Moderately selective (Tier 4)
-        'Arizona State University': 70,
-        'Michigan State University': 71,
-        'University of Alberta': 71,
-        'Simon Fraser University': 70,
-        'University of Calgary': 69,
-        'University of Sheffield': 72,
-        'University of Leeds': 72,
-        'Monash University': 73
-    }
-    
-    # Calculate chances for each university
-    for university in universities:
-        # Base chances depend on university selectivity
-        difficulty = university_tiers.get(university, 75)  # Default level if unknown
-        
-        # Initial value with difficulty adjustment
-        base_chance = max(100 - difficulty, 25)
-        
-        # GPA adjustment (significant factor)
-        if gpa >= 3.9:
-            base_chance += 20
-        elif gpa >= 3.7:
-            base_chance += 15
-        elif gpa >= 3.5:
-            base_chance += 10
-        elif gpa >= 3.3:
-            base_chance += 5
-        elif gpa < 3.0:
-            base_chance -= 15
-        
-        # Language score adjustment
-        if toefl >= 110 or ielts >= 8.0:
-            base_chance += 10
-        elif toefl >= 100 or ielts >= 7.5:
-            base_chance += 7
-        elif toefl >= 90 or ielts >= 7.0:
-            base_chance += 5
-        elif toefl < 80 or ielts < 6.0:
-            base_chance -= 15
-            
-        # SAT adjustment
-        if sat >= 1550:
-            base_chance += 15
-        elif sat >= 1500:
-            base_chance += 10
-        elif sat >= 1450:
-            base_chance += 8
-        elif sat >= 1400:
-            base_chance += 5
-        elif sat < 1200:
-            base_chance -= 10
-        
-        # Other factors
-        skills_count = len(profile.get('skills', []))
-        base_chance += min(skills_count * 1.5, 7.5)  # Up to 7.5% bonus
-        
-        certificates_count = len(profile.get('certificates', []))
-        base_chance += min(certificates_count * 2, 10)  # Up to 10% bonus
-        
-        languages_count = len(profile.get('languages', []))
-        base_chance += min(languages_count * 2, 6)  # Up to 6% bonus
-        
-        # Add some variability (±5%)
-        import random
-        variability = random.uniform(-5, 5)
-        base_chance += variability
-        
-        # Ensure chances stay within realistic bounds
-        if difficulty >= 90:  # Top tier
-            max_chance = 80
-        elif difficulty >= 85:  # Very selective
-            max_chance = 85
-        elif difficulty >= 80:  # Selective
-            max_chance = 90
-        else:  # Less selective
-            max_chance = 95
-            
-        # Final chance calculation
-        final_chance = min(max(int(base_chance), 25), max_chance)
-        
-        chances[university] = final_chance
-    
-    return chances
-def use_fallback_image(university_name, country):
-    """Improved fallback mechanism for university images"""
-    # First try university-specific images
-    university_images = {
-        'Harvard University': 'https://images.unsplash.com/photo-1610816732435-69c37d5498d6',
-        'Stanford University': 'https://images.unsplash.com/photo-1455582916367-25f75bfc6710',
-        'MIT': 'https://images.unsplash.com/photo-1508231101580-eed9c8913fb4',
-        # Your existing university mappings...
-    }
-    
-    if university_name in university_images:
-        return university_images[university_name]
-    
-    # Next try country-specific images
-    country_images = {
-        'USA': 'https://images.unsplash.com/photo-1498243691581-b145c3f54a5a',
-        'UK': 'https://images.unsplash.com/photo-1607237138185-eedd9c632b0b',
-        # Your existing country mappings...
-    }
-    
-    if country in country_images:
-        return country_images[country]
-    
-    # Use deterministic fallback based on university name
-    generic_images = [
-        'https://images.unsplash.com/photo-1541339907198-e08756dedf3f',
-        'https://images.unsplash.com/photo-1607237138185-eedd9c632b0b',
-        'https://images.unsplash.com/photo-1598826867442-11c9a9221cfa',
-        'https://images.unsplash.com/photo-1523050854058-8df90110c9f1',
-        'https://images.unsplash.com/photo-1592280771190-3e2e4d571952',
-        'https://images.unsplash.com/photo-1544531585-9847b68c8c86',
-        'https://images.unsplash.com/photo-1519452575417-564c1401ecc0',
-        'https://images.unsplash.com/photo-1580332449505-682ff38a8b45'
-    ]
-    
-    # Use first character of university name to deterministically select an image
-    if university_name:
-        index = ord(university_name[0].lower()) % len(generic_images)
-        return generic_images[index]
-    
-    return generic_images[0]
-
-def cache_university_image(university_name, image_url):
-    """Cache university image URLs to reduce API calls"""
-    try:
-        # Get existing cache or create new one
-        cache_ref = db.collection('image_cache').document('universities')
-        cache_doc = cache_ref.get()
-        
-        if cache_doc.exists:
-            cache_data = cache_doc.to_dict()
-        else:
-            cache_data = {}
-        
-        # Update with new image
-        cache_data[university_name] = {
-            'url': image_url,
-            'timestamp': datetime.datetime.now(tz=datetime.timezone.utc)
-        }
-        
-        # Save cache
-        cache_ref.set(cache_data)
-    except Exception as e:
-        print(f"Error caching image: {e}")
-# Улучшенная функция для получения изображения университета
-def get_university_image(university_name, country):
-    """Get university image using specific Google Custom Search API URL"""
-    try:
-        # Format the university name for the query
-        formatted_name = ""
-        for char in university_name:
-            if char == ' ' or char == '+':
-                formatted_name += '+'
-            else:
-                formatted_name += char
-        
-        # Create the search query with additional terms for better results
-        search_query = f"{formatted_name}+university+campus"
-        
-        # Use the exact URL provided with hardcoded credentials
-        search_url = f"https://www.googleapis.com/customsearch/v1?key=AIzaSyDptyzxGJg-aR5IldozvISzjNgF2_TISJo&cx=e1cac863f07bf4f8b&q={search_query}&searchType=image"
-        
-        # Make the request
-        print(f"Searching for image: {university_name}")
-        response = requests.get(search_url)
-        
-        # Check if we got a valid response
-        if response.status_code != 200:
-            print(f"Error response from Google API: {response.status_code} - {response.text}")
-            return None
-        
-        # Parse the response JSON
-        image_data = response.json()
-        
-        # Check if we have image results
-        if 'items' in image_data and len(image_data['items']) > 0:
-            # Get the first image URL
-            image_url = image_data['items'][0]['link']
-            print(f"Found image for {university_name}: {image_url}")
-            return image_url
-        else:
-            print(f"No image results found for {university_name}")
-            return None
-            
-    except Exception as e:
-        print(f"Error getting image for {university_name}: {e}")
-        return None
 
 
 @app.route('/<username>/like', methods=['POST'])
@@ -6090,248 +5514,20 @@ def get_unread_notifications_count(user_id):
         return 0
 
 
-@app.route('/get-university-details', methods=['POST'])
-@login_required
-def get_university_details():
-    """Generate detailed information about a specific university using Gemini AI"""
-    try:
-        data = request.json
-        university_name = data.get('university')
-        country = data.get('country')
-        
-        if not university_name:
-            return jsonify({'error': 'University name is required'}), 400
-            
-        # Get user profile data for personalization
-        user_id = session['user_id']
-        user_doc = db.collection('users').document(user_id).get()
-        user_data = user_doc.to_dict() or {}
-        
-        # Extract profile information
-        specialty = data.get('profile', {}).get('specialty') or user_data.get('specialty', '')
-        goals = data.get('profile', {}).get('goals') or user_data.get('goals', '')
-        skills = data.get('profile', {}).get('skills') or user_data.get('skills', [])
-        
-        # Academic info
-        gpa = data.get('academic', {}).get('gpa') or user_data.get('academic_info', {}).get('gpa', '')
-        toefl_score = data.get('academic', {}).get('toeflScore') or user_data.get('academic_info', {}).get('toefl_score', '')
-        ielts_score = data.get('academic', {}).get('ieltsScore') or user_data.get('academic_info', {}).get('ielts_score', '')
-        
-        # Check if we have cached data for this university
-        cache_ref = db.collection('university_details_cache').document(f"{university_name}_{country}")
-        cache_doc = cache_ref.get()
-        
-        if cache_doc.exists:
-            # Check if cache is still valid (less than 7 days old)
-            cache_data = cache_doc.to_dict()
-            timestamp = cache_data.get('timestamp')
-            
-            if isinstance(timestamp, datetime.datetime):
-                age = datetime.datetime.now(tz=datetime.timezone.utc) - timestamp
-                if age.days < 7:
-                    print(f"Using cached details for {university_name}")
-                    return jsonify({
-                        'details': cache_data.get('details', {}),
-                        'from_cache': True
-                    })
-        
-        # Create prompt for the Gemini model - Note: Using double curly braces to escape them in f-string
-        model = genai.GenerativeModel('gemini-1.5-pro-latest')
-        
-        # Build prompt parts separately to avoid f-string formatting issues
-        prompt_intro = f"""Generate comprehensive, detailed information about {university_name} in {country} for a student considering applying there.
 
-STUDENT PROFILE:
-- Specialty/Interests: {specialty}
-- Academic Goals: {goals}
-- Skills: {", ".join(skills) if skills else "Various skills"}
-- GPA: {gpa or "Not specified"}
-- TOEFL Score: {toefl_score or "Not specified"}
-- IELTS Score: {ielts_score or "Not specified"}
-
-I need detailed university information organized into these specific categories:
-
-1. ADMISSIONS & SELECTIVITY
-Please provide 5-8 specific points focusing on:
-- Exact admissions rates and statistics
-- Detailed application requirements
-- Standardized test score ranges for accepted students
-- Average GPA requirements
-- Application deadlines
-- Special admissions programs
-- Tips for strengthening applications
-
-2. COSTS & FINANCIAL AID
-Please provide 5-8 specific points focusing on:
-- Exact tuition costs in local currency AND USD
-- Detailed breakdown of living expenses
-- Available scholarships and financial aid
-- Work-study opportunities
-- International student funding
-- Payment plans
-- Cost comparison to peer institutions
-
-3. NOTABLE ACADEMIC PROGRAMS
-Please provide 5-8 specific points focusing on:
-- Strongest departments and programs
-- Specialized degree offerings relevant to the student
-- Faculty highlights and notable professors
-- Research opportunities
-- Industry connections
-- Internship programs
-- Unique academic features
-
-4. CAMPUS LIFE & STUDENT EXPERIENCE
-Please provide 5-8 specific points focusing on:
-- Housing options and costs
-- Dining facilities
-- Student organizations
-- Sports and recreation
-- Campus size and facilities
-- Transportation
-- International student support services
-
-5. CAREER OUTCOMES & JOB PLACEMENT
-Please provide 5-8 specific points focusing on:
-- Employment rates after graduation
-- Top employers
-- Average starting salaries
-- Career services offered
-- Alumni network strength
-- Industry connections
-- Internship placement rates
-
-6. WHY THIS UNIVERSITY IS FOR YOU
-Please provide 3-6 personalized points explaining why this university would be a good fit for this specific student based on their profile.
-
-IMPORTANT REQUIREMENTS:
-- All information must be SPECIFIC and DETAILED (exact numbers, names, dates)
-- Each section should contain 5-8 bullet points (except the personalized section which needs 3-6)
-- Information should be accurate and current
-- No general statements - every point should provide unique, actionable information
-- Format all responses as structured JSON with these exact keys: "admissions", "costs", "programs", "campusLife", "careers", "personalized"
-- Each key should contain an array of strings (the bullet points)
-- DO NOT include any text outside of the JSON structure
-"""
-
-        # Add example format separately (not as part of f-string)
-        example_format = """
-Example response format:
-{
-  "admissions": [
-    "Specific admission point 1",
-    "Specific admission point 2"
-  ],
-  "costs": [
-    "Specific cost point 1",
-    "Specific cost point 2"
-  ],
-  "programs": ["Program point 1", "Program point 2"],
-  "campusLife": ["Campus life point 1", "Campus life point 2"],
-  "careers": ["Career point 1", "Career point 2"],
-  "personalized": ["Personalized point 1", "Personalized point 2"]
-}
-"""
-
-        # Combine prompt parts
-        full_prompt = prompt_intro + example_format
-
-        # Get response from Gemini
-        response = model.generate_content(full_prompt)
-        result_text = response.text
-        
-        # Parse JSON from response
-        try:
-            # Find JSON in response (in case there's any extra text)
-            import re
-            json_match = re.search(r'(\{[\s\S]*\})', result_text)
-            if json_match:
-                json_str = json_match.group(1)
-                details = json.loads(json_str)
-            else:
-                details = json.loads(result_text)
-                
-            # Ensure all required keys exist
-            required_keys = ["admissions", "costs", "programs", "campusLife", "careers", "personalized"]
-            for key in required_keys:
-                if key not in details:
-                    details[key] = [f"Information about {key.replace('C', ' c').lower()} is not available"]
-            
-            # Cache the results
-            cache_data = {
-                'details': details,
-                'timestamp': datetime.datetime.now(tz=datetime.timezone.utc),
-                'university': university_name,
-                'country': country
-            }
-            cache_ref.set(cache_data)
-            
-            return jsonify({
-                'details': details,
-                'from_cache': False
-            })
-            
-        except json.JSONDecodeError as e:
-            print(f"Error parsing JSON from Gemini response: {e}")
-            print(f"Raw response: {result_text}")
-            
-            # Create a fallback response with basic information
-            fallback_details = {
-                "admissions": [
-                    f"The admission process at {university_name} typically requires standardized test scores and academic transcripts.",
-                    "Most universities require a personal statement or essay.",
-                    "International students may need to demonstrate language proficiency.",
-                    "Contact the admissions office directly for the most current requirements.",
-                    "Application deadlines vary by program and semester."
-                ],
-                "costs": [
-                    f"Tuition costs at {university_name} vary by program and residency status.",
-                    "International students typically pay higher tuition rates than domestic students.",
-                    "Many universities offer scholarships specifically for international students.",
-                    "Consider additional costs such as housing, meals, books, and insurance.",
-                    "Financial aid options may be available."
-                ],
-                "programs": [
-                    f"{university_name} offers a variety of undergraduate and graduate programs.",
-                    "Research the specific department you're interested in for more details.",
-                    "Consider faculty expertise and research opportunities in your field.",
-                    "Some programs may have additional application requirements.",
-                    "Check the university website for a complete list of offered programs."
-                ],
-                "campusLife": [
-                    "Most universities offer on-campus housing options for students.",
-                    "Student organizations provide opportunities to connect with peers.",
-                    "Many campuses have dedicated resources for international students.",
-                    "Consider the surrounding community and available amenities.",
-                    "Campus tours (virtual or in-person) can give you a better sense of the environment."
-                ],
-                "careers": [
-                    "University career centers can help with job placement and internship opportunities.",
-                    "Research the alumni network in your field of interest.",
-                    "Consider post-graduation work visa options in your destination country.",
-                    "Internship opportunities during study can improve job prospects.",
-                    "Some programs include practical training or work experience components."
-                ],
-                "personalized": [
-                    f"Based on your interest in {specialty}, {university_name} might be a good fit.",
-                    "Consider how the university's strengths align with your academic goals.",
-                    "Research specific professors or research groups in your area of interest.",
-                    "Connect with current international students to learn about their experience."
-                ]
-            }
-            
-            return jsonify({
-                'details': fallback_details,
-                'from_cache': False,
-                'fallback': True
-            })
-            
-    except Exception as e:
-        print(f"Error getting university details: {e}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({'error': str(e)}), 500
-
+# Вспомогательная функция для создания слагов
+def slugify(text):
+    """Преобразует текст в URL-дружественный формат (слаг)"""
+    import re
+    import unicodedata
+    
+    # Преобразуем в нижний регистр и заменяем пробелы дефисами
+    text = text.lower().strip()
+    text = re.sub(r'[^\w\s-]', '', text)
+    text = re.sub(r'[\s_-]+', '-', text)
+    text = re.sub(r'^-+|-+$', '', text)
+    
+    return text
 
 
 
@@ -8034,7 +7230,7 @@ def career_test_results():
     user_id = session['user_id']
     
     try:
-        # Get test answers
+        # Get test progress
         test_progress_ref = db.collection('users').document(user_id).collection('test_progress').document('career_test')
         test_progress = test_progress_ref.get()
         
@@ -8051,14 +7247,17 @@ def career_test_results():
             next_stage = min([i for i in range(1, 3) if i not in completed_stages])
             return redirect(url_for('career_test_stage', stage=next_stage))
         
-        # Get the answers and generate fresh recommendations
-        answers = progress_data.get('answers', {})
-        recommendations = analyze_career_test_results(answers)
+        # Check if recommendations already exist - KEY FIX
+        from_cache = False
+        recommendations = progress_data.get('recommendations', [])
         
-        # Update the user's progress data with these new recommendations
-        test_progress_ref.update({
-            'recommendations': recommendations
-        })
+        # If no recommendations exist or they're empty, redirect to analyzing page
+        if not recommendations:
+            return redirect(url_for('career_test_analyzing'))
+        else:
+            # Using existing recommendations from database
+            from_cache = True
+            print(f"Using cached recommendations for user {user_id}")
         
         # Render the results template with recommendations
         return render_template(
@@ -8067,8 +7266,8 @@ def career_test_results():
             user_data=progress_data,
             current_user_avatar=get_current_user_avatar(),
             current_username=get_current_username(),
-            from_cache=False,  # Always show that results are fresh
-            total_stages=2  # Updated to 2 stages
+            from_cache=from_cache,
+            total_stages=2
         )
         
     except Exception as e:
@@ -8388,7 +7587,884 @@ def analyze_career_test_results(answers):
             }
         ]
 
+@app.route('/university-finder')
+@login_required
+def university_finder():
+    user_id = session['user_id']
+    
+    try:
+        # Получаем данные пользователя
+        user_doc = db.collection('users').document(user_id).get()
+        user_data = user_doc.to_dict() or {}
+        
+        # Получаем академическую информацию
+        academic_info = user_data.get('academic_info', {})
+        
+        # Получаем сертификаты
+        certificates = []
+        certs_query = db.collection('users').document(user_id).collection('certificates').stream()
+        for cert_doc in certs_query:
+            cert_data = cert_doc.to_dict()
+            cert_data['id'] = cert_doc.id
+            certificates.append(cert_data)
+        
+        # Получаем историю рекомендаций
+        recommendations_history = []
+        recommendations_query = db.collection('university_recommendations').where('user_id', '==', user_id).order_by('created_at', direction=firestore.Query.DESCENDING).limit(5).stream()
+        
+        for rec_doc in recommendations_query:
+            rec_data = rec_doc.to_dict()
+            recommendations_history.append({
+                'id': rec_doc.id,
+                'country': rec_data.get('country', 'Неизвестно'),
+                'created_at': rec_data.get('created_at'),
+                'universities': list(rec_data.get('images', {}).keys())[:3]  # Только первые 3 университета
+            })
+        
+        return render_template(
+            'university_finder.html',
+            user_data=user_data,
+            academic_info=academic_info,
+            certificates=certificates,
+            recommendations_history=recommendations_history,
+            current_user_avatar=get_current_user_avatar(),
+            current_username=get_current_username()
+        )
+        
+    except Exception as e:
+        print(f"Ошибка на странице подбора университетов: {e}")
+        import traceback
+        traceback.print_exc()
+        flash('Произошла ошибка при загрузке страницы')
+        return redirect(url_for('profile'))
 
+
+def generate_university_recommendations(profile, country):
+    """Генерировать рекомендации университетов с использованием русскоязычного промпта"""
+    model = genai.GenerativeModel('gemini-1.5-pro-latest')
+    
+    # Упаковываем данные профиля для промпта
+    gpa = profile.get('academic', {}).get('gpa', 'Не указан')
+    sat_score = profile.get('academic', {}).get('sat_score', 'Не указан')
+    toefl_score = profile.get('academic', {}).get('toefl_score', 'Не указан') 
+    ielts_score = profile.get('academic', {}).get('ielts_score', 'Не указан')
+    skills = ", ".join(profile.get('skills', []))
+    languages = [f"{lang.get('name')} ({lang.get('level')})" for lang in profile.get('academic_info', {}).get('languages', [])]
+    achievements = [a.get('title') for a in profile.get('academic_info', {}).get('achievements', [])]
+    specialty = profile.get('specialty', 'Не указана')
+    goals = profile.get('goals', 'Не указаны')
+    
+    # Подготовка промпта на русском языке
+    prompt = f"""Как эксперт по международному образованию со специализацией на университетах {country}, предоставь подробные рекомендации по 5 лучшим университетам, которые идеально подходят для этого студента.
+
+ПРОФИЛЬ СТУДЕНТА:
+- GPA: {gpa} 
+- Балл SAT: {sat_score}
+- Балл TOEFL: {toefl_score}
+- Балл IELTS: {ielts_score}
+- Навыки: {skills or "Разнообразные навыки"}
+- Языки: {", ".join(languages) if languages else "Не указаны"}
+- Достижения: {", ".join(achievements) if achievements else "Не указаны"}
+- Специализация: {specialty}
+- Академические цели: {goals}
+
+ВАЖНЫЕ ПРАВИЛА - ВНИМАТЕЛЬНО ПРОЧИТАЙ:
+- НИКОГДА не пиши "похож на [другой университет]" или "как упомянуто выше" - каждый университет должен иметь 100% оригинальный контент
+- НИКОГДА не пиши "посетите сайт университета" или "свяжитесь с приемной комиссией" - предоставь фактическую информацию
+- ВСЕГДА указывай ТОЧНЫЕ цифры для стоимости обучения, расходов, сроков и требований (конкретные числа, а не диапазоны)
+- ПРЕДОСТАВЛЯЙ уникальную, детальную информацию для КАЖДОЙ категории - без пропусков разделов
+- ВСЯ информация должна быть специфичной для КАЖДОГО университета (не копируй/вставляй между рекомендациями)
+- Фокусируйся на предоставлении ДЕЙСТВЕННЫХ деталей, которые студенты могут использовать немедленно
+- Включай ТОЧНЫЕ названия программ, а не просто общие области обучения
+- Для рейтингов предоставляй КОНКРЕТНЫЕ цифры (например, "занимает #25 место в мире, #12 по информатике")
+
+ФОРМАТ ДЛЯ КАЖДОГО УНИВЕРСИТЕТА:
+**University: [Название]**
+**Location:** [Точный город, регион и страна]
+**Relevant Programs:**
+* [Список минимум 4-5 конкретных программ обучения с их точными названиями]
+* [Включи специализации и уникальные особенности каждой программы]
+
+**Admission Requirements:**
+* GPA: [Точный минимум со шкалой, например, "3.5/4.0"]
+* TOEFL/IELTS: [Точные требования по баллам]
+* [Любые дополнительные требования, такие как портфолио, интервью, предварительные условия]
+* [Сборы за подачу заявления и процессы]
+
+**Application Deadlines:**
+* [Точные календарные даты для каждого тура приема]
+* [Сроки подачи заявок на стипендии]
+* [Приоритетные и обычные сроки]
+
+**Estimated Costs:**
+* Обучение: [Точная годовая стоимость в местной валюте И долларах США]
+* Проживание: [Диапазон вариантов с конкретными ценами]
+* Расходы на жизнь: [Детальная разбивка по категориям]
+* Финансовая помощь: [Доступные стипендии с суммами]
+
+**Notable Strengths:**
+* [Список 4-5 уникальных преимуществ, особенно актуальных для этого студента]
+* [Исследовательские учреждения, специальные программы, возможности стажировки]
+* [Связи с индустрией и статистика трудоустройства]
+* [Услуги для студентов и академическая поддержка]
+
+**QS World Ranking:** [Конкретный общий рейтинг И рейтинги по предметам]
+
+Помни: каждая рекомендация университета ДОЛЖНА быть ПОЛНОСТЬЮ УНИКАЛЬНОЙ с КОНКРЕТНОЙ, ДЕТАЛЬНОЙ информацией в КАЖДОМ разделе. Твой ответ будет использоваться непосредственно для заявлений в университеты, поэтому убедись, что вся информация исчерпывающая, точная и немедленно полезная.
+пиши информацию на русском
+"""
+
+    # Получаем ответ от модели
+    response = model.generate_content(prompt)
+    return response.text
+
+
+@app.route('/get-university-details', methods=['POST'])
+@login_required
+def get_university_details():
+    """API эндпоинт для получения подробной информации об университете"""
+    user_id = session['user_id']
+    data = request.json
+    
+    try:
+        # Проверяем наличие обязательных данных
+        if not data or 'university' not in data:
+            return jsonify({'error': 'Необходимо указать название университета'}), 400
+            
+        university_name = data.get('university')
+        country = data.get('country', 'Не указано')
+        
+        # Проверяем, есть ли кэшированные данные для этого университета
+        university_slug = slugify(university_name)
+        cache_ref = db.collection('university_details').document(f"{university_slug}_{slugify(country)}")
+        cache_doc = cache_ref.get()
+        
+        if cache_doc.exists:
+            # Проверяем, не устарели ли данные (старше 30 дней)
+            cache_data = cache_doc.to_dict()
+            timestamp = cache_data.get('timestamp')
+            
+            if isinstance(timestamp, datetime.datetime):
+                age = datetime.datetime.now(tz=datetime.timezone.utc) - timestamp
+                if age.days < 30:
+                    print(f"Используем кэшированные данные для университета {university_name}")
+                    return jsonify({
+                        'details': cache_data.get('details', {}),
+                        'from_cache': True
+                    })
+        
+        # Инициализируем модель Gemini
+        model = genai.GenerativeModel('gemini-1.5-pro-latest')
+        
+        # Создаем промпт для получения подробной информации
+        prompt = f"""Как эксперт по высшему образованию в {country}, создай подробное и точное описание университета "{university_name}" специально для российских и казахстанских студентов.
+
+Включи следующую информацию:
+1. Общий обзор университета (основные функции, обязанности, роль в образовательной системе)
+2. Необходимое образование и квалификации (конкретные требования, специальности)
+3. Точный диапазон стоимости обучения в стране (в местной валюте) и глобально (в долларах США)
+4. Конкретные перспективы для поступления с учетом текущих тенденций
+5. Подробный список ключевых академических навыков и личностных качеств для поступления
+6. Типичные учебные задачи, условия и среда обучения
+7. Четкие пути развития с указанием конкретных специализаций
+8. Смежные направления обучения и возможности смены специализации
+9. Список ведущих работодателей для выпускников данного университета
+
+Формат ответа - объект JSON со следующими ключами:
+{{
+  "name": "Название университета",
+  "overview": "Подробный обзор...",
+  "education": ["Пункт об образовании 1", "Пункт 2", ...],
+  "salary": {{
+    "kz": {{
+      "range": "X,XXX,XXX - X,XXX,XXX тенге в год",
+      "average": "X,XXX,XXX тенге в год"
+    }},
+    "global": {{
+      "range": "$XX,XXX - $XXX,XXX в год",
+      "average": "$XX,XXX в год"
+    }}
+  }},
+  "job_outlook": "Подробные перспективы обучения...",
+  "skills": ["Навык 1", "Навык 2", ...],
+  "personality": ["Качество 1", "Качество 2", ...],
+  "daily_work": ["Задача 1", "Задача 2", ...],
+  "advancement": ["Путь 1", "Путь 2", ...],
+  "related_professions": ["Родственная специальность 1", "Родственная специальность 2", ...],
+  "top_employers": ["Работодатель 1", "Работодатель 2", ...]
+}}
+
+КРИТИЧЕСКИ ВАЖНО:
+- Вся информация ДОЛЖНА быть конкретной, актуальной и основываться на реальных данных об университете
+- Информация о стоимости должна отражать реальную ситуацию на 2023-2024 годы
+- Образовательные требования должны соответствовать реальным требованиям университета
+- Перечень работодателей должен включать реальные компании
+- ВСЯ ИНФОРМАЦИЯ ДОЛЖНА БЫТЬ ИСКЛЮЧИТЕЛЬНО НА РУССКОМ ЯЗЫКЕ
+- Ответ должен содержать ТОЛЬКО JSON-объект без дополнительного текста
+"""
+
+        # Получаем данные от Gemini
+        response = model.generate_content(prompt)
+        result_text = response.text
+        
+        # Пытаемся извлечь JSON из ответа
+        try:
+            import re
+            json_match = re.search(r'(\{[\s\S]*\})', result_text)
+            if json_match:
+                json_str = json_match.group(1)
+                university_data = json.loads(json_str)
+            else:
+                university_data = json.loads(result_text)
+                
+            # Добавляем метаданные
+            university_data['generated_at'] = datetime.datetime.now(tz=datetime.timezone.utc).isoformat()
+            university_data['slug'] = university_slug
+            
+            # Сохраняем в кэш
+            cache_data = {
+                'details': university_data,
+                'timestamp': datetime.datetime.now(tz=datetime.timezone.utc),
+                'university': university_name,
+                'country': country
+            }
+            cache_ref.set(cache_data)
+            
+            return jsonify({
+                'details': university_data,
+                'from_cache': False
+            })
+            
+        except json.JSONDecodeError:
+            # Создаем запасные данные на русском, если парсинг не удался
+            print(f"Ошибка парсинга JSON для университета {university_name}")
+            fallback_data = {
+                "name": university_name,
+                "overview": f"Университет {university_name} - это учебное заведение, которое предлагает различные программы обучения. Для получения более подробной информации рекомендуется посетить официальный сайт университета или связаться с приемной комиссией.",
+                "education": [
+                    "Для поступления требуется аттестат о среднем образовании", 
+                    "Необходимо сдать вступительные экзамены или предоставить результаты международных тестов",
+                    "Для иностранных студентов может потребоваться подтверждение знания языка"
+                ],
+                "salary": {
+                    "kz": {
+                        "range": "3,000,000 - 7,000,000 тенге в год",
+                        "average": "5,000,000 тенге в год"
+                    },
+                    "global": {
+                        "range": "$10,000 - $30,000 в год",
+                        "average": "$20,000 в год"
+                    }
+                },
+                "job_outlook": "Выпускники данного университета обычно востребованы на рынке труда. Конкретные перспективы зависят от выбранной специальности и индивидуальных достижений студента.",
+                "skills": [
+                    "Академические навыки", 
+                    "Навыки критического мышления", 
+                    "Коммуникативные навыки",
+                    "Навыки самоорганизации",
+                    "Технические навыки по выбранной специальности"
+                ],
+                "personality": [
+                    "Целеустремленность", 
+                    "Ответственность", 
+                    "Адаптивность",
+                    "Стрессоустойчивость",
+                    "Любознательность"
+                ],
+                "daily_work": [
+                    "Посещение лекций и семинаров", 
+                    "Работа над проектами и заданиями", 
+                    "Проведение исследований",
+                    "Участие в студенческих мероприятиях",
+                    "Сдача экзаменов и тестов"
+                ],
+                "advancement": [
+                    "Бакалавриат → Магистратура → Докторантура", 
+                    "Возможность получения двойного диплома", 
+                    "Участие в программах обмена с другими университетами"
+                ],
+                "related_professions": [
+                    "Различные специальности в зависимости от факультета", 
+                    "Возможность перевода между факультетами",
+                    "Междисциплинарные программы"
+                ],
+                "top_employers": [
+                    "Ведущие компании в соответствующей отрасли", 
+                    "Международные корпорации", 
+                    "Государственные учреждения",
+                    "Исследовательские институты",
+                    "Образовательные учреждения"
+                ],
+                "generated_at": datetime.datetime.now(tz=datetime.timezone.utc).isoformat(),
+                "slug": university_slug
+            }
+            
+            # Сохраняем запасные данные в кэш
+            cache_data = {
+                'details': fallback_data,
+                'timestamp': datetime.datetime.now(tz=datetime.timezone.utc),
+                'university': university_name,
+                'country': country,
+                'is_fallback': True
+            }
+            cache_ref.set(cache_data)
+            
+            return jsonify({
+                'details': fallback_data,
+                'from_cache': False,
+                'is_fallback': True
+            })
+            
+    except Exception as e:
+        print(f"Ошибка получения деталей университета {university_name}: {e}")
+        import traceback
+        traceback.print_exc()
+        
+        return jsonify({
+            'error': str(e),
+            'details': {
+                "name": university_name,
+                "overview": "Не удалось получить информацию об этом университете. Пожалуйста, попробуйте позже или обратитесь к официальным источникам.",
+                "education": ["Информация временно недоступна"],
+                "salary": {
+                    "kz": {
+                        "range": "Информация недоступна",
+                        "average": "Информация недоступна"
+                    },
+                    "global": {
+                        "range": "Информация недоступна",
+                        "average": "Информация недоступна"
+                    }
+                }
+            }
+        }), 500
+@app.route('/university-recommendation')
+@login_required
+def university_recommendation():
+    try:
+        user_id = session['user_id']
+        user_doc = db.collection('users').document(user_id).get()
+        
+        # Преобразуем DocumentSnapshot в словарь
+        user_data = user_doc.to_dict() or {}
+        
+        # Преобразуем все вложенные данные в базовые типы
+        academic_info = {}
+        if 'academic_info' in user_data:
+            academic_info = {
+                'gpa': user_data['academic_info'].get('gpa', ''),
+                'sat_score': user_data['academic_info'].get('sat_score', ''),
+                'toefl_score': user_data['academic_info'].get('toefl_score', ''),
+                'ielts_score': user_data['academic_info'].get('ielts_score', ''),
+                'languages': list(user_data['academic_info'].get('languages', [])),
+                'achievements': list(user_data['academic_info'].get('achievements', []))
+            }
+
+        skills = list(user_data.get('skills', []))
+        education = str(user_data.get('education', ''))
+        goals = str(user_data.get('goals', ''))
+        
+        # Получаем и преобразуем сертификаты
+        certificates_data = []
+        certs_query = db.collection('users').document(user_id).collection('certificates').stream()
+        
+        for cert_doc in certs_query:
+            cert_dict = cert_doc.to_dict()
+            # Преобразуем timestamp в строку, если он есть
+            if 'uploaded_at' in cert_dict:
+                cert_dict['uploaded_at'] = cert_dict['uploaded_at'].strftime('%Y-%m-%d %H:%M:%S') if isinstance(cert_dict['uploaded_at'], datetime.datetime) else str(cert_dict['uploaded_at'])
+            cert_dict['id'] = cert_doc.id
+            # Убеждаемся, что все значения сериализуемы
+            cert_dict = {
+                'id': cert_doc.id,
+                'title': cert_dict.get('title', ''),
+                'file_url': cert_dict.get('file_url', ''),
+                'uploaded_at': cert_dict.get('uploaded_at', '')
+            }
+            certificates_data.append(cert_dict)
+
+        # Подготавливаем безопасный для JSON объект с данными пользователя
+        safe_user_data = {
+            'username': user_data.get('username', ''),
+            'display_username': user_data.get('display_username', ''),
+            'email': user_data.get('email', ''),
+            'academic_info': academic_info,
+            'skills': skills,
+            'education': education,
+            'goals': goals
+        }
+
+        return render_template('university_recommendation.html',
+                             user_data=safe_user_data,
+                             academic_info=academic_info,
+                             skills=skills,
+                             education=education,
+                             goals=goals,
+                             certificates=certificates_data)
+                             
+    except Exception as e:
+        print(f"Error in university recommendation route: {e}")
+        # Логируем полную ошибку для отладки
+        import traceback
+        traceback.print_exc()
+        flash('Error loading profile data')
+        return redirect(url_for('profile'))
+@app.route('/get-university-recommendations', methods=['POST'])
+@login_required
+def get_university_recommendations():
+    user_id = session['user_id']
+    data = request.json
+    
+    # Check for required data
+    if not data or 'country' not in data:
+        return jsonify({'error': 'Необходимо указать страну для рекомендаций'}), 400
+    
+    # Extract data from request
+    country = data.get('country')
+    profession = data.get('profession', '')  # Get profession if provided
+    
+    try:
+        # Get user data directly from database
+        user_doc = db.collection('users').document(user_id).get()
+        user_data = user_doc.to_dict() or {}
+        
+        # Get academic information
+        academic_info = user_data.get('academic_info', {})
+        if not isinstance(academic_info, dict):
+            academic_info = {}
+            
+        # Extract values from form
+        gpa = data.get('academic', {}).get('gpa') or academic_info.get('gpa', '')
+        sat_score = data.get('academic', {}).get('satScore') or academic_info.get('sat_score', '')
+        toefl_score = data.get('academic', {}).get('toeflScore') or academic_info.get('toefl_score', '')
+        ielts_score = data.get('academic', {}).get('ieltsScore') or academic_info.get('ielts_score', '')
+        
+        # Convert to strings
+        gpa = str(gpa) if gpa else ''
+        sat_score = str(sat_score) if sat_score else ''
+        toefl_score = str(toefl_score) if toefl_score else ''
+        ielts_score = str(ielts_score) if ielts_score else ''
+        
+        # Get other profile data
+        specialty = data.get('profile', {}).get('specialty') or user_data.get('specialty', '')
+        education = data.get('profile', {}).get('education') or user_data.get('education', '')
+        goals = data.get('profile', {}).get('goals') or user_data.get('goals', '')
+        bio = user_data.get('bio', '')
+        
+        # If profession is provided, use it to enhance the specialty
+        if profession and not specialty:
+            specialty = profession
+        elif profession:
+            specialty = f"{specialty}, {profession}"
+        
+        # Get skills
+        skills = data.get('profile', {}).get('skills') or user_data.get('skills', [])
+        if not isinstance(skills, list):
+            skills = []
+            
+        # Get certificates
+        certificates = []
+        certs_query = db.collection('users').document(user_id).collection('certificates').stream()
+        for cert_doc in certs_query:
+            cert_data = cert_doc.to_dict()
+            certificates.append(cert_data)
+            
+        # Get certificate titles for analysis
+        certificate_titles = [cert.get('title', '') for cert in certificates]
+        
+        # Get languages
+        languages = []
+        if academic_info and 'languages' in academic_info:
+            for lang in academic_info.get('languages', []):
+                if isinstance(lang, dict) and 'name' in lang:
+                    languages.append(f"{lang['name']} ({lang.get('level', 'Conversational')})")
+                    
+        # Get achievements
+        achievements = []
+        if academic_info and 'achievements' in academic_info:
+            for achievement in academic_info.get('achievements', []):
+                if isinstance(achievement, dict) and 'title' in achievement:
+                    achievements.append(achievement['title'])
+                    
+        # Determine interests based on certificates, specialty, and skills
+        interests = []
+        interest_mapping = {
+            'Информатика': ['python', 'программирование', 'код', 'software', 'разработчик', 'web', 'app', 'computer science', 'data science', 'алгоритм'],
+            'Инженерия': ['инженер', 'engineering', 'механический', 'электрический', 'гражданский', 'аэрокосмический'],
+            'Бизнес': ['бизнес', 'management', 'финансы', 'экономика', 'маркетинг'],
+            'Медицина': ['медицина', 'medical', 'здоровье', 'биология', 'доктор'],
+            'Искусство': ['дизайн', 'art', 'музыка', 'творчество', 'media'],
+            'Право': ['право', 'юрист', 'адвокат', 'justice'],
+            'Образование': ['преподавание', 'образование', 'педагогика']
+        }
+        
+        # Check certificates, specialty, skills, and profession for keywords
+        all_text = ' '.join([' '.join(certificate_titles), specialty.lower(), ' '.join(skills), goals.lower(), profession.lower()]).lower()
+        
+        for field, keywords in interest_mapping.items():
+            if any(keyword in all_text for keyword in keywords):
+                interests.append(field)
+                
+        # If profession is provided, add it to interests directly
+        if profession and profession not in interests:
+            interests.append(profession)
+                
+        # If no interests detected, use specialty or profession
+        if not interests:
+            if specialty:
+                interests.append(specialty)
+            elif profession:
+                interests.append(profession)
+            
+        # Create full profile for recommendations
+        profile = {
+            'gpa': gpa,
+            'sat_score': sat_score,
+            'toefl_score': toefl_score,
+            'ielts_score': ielts_score,
+            'skills': skills,
+            'education': education,
+            'goals': goals,
+            'bio': bio,
+            'interests': interests[:3],  # Top 3 interests
+            'languages': languages,
+            'achievements': achievements,
+            'certificates': certificate_titles,
+            'target_country': country,
+            'academic_info': academic_info,
+            'target_profession': profession  # Include target profession
+        }
+        
+        # Generate recommendations using our Russian-language prompt
+        recommendations = generate_university_recommendations(profile, country)
+        
+        # Extract university names for images
+        universities = extract_universities(recommendations)
+        
+        # Calculate admission chances based on profile
+        admission_chances = calculate_admission_chances(universities, profile)
+        
+        # Get images for universities
+        images = {}
+        for university in universities:
+            # Get image via Google API or use cache
+            image_url = get_university_image(university, country)
+            if image_url:
+                images[university] = image_url
+            else:
+                # If API failed, use a universal image based on name
+                images[university] = f"https://ui-avatars.com/api/?name={university.replace(' ', '+')}&size=256&background=random"
+        
+        # Save recommendation to database
+        recommendation_data = {
+            'user_id': user_id,
+            'country': country,
+            'recommendations': recommendations,
+            'images': images,
+            'created_at': datetime.datetime.now(tz=datetime.timezone.utc),
+            'profile_snapshot': profile,
+            'admission_chances': admission_chances,
+            'universities': universities,
+            'profession': profession  # Store the profession
+        }
+        
+        # Save to recommendations collection
+        rec_ref = db.collection('university_recommendations').add(recommendation_data)
+        
+        # Update last recommendation in user profile
+        user_ref = db.collection('users').document(user_id)
+        user_ref.update({
+            'last_university_recommendation': {
+                'created_at': datetime.datetime.now(tz=datetime.timezone.utc),
+                'country': country,
+                'universities': universities,
+                'recommendation_id': rec_ref[1].id,
+                'profession': profession  # Include profession
+            }
+        })
+        
+        return jsonify({
+            'recommendations': recommendations,
+            'images': images,
+            'admission_chances': admission_chances,
+            'universities': universities,
+            'profession': profession,  # Return profession in response
+            'profile_analyzed': {
+                'gpa': profile['gpa'],
+                'toefl': profile['toefl_score'],
+                'ielts': profile['ielts_score'],
+                'sat': profile['sat_score'],
+                'certificates_count': len(profile['certificates']),
+                'interests_identified': profile['interests'],
+                'skills_considered': len(profile['skills']),
+                'languages_considered': len(profile['languages']),
+                'achievements_considered': len(profile['achievements']),
+                'target_profession': profession
+            }
+        })
+        
+    except Exception as e:
+        print(f"Error in university recommendation process: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+def calculate_admission_chances(universities, profile):
+    """Calculate realistic admission chances based on student profile and university selectivity"""
+    chances = {}
+    
+    # Get basic academic metrics
+    try:
+        gpa = float(profile.get('gpa', 0) or 0)
+        if gpa > 4.0:  # Adjust if using different scale
+            gpa = gpa / 10 * 4.0 if gpa <= 10 else 3.0
+    except (ValueError, TypeError):
+        gpa = 3.0
+    
+    try:
+        toefl = int(profile.get('toefl_score', 0) or 0)
+    except (ValueError, TypeError):
+        toefl = 90
+    
+    try:
+        ielts = float(profile.get('ielts_score', 0) or 0)
+    except (ValueError, TypeError):
+        ielts = 6.5
+        
+    try:
+        sat = int(profile.get('sat_score', 0) or 0)
+        if sat < 400 or sat > 1600:  # Old SAT format or invalid
+            sat = 1200
+    except (ValueError, TypeError):
+        sat = 1200
+    
+    # University selectivity tiers
+    university_tiers = {
+        # Ultra-selective (Tier 1)
+        'Harvard University': 95,
+        'Stanford University': 94,
+        'Massachusetts Institute of Technology': 95,
+        'California Institute of Technology': 94,
+        'Princeton University': 93,
+        'Yale University': 93,
+        'University of Oxford': 92,
+        'University of Cambridge': 92,
+        'Columbia University': 91,
+        'University of Chicago': 90,
+        
+        # Very selective (Tier 2)
+        'University of Toronto': 85,
+        'University of British Columbia': 84,
+        'McGill University': 83,
+        'University of California, Berkeley': 88,
+        'University of California, Los Angeles': 87,
+        'UCL': 86,
+        'University of Edinburgh': 85,
+        'University of Michigan': 84,
+        'Cornell University': 88,
+        'University of Pennsylvania': 89,
+        
+        # Selective (Tier 3)
+        'University of Washington': 80,
+        'University of Wisconsin-Madison': 79,
+        'Pennsylvania State University': 78,
+        'University of Minnesota': 78,
+        'Purdue University': 77,
+        'University of Manchester': 76,
+        'University of Amsterdam': 75,
+        'University of Melbourne': 78,
+        'University of Sydney': 77,
+        
+        # Moderately selective (Tier 4)
+        'Arizona State University': 70,
+        'Michigan State University': 71,
+        'University of Alberta': 71,
+        'Simon Fraser University': 70,
+        'University of Calgary': 69,
+        'University of Sheffield': 72,
+        'University of Leeds': 72,
+        'Monash University': 73
+    }
+    
+    # Calculate chances for each university
+    for university in universities:
+        # Base chances depend on university selectivity
+        difficulty = university_tiers.get(university, 75)  # Default level if unknown
+        
+        # Initial value with difficulty adjustment
+        base_chance = max(100 - difficulty, 25)
+        
+        # GPA adjustment (significant factor)
+        if gpa >= 3.9:
+            base_chance += 20
+        elif gpa >= 3.7:
+            base_chance += 15
+        elif gpa >= 3.5:
+            base_chance += 10
+        elif gpa >= 3.3:
+            base_chance += 5
+        elif gpa < 3.0:
+            base_chance -= 15
+        
+        # Language score adjustment
+        if toefl >= 110 or ielts >= 8.0:
+            base_chance += 10
+        elif toefl >= 100 or ielts >= 7.5:
+            base_chance += 7
+        elif toefl >= 90 or ielts >= 7.0:
+            base_chance += 5
+        elif toefl < 80 or ielts < 6.0:
+            base_chance -= 15
+            
+        # SAT adjustment
+        if sat >= 1550:
+            base_chance += 15
+        elif sat >= 1500:
+            base_chance += 10
+        elif sat >= 1450:
+            base_chance += 8
+        elif sat >= 1400:
+            base_chance += 5
+        elif sat < 1200:
+            base_chance -= 10
+        
+        # Other factors
+        skills_count = len(profile.get('skills', []))
+        base_chance += min(skills_count * 1.5, 7.5)  # Up to 7.5% bonus
+        
+        certificates_count = len(profile.get('certificates', []))
+        base_chance += min(certificates_count * 2, 10)  # Up to 10% bonus
+        
+        languages_count = len(profile.get('languages', []))
+        base_chance += min(languages_count * 2, 6)  # Up to 6% bonus
+        
+        # Add some variability (±5%)
+        import random
+        variability = random.uniform(-5, 5)
+        base_chance += variability
+        
+        # Ensure chances stay within realistic bounds
+        if difficulty >= 90:  # Top tier
+            max_chance = 80
+        elif difficulty >= 85:  # Very selective
+            max_chance = 85
+        elif difficulty >= 80:  # Selective
+            max_chance = 90
+        else:  # Less selective
+            max_chance = 95
+            
+        # Final chance calculation
+        final_chance = min(max(int(base_chance), 25), max_chance)
+        
+        chances[university] = final_chance
+    
+    return chances
+def use_fallback_image(university_name, country):
+    """Improved fallback mechanism for university images"""
+    # First try university-specific images
+    university_images = {
+        'Harvard University': 'https://images.unsplash.com/photo-1610816732435-69c37d5498d6',
+        'Stanford University': 'https://images.unsplash.com/photo-1455582916367-25f75bfc6710',
+        'MIT': 'https://images.unsplash.com/photo-1508231101580-eed9c8913fb4',
+        # Your existing university mappings...
+    }
+    
+    if university_name in university_images:
+        return university_images[university_name]
+    
+    # Next try country-specific images
+    country_images = {
+        'USA': 'https://images.unsplash.com/photo-1498243691581-b145c3f54a5a',
+        'UK': 'https://images.unsplash.com/photo-1607237138185-eedd9c632b0b',
+        # Your existing country mappings...
+    }
+    
+    if country in country_images:
+        return country_images[country]
+    
+    # Use deterministic fallback based on university name
+    generic_images = [
+        'https://images.unsplash.com/photo-1541339907198-e08756dedf3f',
+        'https://images.unsplash.com/photo-1607237138185-eedd9c632b0b',
+        'https://images.unsplash.com/photo-1598826867442-11c9a9221cfa',
+        'https://images.unsplash.com/photo-1523050854058-8df90110c9f1',
+        'https://images.unsplash.com/photo-1592280771190-3e2e4d571952',
+        'https://images.unsplash.com/photo-1544531585-9847b68c8c86',
+        'https://images.unsplash.com/photo-1519452575417-564c1401ecc0',
+        'https://images.unsplash.com/photo-1580332449505-682ff38a8b45'
+    ]
+    
+    # Use first character of university name to deterministically select an image
+    if university_name:
+        index = ord(university_name[0].lower()) % len(generic_images)
+        return generic_images[index]
+    
+    return generic_images[0]
+
+def cache_university_image(university_name, image_url):
+    """Cache university image URLs to reduce API calls"""
+    try:
+        # Get existing cache or create new one
+        cache_ref = db.collection('image_cache').document('universities')
+        cache_doc = cache_ref.get()
+        
+        if cache_doc.exists:
+            cache_data = cache_doc.to_dict()
+        else:
+            cache_data = {}
+        
+        # Update with new image
+        cache_data[university_name] = {
+            'url': image_url,
+            'timestamp': datetime.datetime.now(tz=datetime.timezone.utc)
+        }
+        
+        # Save cache
+        cache_ref.set(cache_data)
+    except Exception as e:
+        print(f"Error caching image: {e}")
+# Улучшенная функция для получения изображения университета
+def get_university_image(university_name, country):
+    """Get university image using specific Google Custom Search API URL"""
+    try:
+        # Format the university name for the query
+        formatted_name = ""
+        for char in university_name:
+            if char == ' ' or char == '+':
+                formatted_name += '+'
+            else:
+                formatted_name += char
+        
+        # Create the search query with additional terms for better results
+        search_query = f"{formatted_name}+university+campus"
+        
+        # Use the exact URL provided with hardcoded credentials
+        search_url = f"https://www.googleapis.com/customsearch/v1?key=AIzaSyDptyzxGJg-aR5IldozvISzjNgF2_TISJo&cx=e1cac863f07bf4f8b&q={search_query}&searchType=image"
+        
+        # Make the request
+        print(f"Searching for image: {university_name}")
+        response = requests.get(search_url)
+        
+        # Check if we got a valid response
+        if response.status_code != 200:
+            print(f"Error response from Google API: {response.status_code} - {response.text}")
+            return None
+        
+        # Parse the response JSON
+        image_data = response.json()
+        
+        # Check if we have image results
+        if 'items' in image_data and len(image_data['items']) > 0:
+            # Get the first image URL
+            image_url = image_data['items'][0]['link']
+            print(f"Found image for {university_name}: {image_url}")
+            return image_url
+        else:
+            print(f"No image results found for {university_name}")
+            return None
+            
+    except Exception as e:
+        print(f"Error getting image for {university_name}: {e}")
+        return None
 
 
 
@@ -8714,7 +8790,7 @@ def restart_career_test():
                 'current_stage': 1,
                 'current_question': {'stage_1': 1},
                 'answers': {},  # Clear all answers
-                # Keep completed_stages for record but reset navigation
+                'recommendations': [],  # IMPORTANT FIX: Clear recommendations
                 'reset_count': firestore.Increment(1),
                 'last_reset_at': datetime.datetime.now(tz=datetime.timezone.utc)
             })
@@ -8727,6 +8803,7 @@ def restart_career_test():
                 'current_question': {'stage_1': 1},
                 'completed_stages': [],
                 'answers': {},
+                'recommendations': [],
                 'reset_count': 0
             })
             
@@ -8739,6 +8816,7 @@ def restart_career_test():
         print(f"Error resetting career test progress: {e}")
         flash('Произошла ошибка при перезапуске теста. Попробуйте еще раз.')
         return redirect(url_for('career_test'))
+       
 @app.errorhandler(404)
 def page_not_found(e):
 
@@ -8749,7 +8827,6 @@ def page_not_found(e):
     print(f"Request Method: {request.method}")
     
     return render_template('404.html'), 404
-
 @app.errorhandler(500)
 def internal_server_error(e):
 

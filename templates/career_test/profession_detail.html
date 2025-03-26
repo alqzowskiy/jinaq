@@ -1,220 +1,546 @@
-{# Template for profession detail page with black and white design #}
 {% extends "base.html" %}
 {% block content %}
 <div class="bg-white min-h-screen py-12">
     <div class="container mx-auto px-4">
-        <div class="max-w-4xl mx-auto">
-            <a href="{{ url_for('career_test_results') }}"
-                class="text-black hover:text-gray-700 mb-6 inline-flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd"
-                        d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z"
-                        clip-rule="evenodd" />
+        <div class="max-w-5xl mx-auto">
+            <!-- Breadcrumb navigation -->
+            <div class="mb-6 flex items-center text-sm text-gray-500">
+                <a href="{{ url_for('index') }}" class="hover:text-black transition-colors">Главная</a>
+                <svg class="h-4 w-4 mx-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
                 </svg>
-                Вернуться к результатам
-            </a>
-
-            <div class="bg-white border border-gray-200 rounded-xl shadow-md overflow-hidden mb-8">
-                <div class="bg-black text-white p-6">
-                    <div class="flex flex-col md:flex-row md:items-center justify-between">
-                        <h1 class="text-3xl font-bold">{{ profession.name }}</h1>
-
-                        {% if compatibility %}
-                        <div class="mt-4 md:mt-0 bg-white text-black px-4 py-2 rounded-lg">
-                            <div class="text-sm font-medium">Совместимость</div>
-                            <div class="text-2xl font-bold">{{ compatibility }}%</div>
-                            <div class="text-xs">для тебя</div>
-                        </div>
-                        {% endif %}
-                    </div>
-                </div>
-
-                <div class="p-6 md:p-8">
-                    <div class="prose max-w-none mb-8">
-                        <h2 class="text-xl font-semibold mb-3 text-black">Обзор</h2>
-                        <p class="text-gray-700">{{ profession.overview }}</p>
-                    </div>
-
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-                        <div>
-                            <h2 class="text-xl font-semibold mb-3 text-black">Необходимое образование</h2>
-                            <ul class="space-y-2">
-                                {% for item in profession.education %}
-                                <li class="flex items-start">
-                                    <svg class="h-5 w-5 text-black mr-2 flex-shrink-0" fill="currentColor"
-                                        viewBox="0 0 20 20">
-                                        <path fill-rule="evenodd"
-                                            d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                                            clip-rule="evenodd"></path>
-                                    </svg>
-                                    <span class="text-gray-700">{{ item }}</span>
-                                </li>
-                                {% endfor %}
-                            </ul>
-                        </div>
-
-                        <div>
-                            <h2 class="text-xl font-semibold mb-3 text-black">Зарплата</h2>
-                            <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                                <div class="mb-4">
-                                    <h3 class="font-medium text-black">В Казахстане</h3>
-                                    <div class="flex justify-between mt-1">
-                                        <span class="text-gray-500">Диапазон:</span>
-                                        <span class="text-gray-900 font-medium">{{ profession.salary.kz.range }}</span>
-                                    </div>
-                                    <div class="flex justify-between mt-1">
-                                        <span class="text-gray-500">Средняя:</span>
-                                        <span class="text-gray-900 font-medium">{{ profession.salary.kz.average
-                                            }}</span>
-                                    </div>
-                                </div>
-                                <div>
-                                    <h3 class="font-medium text-black">В мире</h3>
-                                    <div class="flex justify-between mt-1">
-                                        <span class="text-gray-500">Диапазон:</span>
-                                        <span class="text-gray-900 font-medium">{{ profession.salary.global.range
-                                            }}</span>
-                                    </div>
-                                    <div class="flex justify-between mt-1">
-                                        <span class="text-gray-500">Средняя:</span>
-                                        <span class="text-gray-900 font-medium">{{ profession.salary.global.average
-                                            }}</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="mb-8">
-                        <h2 class="text-xl font-semibold mb-3 text-black">Перспективы работы</h2>
-                        <p class="text-gray-700">{{ profession.job_outlook }}</p>
-                    </div>
-
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-                        <div>
-                            <h2 class="text-xl font-semibold mb-3 text-black">Ключевые навыки</h2>
-                            <div class="flex flex-wrap gap-2">
-                                {% for skill in profession.skills %}
-                                <span
-                                    class="bg-gray-100 text-black text-sm font-medium px-2.5 py-1 rounded-md border border-gray-200">
-                                    {{ skill }}
-                                </span>
-                                {% endfor %}
-                            </div>
-                        </div>
-
-                        <div>
-                            <h2 class="text-xl font-semibold mb-3 text-black">Личностные качества</h2>
-                            <div class="flex flex-wrap gap-2">
-                                {% for trait in profession.personality %}
-                                <span
-                                    class="bg-gray-100 text-black text-sm font-medium px-2.5 py-1 rounded-md border border-gray-200">
-                                    {{ trait }}
-                                </span>
-                                {% endfor %}
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-                        <div>
-                            <h2 class="text-xl font-semibold mb-3 text-black">Рабочие обязанности</h2>
-                            <ul class="space-y-2">
-                                {% for item in profession.daily_work %}
-                                <li class="flex items-start">
-                                    <svg class="h-5 w-5 text-gray-400 mr-2 flex-shrink-0" fill="currentColor"
-                                        viewBox="0 0 20 20">
-                                        <path fill-rule="evenodd"
-                                            d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"
-                                            clip-rule="evenodd"></path>
-                                    </svg>
-                                    <span class="text-gray-700">{{ item }}</span>
-                                </li>
-                                {% endfor %}
-                            </ul>
-                        </div>
-
-                        <div>
-                            <h2 class="text-xl font-semibold mb-3 text-black">Карьерный рост</h2>
-                            <ul class="space-y-2">
-                                {% for item in profession.advancement %}
-                                <li class="flex items-start">
-                                    <svg class="h-5 w-5 text-gray-400 mr-2 flex-shrink-0" fill="currentColor"
-                                        viewBox="0 0 20 20">
-                                        <path fill-rule="evenodd"
-                                            d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"
-                                            clip-rule="evenodd"></path>
-                                    </svg>
-                                    <span class="text-gray-700">{{ item }}</span>
-                                </li>
-                                {% endfor %}
-                            </ul>
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <div>
-                            <h2 class="text-xl font-semibold mb-3 text-black">Смежные профессии</h2>
-                            <ul class="space-y-2">
-                                {% for item in profession.related_professions %}
-                                <li class="flex items-start">
-                                    <svg class="h-5 w-5 text-gray-400 mr-2 flex-shrink-0" fill="currentColor"
-                                        viewBox="0 0 20 20">
-                                        <path
-                                            d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z">
-                                        </path>
-                                        <path
-                                            d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z">
-                                        </path>
-                                    </svg>
-                                    <span class="text-gray-700">{{ item }}</span>
-                                </li>
-                                {% endfor %}
-                            </ul>
-                        </div>
-
-                        <div>
-                            <h2 class="text-xl font-semibold mb-3 text-black">Топ работодателей в Казахстане</h2>
-                            <ul class="space-y-2">
-                                {% for item in profession.top_employers %}
-                                <li class="flex items-start">
-                                    <svg class="h-5 w-5 text-gray-400 mr-2 flex-shrink-0" fill="currentColor"
-                                        viewBox="0 0 20 20">
-                                        <path fill-rule="evenodd"
-                                            d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4zm3 1h6v4H7V5zm8 8v2h1v1H4v-1h1v-2h1v2h1v-2h1v2h1v-2h1v2h1v-2h1v2h1v-2h1z"
-                                            clip-rule="evenodd"></path>
-                                    </svg>
-                                    <span class="text-gray-700">{{ item }}</span>
-                                </li>
-                                {% endfor %}
-                            </ul>
-                        </div>
-                    </div>
-                </div>
+                <a href="{{ url_for('career_test_results') }}" class="hover:text-black transition-colors">Результаты
+                    теста</a>
+                <svg class="h-4 w-4 mx-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                </svg>
+                <span class="font-medium text-black">{{ profession.name }}</span>
             </div>
 
-            <div class="flex justify-between">
-                <a href="{{ url_for('career_test_results') }}"
-                    class="bg-gray-200 hover:bg-gray-300 text-black px-5 py-2 rounded-lg transition-colors flex items-center">
-                    <svg class="h-5 w-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd"
-                            d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z"
-                            clip-rule="evenodd"></path>
-                    </svg>
-                    Назад к результатам
-                </a>
+            <!-- Main content area -->
+            <div class="flex flex-col lg:flex-row gap-8 mb-12">
+                <!-- Left sidebar with image and quick stats -->
+                <div class="lg:w-1/3">
+                    <div class="bg-white border border-gray-200 rounded-2xl shadow-md overflow-hidden sticky top-8">
+                        <!-- Random profession image -->
+                        <div class="w-full h-64 bg-gray-100 relative profession-image" id="professionImage">
+                            <!-- Image will be set by JavaScript -->
+                            <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
+                            <div class="absolute bottom-0 left-0 p-5 text-white">
+                                {% if compatibility %}
+                                <div
+                                    class="bg-white text-black rounded-full px-3 py-1 text-sm font-bold inline-block mb-3">
+                                    {{ compatibility }}% совместимость
+                                </div>
+                                {% endif %}
+                                <h1 class="text-2xl md:text-3xl font-bold">{{ profession.name }}</h1>
+                            </div>
+                        </div>
 
-                <a href="{{ url_for('university_recommendation') }}"
-                    class="bg-black hover:bg-gray-900 text-white px-5 py-2 rounded-lg transition-colors shadow-sm flex items-center">
-                    Подобрать университеты
-                    <svg class="h-5 w-5 ml-2" fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd"
-                            d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z"
-                            clip-rule="evenodd"></path>
-                    </svg>
-                </a>
+                        <!-- Quick stats -->
+                        <div class="p-5">
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="border-r border-gray-100 pr-4">
+                                    <h3 class="text-xs uppercase tracking-wider text-gray-500 mb-1">Средняя зарплата
+                                    </h3>
+                                    <p class="font-bold text-xl text-black">{{ profession.salary.kz.average }}</p>
+                                    <p class="text-xs text-gray-500">в Казахстане</p>
+                                </div>
+                                <div>
+                                    <h3 class="text-xs uppercase tracking-wider text-gray-500 mb-1">В мире</h3>
+                                    <p class="font-bold text-xl text-black">{{ profession.salary.global.average }}</p>
+                                    <p class="text-xs text-gray-500">средний доход</p>
+                                </div>
+                            </div>
+
+                            <div class="mt-6">
+                                <h3 class="text-xs uppercase tracking-wider text-gray-500 mb-2">Ключевые навыки</h3>
+                                <div class="flex flex-wrap gap-1.5">
+                                    {% for skill in profession.skills[:5] %}
+                                    <span class="inline-block bg-gray-100 rounded-full px-3 py-1 text-xs font-medium">
+                                        {{ skill }}
+                                    </span>
+                                    {% endfor %}
+                                    {% if profession.skills|length > 5 %}
+                                    <span class="inline-block bg-gray-100 rounded-full px-3 py-1 text-xs font-medium">
+                                        +{{ profession.skills|length - 5 }}
+                                    </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <!-- CTA Buttons -->
+                            <div class="mt-6">
+                                <a href="{{ url_for('university_finder') }}?showModal=true&profession={{ profession.name|urlencode }}"
+                                    class="block w-full bg-black hover:bg-gray-900 text-white font-medium py-3 px-4 rounded-xl text-center transition-colors shadow-sm mb-3 hover:scale-105">
+                                    Подобрать университеты
+                                </a>
+                                <a href="{{ url_for('career_test_results') }}"
+                                    class="block w-full border border-gray-300 hover:bg-gray-50 text-black font-medium py-3 px-4 rounded-xl text-center transition-colors hover:scale-105">
+                                    Назад к результатам
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Main content area -->
+                <div class="lg:w-2/3">
+                    <!-- Overview section -->
+                    <div
+                        class="bg-white border border-gray-200 rounded-2xl shadow-md p-6 md:p-8 mb-8 transform transition-all hover:shadow-lg duration-300">
+                        <h2 class="text-2xl font-bold mb-5 text-black">Обзор профессии</h2>
+                        <p class="text-gray-700 text-lg leading-relaxed">{{ profession.overview }}</p>
+                    </div>
+
+                    <!-- Detail sections -->
+                    <div class="bg-white border border-gray-200 rounded-2xl shadow-md overflow-hidden mb-8">
+                        <div class="border-b border-gray-100">
+                            <button
+                                class="w-full p-5 text-left flex items-center justify-between focus:outline-none section-toggle"
+                                data-section="education">
+                                <h2 class="text-xl font-semibold text-black flex items-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-3 text-gray-500"
+                                        fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path d="M12 14l9-5-9-5-9 5 9 5z" />
+                                        <path
+                                            d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222" />
+                                    </svg>
+                                    Необходимое образование
+                                </h2>
+                                <svg class="h-5 w-5 transform rotate-0 transition-transform duration-300" fill="none"
+                                    viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M19 9l-7 7-7-7" />
+                                </svg>
+                            </button>
+                            <div class="px-5 pb-5 section-content" id="education-content">
+                                <ul class="space-y-3 pl-9">
+                                    {% for item in profession.education %}
+                                    <li class="relative">
+                                        <div
+                                            class="absolute -left-9 top-0 flex h-6 w-6 items-center justify-center rounded-full bg-gray-100">
+                                            <svg class="h-3.5 w-3.5 text-black" fill="currentColor" viewBox="0 0 20 20">
+                                                <path
+                                                    d="M14.5 7a.5.5 0 00-.5.5v5a.5.5 0 001 0v-5a.5.5 0 00-.5-.5zM7.5 7a.5.5 0 00-.5.5v5a.5.5 0 001 0v-5a.5.5 0 00-.5-.5z" />
+                                                <path fill-rule="evenodd"
+                                                    d="M4.5 2A2.5 2.5 0 002 4.5v11A2.5 2.5 0 004.5 18h11a2.5 2.5 0 002.5-2.5v-11A2.5 2.5 0 0015.5 2h-11zM3 4.5A1.5 1.5 0 014.5 3h11A1.5 1.5 0 0117 4.5v11a1.5 1.5 0 01-1.5 1.5h-11A1.5 1.5 0 013 15.5v-11z"
+                                                    clip-rule="evenodd" />
+                                            </svg>
+                                        </div>
+                                        <span class="text-gray-700">{{ item }}</span>
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="border-b border-gray-100">
+                            <button
+                                class="w-full p-5 text-left flex items-center justify-between focus:outline-none section-toggle"
+                                data-section="salary">
+                                <h2 class="text-xl font-semibold text-black flex items-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-3 text-gray-500"
+                                        fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    Зарплата и финансы
+                                </h2>
+                                <svg class="h-5 w-5 transform rotate-0 transition-transform duration-300" fill="none"
+                                    viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M19 9l-7 7-7-7" />
+                                </svg>
+                            </button>
+                            <div class="px-5 pb-5 section-content" id="salary-content">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div class="bg-gray-50 p-4 rounded-xl">
+                                        <h3 class="font-medium text-black mb-3">В Казахстане</h3>
+                                        <div class="space-y-2">
+                                            <div class="flex justify-between">
+                                                <span class="text-gray-500">Диапазон:</span>
+                                                <span class="font-semibold text-black">{{ profession.salary.kz.range
+                                                    }}</span>
+                                            </div>
+                                            <div class="flex justify-between">
+                                                <span class="text-gray-500">Средняя:</span>
+                                                <span class="font-semibold text-black">{{ profession.salary.kz.average
+                                                    }}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="bg-gray-50 p-4 rounded-xl">
+                                        <h3 class="font-medium text-black mb-3">В мире</h3>
+                                        <div class="space-y-2">
+                                            <div class="flex justify-between">
+                                                <span class="text-gray-500">Диапазон:</span>
+                                                <span class="font-semibold text-black">{{ profession.salary.global.range
+                                                    }}</span>
+                                            </div>
+                                            <div class="flex justify-between">
+                                                <span class="text-gray-500">Средняя:</span>
+                                                <span class="font-semibold text-black">{{
+                                                    profession.salary.global.average }}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="border-b border-gray-100">
+                            <button
+                                class="w-full p-5 text-left flex items-center justify-between focus:outline-none section-toggle"
+                                data-section="outlook">
+                                <h2 class="text-xl font-semibold text-black flex items-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-3 text-gray-500"
+                                        fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                                    </svg>
+                                    Перспективы работы
+                                </h2>
+                                <svg class="h-5 w-5 transform rotate-0 transition-transform duration-300" fill="none"
+                                    viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M19 9l-7 7-7-7" />
+                                </svg>
+                            </button>
+                            <div class="px-5 pb-5 section-content" id="outlook-content">
+                                <div class="bg-gray-50 p-4 rounded-xl">
+                                    <p class="text-gray-700">{{ profession.job_outlook }}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="border-b border-gray-100">
+                            <button
+                                class="w-full p-5 text-left flex items-center justify-between focus:outline-none section-toggle"
+                                data-section="skills">
+                                <h2 class="text-xl font-semibold text-black flex items-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-3 text-gray-500"
+                                        fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                                    </svg>
+                                    Ключевые навыки
+                                </h2>
+                                <svg class="h-5 w-5 transform rotate-0 transition-transform duration-300" fill="none"
+                                    viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M19 9l-7 7-7-7" />
+                                </svg>
+                            </button>
+                            <div class="px-5 pb-5 section-content" id="skills-content">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div>
+                                        <h3 class="text-lg font-medium text-black mb-3">Профессиональные навыки</h3>
+                                        <div class="flex flex-wrap gap-2">
+                                            {% for skill in profession.skills %}
+                                            <span
+                                                class="bg-gray-100 text-gray-800 text-sm font-medium px-3 py-1.5 rounded-lg">
+                                                {{ skill }}
+                                            </span>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <h3 class="text-lg font-medium text-black mb-3">Личностные качества</h3>
+                                        <div class="flex flex-wrap gap-2">
+                                            {% for trait in profession.personality %}
+                                            <span
+                                                class="bg-gray-100 text-gray-800 text-sm font-medium px-3 py-1.5 rounded-lg">
+                                                {{ trait }}
+                                            </span>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="border-b border-gray-100">
+                            <button
+                                class="w-full p-5 text-left flex items-center justify-between focus:outline-none section-toggle"
+                                data-section="duties">
+                                <h2 class="text-xl font-semibold text-black flex items-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-3 text-gray-500"
+                                        fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                                    </svg>
+                                    Рабочие обязанности
+                                </h2>
+                                <svg class="h-5 w-5 transform rotate-0 transition-transform duration-300" fill="none"
+                                    viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M19 9l-7 7-7-7" />
+                                </svg>
+                            </button>
+                            <div class="px-5 pb-5 section-content" id="duties-content">
+                                <ul class="space-y-3 pl-9">
+                                    {% for item in profession.daily_work %}
+                                    <li class="relative">
+                                        <div
+                                            class="absolute -left-9 top-0 flex h-6 w-6 items-center justify-center rounded-full bg-gray-100">
+                                            <svg class="h-3.5 w-3.5 text-black" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fill-rule="evenodd"
+                                                    d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                                    clip-rule="evenodd"></path>
+                                            </svg>
+                                        </div>
+                                        <span class="text-gray-700">{{ item }}</span>
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="border-b border-gray-100">
+                            <button
+                                class="w-full p-5 text-left flex items-center justify-between focus:outline-none section-toggle"
+                                data-section="advancement">
+                                <h2 class="text-xl font-semibold text-black flex items-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-3 text-gray-500"
+                                        fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                                    </svg>
+                                    Карьерный рост
+                                </h2>
+                                <svg class="h-5 w-5 transform rotate-0 transition-transform duration-300" fill="none"
+                                    viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M19 9l-7 7-7-7" />
+                                </svg>
+                            </button>
+                            <div class="px-5 pb-5 section-content" id="advancement-content">
+                                <ul class="space-y-3 pl-9">
+                                    {% for item in profession.advancement %}
+                                    <li class="relative">
+                                        <div
+                                            class="absolute -left-9 top-0 flex h-6 w-6 items-center justify-center rounded-full bg-gray-100">
+                                            <svg class="h-3.5 w-3.5 text-black" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fill-rule="evenodd"
+                                                    d="M5.293 7.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 5.414V17a1 1 0 11-2 0V5.414L6.707 7.707a1 1 0 01-1.414 0z"
+                                                    clip-rule="evenodd"></path>
+                                            </svg>
+                                        </div>
+                                        <span class="text-gray-700">{{ item }}</span>
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div>
+                            <button
+                                class="w-full p-5 text-left flex items-center justify-between focus:outline-none section-toggle"
+                                data-section="related">
+                                <h2 class="text-xl font-semibold text-black flex items-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-3 text-gray-500"
+                                        fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 00-3 0m-6-3V11m0-5.5v-1a1.5 1.5 0 013 0v1m0 0V11m0-5.5a1.5 1.5 0 013 0v3m0 0V11" />
+                                    </svg>
+                                    Смежные профессии и работодатели
+                                </h2>
+                                <svg class="h-5 w-5 transform rotate-0 transition-transform duration-300" fill="none"
+                                    viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M19 9l-7 7-7-7" />
+                                </svg>
+                            </button>
+                            <div class="px-5 pb-5 section-content" id="related-content">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div>
+                                        <h3 class="text-lg font-medium text-black mb-3">Смежные профессии</h3>
+                                        <ul class="space-y-3">
+                                            {% for item in profession.related_professions %}
+                                            <li class="flex items-start">
+                                                <svg class="h-5 w-5 text-gray-400 mr-2 flex-shrink-0" fill="none"
+                                                    viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                        stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                                                </svg>
+                                                <span class="text-gray-700">{{ item }}</span>
+                                            </li>
+                                            {% endfor %}
+                                        </ul>
+                                    </div>
+                                    <div>
+                                        <h3 class="text-lg font-medium text-black mb-3">Топ работодателей в Казахстане
+                                        </h3>
+                                        <ul class="space-y-3">
+                                            {% for item in profession.top_employers %}
+                                            <li class="flex items-start">
+                                                <svg class="h-5 w-5 text-gray-400 mr-2 flex-shrink-0" fill="none"
+                                                    viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                        stroke-width="2"
+                                                        d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                                </svg>
+                                                <span class="text-gray-700">{{ item }}</span>
+                                            </li>
+                                            {% endfor %}
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // ===== ACCORDION SECTIONS =====
+        const toggleButtons = document.querySelectorAll('.section-toggle');
+
+        toggleButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const sectionName = button.getAttribute('data-section');
+                const content = document.getElementById(`${sectionName}-content`);
+                const arrow = button.querySelector('svg:last-child');
+
+                // Toggle this section
+                content.classList.toggle('hidden');
+                arrow.classList.toggle('rotate-180');
+            });
+        });
+
+        // Default: show the first section, hide others
+        const allContents = document.querySelectorAll('.section-content');
+        allContents.forEach((content, index) => {
+            if (index > 0) {
+                content.classList.add('hidden');
+            }
+        });
+
+        // ===== RANDOM PROFESSION IMAGES =====
+        // Array of professional images for different careers
+        const professionImages = [
+            'https://images.unsplash.com/photo-1551434678-e076c223a692?auto=format&fit=crop&w=800&q=80', // Developer
+            'https://images.unsplash.com/photo-1507537297725-24a1c029d3ca?auto=format&fit=crop&w=800&q=80', // Business meeting
+            'https://images.unsplash.com/photo-1504639725590-34d0984388bd?auto=format&fit=crop&w=800&q=80', // Doctor
+            'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&w=800&q=80', // Teacher
+            'https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=800&q=80', // Designer
+            'https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=800&q=80', // Office
+            'https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=800&q=80', // Executive
+            'https://images.unsplash.com/photo-1581092921461-7384255a3e51?auto=format&fit=crop&w=800&q=80', // Engineer
+            'https://images.unsplash.com/photo-1573496546038-82f9c39f976a?auto=format&fit=crop&w=800&q=80', // Finance
+            'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=800&q=80', // Marketing
+            'https://images.unsplash.com/photo-1587440871875-191322ee64b0?auto=format&fit=crop&w=800&q=80', // Healthcare
+            'https://images.unsplash.com/photo-1521737604893-d14cc237f11d?auto=format&fit=crop&w=800&q=80', // Team meeting
+            'https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?auto=format&fit=crop&w=800&q=80', // Digital marketing
+            'https://images.unsplash.com/photo-1567168544813-cc03465b4fa8?auto=format&fit=crop&w=800&q=80', // Construction
+            'https://images.unsplash.com/photo-1588681664899-f142ff2dc9b1?auto=format&fit=crop&w=800&q=80'  // Education
+        ];
+
+        // Function to get deterministic but seemingly random index based on profession name
+        function getImageIndexFromName(name) {
+            // Simple hash function
+            let hash = 0;
+            for (let i = 0; i < name.length; i++) {
+                hash = ((hash << 5) - hash) + name.charCodeAt(i);
+                hash = hash & hash; // Convert to 32bit integer
+            }
+            // Make positive and get modulo of array length
+            return Math.abs(hash) % professionImages.length;
+        }
+
+        // Set background image based on profession name
+        const professionName = "{{ profession.name }}";
+        const imageIndex = getImageIndexFromName(professionName);
+        const professionImage = document.getElementById('professionImage');
+
+        if (professionImage) {
+            professionImage.style.backgroundImage = `url('${professionImages[imageIndex]}')`;
+            professionImage.style.backgroundSize = 'cover';
+            professionImage.style.backgroundPosition = 'center';
+        }
+
+        // Add animation to section headers when they come into view
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('animate-visible');
+                    observer.unobserve(entry.target);
+                }
+            });
+        }, { threshold: 0.1 });
+
+        document.querySelectorAll('.section-toggle').forEach(el => {
+            observer.observe(el);
+            el.classList.add('animate-on-scroll');
+        });
+    });
+</script>
+
+<style>
+    /* Animation styles */
+    .animate-on-scroll {
+        opacity: 0.8;
+        transform: translateY(10px);
+        transition: opacity 0.4s ease, transform 0.4s ease;
+    }
+
+    .animate-visible {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    /* Hover effects for buttons */
+    a.hover\:scale-105:hover {
+        transform: scale(1.05);
+        transition: transform 0.3s ease;
+    }
+
+    /* Section toggle animations */
+    .section-toggle {
+        transition: background-color 0.3s ease;
+    }
+
+    .section-toggle:hover {
+        background-color: rgba(0, 0, 0, 0.02);
+    }
+
+    /* Section content animations */
+    .section-content {
+        transform-origin: top;
+        transition: all 0.3s ease;
+    }
+
+    .section-content.hidden {
+        display: block;
+        opacity: 0;
+        transform: scaleY(0);
+        height: 0;
+        overflow: hidden;
+    }
+
+    /* Reduce motion preference */
+    @media (prefers-reduced-motion: reduce) {
+        .animate-on-scroll {
+            opacity: 1;
+            transform: translateY(0);
+            transition: none;
+        }
+
+        .section-content {
+            transition: none;
+        }
+
+        .section-content.hidden {
+            display: none;
+            transform: none;
+        }
+    }
+</style>
 {% endblock %}

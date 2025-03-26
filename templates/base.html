@@ -839,6 +839,227 @@
             transform: translateY(-2px);
             opacity: 0.9;
         }
+
+        /* Enhanced Navigation Styling */
+
+        /* Improved glass effect with better depth */
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        html.dark .glass-effect {
+            background: rgba(30, 30, 30, 0.85);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        /* Logo hover effect */
+        .nav-logo {
+            transition: transform 0.3s ease;
+        }
+
+        .nav-logo:hover {
+            transform: scale(1.05);
+        }
+
+        /* Navigation item styling */
+        .nav-item {
+            position: relative;
+            padding: 0.5rem 1rem;
+            font-weight: 500;
+            border-radius: 0.5rem;
+            transition: all 0.2s ease;
+        }
+
+        .nav-item:hover {
+            background-color: rgba(0, 0, 0, 0.05);
+            transform: translateY(-2px);
+        }
+
+        html.dark .nav-item:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        /* Active navigation item */
+        .nav-item.active {
+            font-weight: 600;
+            color: #000;
+        }
+
+        html.dark .nav-item.active {
+            color: #fff;
+        }
+
+        .nav-item.active::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 20px;
+            height: 3px;
+            background-color: #000;
+            border-radius: 3px;
+        }
+
+        html.dark .nav-item.active::after {
+            background-color: #fff;
+        }
+
+        /* Navigation buttons styling */
+        .nav-btn {
+            padding: 0.5rem 1.25rem;
+            font-weight: 500;
+            border-radius: 0.5rem;
+            transition: all 0.2s ease;
+        }
+
+        .nav-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Primary button styling */
+        .nav-btn-primary {
+            background-color: #000;
+            color: #fff;
+        }
+
+        .nav-btn-primary:hover {
+            background-color: #333;
+        }
+
+        html.dark .nav-btn-primary {
+            background-color: #fff;
+            color: #000;
+        }
+
+        html.dark .nav-btn-primary:hover {
+            background-color: #e0e0e0;
+        }
+
+        /* Secondary button styling */
+        .nav-btn-secondary {
+            background-color: transparent;
+            border: 1px solid #e0e0e0;
+        }
+
+        .nav-btn-secondary:hover {
+            border-color: #000;
+            background-color: rgba(0, 0, 0, 0.02);
+        }
+
+        html.dark .nav-btn-secondary {
+            border-color: #333;
+        }
+
+        html.dark .nav-btn-secondary:hover {
+            border-color: #fff;
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        /* Avatar styling */
+        .nav-avatar {
+            transition: all 0.2s ease;
+            border: 2px solid transparent;
+        }
+
+        .nav-avatar:hover {
+            transform: scale(1.1);
+            border-color: #000;
+        }
+
+        html.dark .nav-avatar:hover {
+            border-color: #fff;
+        }
+
+        /* Mobile menu enhancements */
+        .mobile-nav-menu {
+            box-shadow: -10px 0 30px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s cubic-bezier(0.19, 1, 0.22, 1);
+        }
+
+        html.dark .mobile-nav-menu {
+            box-shadow: -10px 0 30px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Mobile menu item styling */
+        .mobile-nav-item {
+            display: block;
+            padding: 0.75rem 1rem;
+            margin-bottom: 0.5rem;
+            border-radius: 0.5rem;
+            transition: all 0.2s ease;
+        }
+
+        .mobile-nav-item:hover {
+            background-color: rgba(0, 0, 0, 0.05);
+            transform: translateX(4px);
+        }
+
+        html.dark .mobile-nav-item:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        /* Notification badge animation */
+        @keyframes pulse-badge {
+            0% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.1);
+            }
+
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        .nav-notification-counter {
+            animation: pulse-badge 2s infinite;
+        }
+
+        /* Search button enhancement */
+        .search-button {
+            transition: all 0.2s ease;
+            border: 1px solid #e0e0e0;
+            background-color: rgba(0, 0, 0, 0.02);
+        }
+
+        .search-button:hover {
+            background-color: rgba(0, 0, 0, 0.05);
+            border-color: #ccc;
+            transform: translateY(-2px);
+        }
+
+        html.dark .search-button {
+            border-color: #333;
+            background-color: rgba(255, 255, 255, 0.02);
+        }
+
+        html.dark .search-button:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+            border-color: #444;
+        }
+
+        /* Hamburger menu animation */
+        .hamburger-btn {
+            transition: all 0.2s ease;
+        }
+
+        .hamburger-btn:hover {
+            background-color: rgba(0, 0, 0, 0.05);
+            transform: scale(1.05);
+        }
+
+        html.dark .hamburger-btn:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+        }
     </style>
 
 </head>
@@ -1167,7 +1388,8 @@
         x-transition:leave-end="opacity-0 translate-x-full" class="mobile-nav-menu">
         <div class="p-6 space-y-4">
             <div class="border-b pb-4 mb-4 flex justify-between items-center">
-                <span class="text-xl font-bold"><img src="/static/jinaq_logo.svg" alt="Logo" class="h-8 w-auto"></span>
+                <span class="text-xl font-bold"><img src="/static/jinaq_logo.svg" alt="Logo"
+                        class="h-8 w-auto nav-logo"></span>
 
                 <button @click="toggleMobileMenu()" class="text-gray-600 hover:text-black">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1175,26 +1397,23 @@
                             d="M6 18L18 6M6 6l12 12" />
                     </svg>
                 </button>
-
             </div>
 
             {% if 'user_id' in session %}
-
             <div class="flex items-center space-x-4 mb-4">
-                <div class="w-12 h-12 rounded-full overflow-hidden ring-2 ring-gray-200">
+                <div class="w-12 h-12 rounded-full overflow-hidden ring-2 ring-gray-200 nav-avatar">
                     <img src="{{ current_user_avatar if current_user_avatar else avatar_url }}"
                         class="w-full h-full object-cover" alt="Profile" />
                 </div>
                 <div>
                     <div class="font-semibold">{{ current_username if current_username else user_data.display_username
-                        if
-                        user_data else 'User' }}</div>
+                        if user_data else 'User' }}</div>
                     <div class="text-sm text-gray-500">Welcome back</div>
                 </div>
             </div>
 
             <button id="mobileUserSearch"
-                class="flex items-center w-full px-4 py-3 rounded-lg border text-left focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-500 dark:text-gray-400 dark:border-white-600 dark:bg-white-700 hover:bg-white-50 dark:hover:bg-white-600 transition-colors">
+                class="search-button flex items-center w-full px-4 py-3 rounded-lg text-left focus:outline-none">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24"
                     stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -1202,9 +1421,8 @@
                 </svg>
                 <span>Search users, projects, and more...</span>
             </button>
-            <!-- Also update the mobile menu notifications link -->
-            <a href="{{ url_for('notifications_page') }}"
-                class="flex items-center justify-between px-4 py-3 hover:bg-gray-100 rounded-lg">
+
+            <a href="{{ url_for('notifications_page') }}" class="mobile-nav-item flex items-center justify-between">
                 <div class="flex items-center space-x-3">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
                         stroke="currentColor">
@@ -1214,7 +1432,8 @@
                     <span>Notifications</span>
                 </div>
                 {% if notifications_count and notifications_count > 0 %}
-                <span class="bg-red-500 text-white rounded-full px-2 py-0.5 text-xs min-w-[20px] text-center">
+                <span
+                    class="bg-red-500 text-white rounded-full px-2 py-0.5 text-xs min-w-[20px] text-center nav-notification-counter">
                     {{ notifications_count }}
                 </span>
                 {% endif %}
@@ -1222,20 +1441,22 @@
             {% endif %}
 
             {% if 'user_id' in session %}
-            <a href="{{ url_for('profile') }}" class="block px-4 py-3 rounded-lg hover:bg-gray-100">
+            <a href="{{ url_for('profile') }}"
+                class="mobile-nav-item {% if request.endpoint == 'profile' %}active{% endif %}">
                 My Portfolio
             </a>
 
-            <a href="{{ url_for('settings') }}" class="block px-4 py-3 rounded-lg hover:bg-gray-100">
+            <a href="{{ url_for('settings') }}"
+                class="mobile-nav-item {% if request.endpoint == 'settings' %}active{% endif %}">
                 Settings
             </a>
-            <a href="{{ url_for('logout') }}" class="block px-4 py-3 text-red-500 rounded-lg hover:bg-red-50">
+
+            <a href="{{ url_for('logout') }}" class="mobile-nav-item text-red-500">
                 Logout
             </a>
-
             {% else %}
             <button id="mobileUserSearch"
-                class="flex items-center w-full px-4 py-3 rounded-lg border text-left focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-500 dark:text-gray-400 dark:border-white-600 dark:bg-white-700 hover:bg-white-50 dark:hover:bg-white-600 transition-colors">
+                class="search-button flex items-center w-full px-4 py-3 rounded-lg text-left focus:outline-none">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24"
                     stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -1243,11 +1464,12 @@
                 </svg>
                 <span>Search users, projects, and more...</span>
             </button>
-            <a href="{{ url_for('login') }}" class="block px-4 py-3 rounded-lg hover:bg-gray-100">
+
+            <a href="{{ url_for('login') }}" class="mobile-nav-item">
                 Login
             </a>
-            <a href="{{ url_for('register') }}"
-                class="block w-full text-center px-4 py-3 bg-black text-white rounded-lg">
+
+            <a href="{{ url_for('register') }}" class="nav-btn nav-btn-primary w-full text-center">
                 Get Started
             </a>
             {% endif %}
@@ -1382,19 +1604,18 @@
         <div class="container mx-auto px-4 py-2">
             <!-- Desktop Navigation -->
             <div class="hidden md:flex justify-between items-center">
-                <a href="{{ url_for('index') }}" class="flex items-center space-x-2 nav-hover">
+                <a href="{{ url_for('index') }}" class="flex items-center space-x-2 nav-hover nav-logo">
                     {% if config.get('LOGO_SVG_PATH') %}
                     <img src="/static/jinaq_logo.svg" alt="Logo" class="h-12 w-auto">
                     {% else %}
                     <span class="text-2xl font-bold text-black">JINAQ</span>
                     {% endif %}
-
                 </a>
 
                 <div class="flex items-center space-x-4">
                     {% if 'user_id' in session %}
-                    <!-- Replace the old notifications dropdown with this link in desktop navigation -->
-                    <a href="{{ url_for('notifications_page') }}" class="relative group">
+                    <!-- Notifications -->
+                    <a href="{{ url_for('notifications_page') }}" class="relative group nav-item">
                         <div class="btn btn-ghost btn-circle relative flex items-center justify-center">
                             <svg xmlns="http://www.w3.org/2000/svg"
                                 class="h-6 w-6 transition-all duration-200 group-hover:text-blue-600"
@@ -1411,16 +1632,18 @@
                         </div>
                     </a>
 
-
-                    <a href="{{ url_for('profile') }}" class="px-3 py-2 rounded-lg hover:bg-gray-100 nav-hover">
+                    <a href="{{ url_for('profile') }}"
+                        class="nav-item {% if request.endpoint == 'profile' %}active{% endif %}">
                         My Portfolio
                     </a>
 
-                    <a href="{{ url_for('settings') }}" class="px-3 py-2 rounded-lg hover:bg-gray-100 nav-hover">
+                    <a href="{{ url_for('settings') }}"
+                        class="nav-item {% if request.endpoint == 'settings' %}active{% endif %}">
                         Settings
                     </a>
+
                     <div class="dropdown dropdown-end">
-                        <label tabindex="0" class="btn btn-ghost btn-circle avatar nav-hover">
+                        <label tabindex="0" class="btn btn-ghost btn-circle avatar nav-hover nav-avatar">
                             <div class="w-10 h-10 rounded-full ring-2 ring-gray-200 overflow-hidden">
                                 <img src="{{ current_user_avatar if current_user_avatar else avatar_url }}"
                                     class="w-full h-full object-cover" alt="Profile" />
@@ -1429,7 +1652,7 @@
                         <ul tabindex="0"
                             class="dropdown-content z-[1] menu p-2 shadow-lg bg-white rounded-xl w-56 border border-gray-100">
                             <li>
-                                <a href="{{ url_for('profile') }}" class="flex items-center space-x-2">
+                                <a href="{{ url_for('profile') }}" class="flex items-center space-x-2 mobile-nav-item">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
                                         viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -1439,7 +1662,8 @@
                                 </a>
                             </li>
                             <li>
-                                <a href="{{ url_for('logout') }}" class="text-red-500 flex items-center space-x-2">
+                                <a href="{{ url_for('logout') }}"
+                                    class="text-red-500 flex items-center space-x-2 mobile-nav-item">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
                                         viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -1450,9 +1674,10 @@
                             </li>
                         </ul>
                     </div>
+
                     <div class="relative">
                         <button id="desktopUserSearch"
-                            class="flex items-center px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-500 dark:text-gray-400 dark:border-white-600 dark:bg-white-700 hover:bg-white-50 dark:hover:bg-white-600 transition-colors">
+                            class="search-button flex items-center px-4 py-2 rounded-lg focus:outline-none">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24"
                                 stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -1464,7 +1689,7 @@
                     {% else %}
                     <div class="relative">
                         <button id="desktopUserSearch"
-                            class="flex items-center px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-500 dark:text-gray-400 dark:border-white-600 dark:bg-white-700 hover:bg-white-50 dark:hover:bg-white-600 transition-colors">
+                            class="search-button flex items-center px-4 py-2 rounded-lg focus:outline-none">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24"
                                 stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -1474,11 +1699,10 @@
                         </button>
                     </div>
 
-                    <a href="{{ url_for('login') }}" class="px-3 py-2 rounded-lg hover:bg-gray-100 nav-hover">
+                    <a href="{{ url_for('login') }}" class="nav-btn nav-btn-secondary">
                         Login
                     </a>
-                    <a href="{{ url_for('register') }}"
-                        class="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 nav-hover">
+                    <a href="{{ url_for('register') }}" class="nav-btn nav-btn-primary">
                         Get Started
                     </a>
                     {% endif %}
@@ -1487,18 +1711,16 @@
 
             <!-- Mobile Navigation -->
             <div class="md:hidden flex justify-between items-center py-2">
-                <a href="{{ url_for('index') }}" class="text-xl font-bold"><img src="/static/jinaq_logo.svg" alt="Logo"
-                        class="h-8 w-auto"></a>
+                <a href="{{ url_for('index') }}" class="text-xl font-bold nav-logo">
+                    <img src="/static/jinaq_logo.svg" alt="Logo" class="h-8 w-auto">
+                </a>
 
-                <button @click="toggleMobileMenu()"
-                    class="hamburger-btn z-50 p-2 rounded-md hover:bg-gray-100 transition-colors">
+                <button @click="toggleMobileMenu()" class="hamburger-btn z-50 p-2 rounded-md transition-colors">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M4 6h16M4 12h16M4 18h16" />
                     </svg>
-
                 </button>
-
             </div>
         </div>
     </nav>
