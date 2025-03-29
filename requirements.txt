@@ -12,3 +12,4 @@ pandas
 openpyxl
 matplotlib
 transliterate
+openai==0.28.1

@@ -45,22 +45,26 @@ import random
 import string
 from transliterate.base import TranslitLanguagePack, registry
 from transliterate.discover import autodiscover
-
+import openai
 
 
 
 app = Flask(__name__)
 app.secret_key = 'mega-secret-key-yeah'  
 app.config['LOGO_SVG_PATH'] = 'jinaq_logo.svg'
-firebase_creds_str = os.getenv('FIREBASE_PRIVATE_KEY')
+firebase_creds_path = os.getenv('FIREBASE_CREDENTIALS_PATH')
+openai.api_key = os.getenv("OPENAI_API_KEY")
+
 ADMIN_IDS = os.getenv("ADMIN_IDS")
 
 load_dotenv()
 
 password_reset_tokens = {}
 try:
-    firebase_creds_str = os.getenv('FIREBASE_PRIVATE_KEY')
-    firebase_credentials = json.loads(firebase_creds_str)
+    firebase_creds_path = os.getenv('FIREBASE_CREDENTIALS_PATH')
+    with open(firebase_creds_path, 'r') as f:
+        firebase_credentials = json.load(f)
+
     
 
     required_fields = ['type', 'project_id', 'private_key', 'client_email']
@@ -73,9 +77,28 @@ except json.JSONDecodeError:
     print("ERROR: Invalid JSON in Firebase credentials")
 except ValueError as e:
     print(f"Credentials validation error: {e}")
-if not firebase_creds_str:
-    raise ValueError("FIREBASE_PRIVATE_KEY не найден в .env файле")
-firebase_credentials = json.loads(firebase_creds_str)
+
+
+def check_openai_key_on_start():
+    print("checking api key")
+    api_key = openai.api_key
+
+    if not api_key:
+        print("not found")
+        return False
+
+    try:
+        openai.Model.list()
+        print("openai is on my guy")
+        return True
+    except openai.AuthenticationError:
+        print("aint working my guy")
+        return False
+    except Exception as e:
+        print(f"error is: {str(e)}")
+        return False
+
+
 NOTIFICATION_TYPES = {
     'project_comment': {
         'icon': '💬',
@@ -8839,7 +8862,10 @@ def internal_server_error(e):
 
 app.config['DEBUG'] = True
 
-
+if check_openai_key_on_start():
+    app.run(debug=True)
+else:
+    print("server aint launching cuz no openai key")
 @app.route('/test_404')
 def test_404():
     abort(404)
