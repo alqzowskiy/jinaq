@@ -8842,42 +8842,59 @@ def restart_career_test():
         return redirect(url_for('career_test'))
 
 
-#новый промпт я старый убрал и вставил новый ес чо не перепутайте Арслан,Алибек
 def create_semantic_search_prompt(query, user_data_list):
-    """Create prompt with A* inspired algorithm for semantic search"""
-    user_nodes = []
+    user_profiles = []
     for idx, user in enumerate(user_data_list):
-        user_node = {
-            "id": idx,
-            "name": user['display_username'],
-            "description": user['semantic_text'][:500]
+        profile = {
+            "id": user.get('id', f"user_{idx}"),
+            "username": user.get('display_username', user.get('username', '')),
+            "full_name": user.get('full_name', ''),
+            "bio": user.get('bio', ''),
+            "specialty": user.get('specialty', ''),
+            "skills": user.get('skills', []),
+            "education": user.get('education', ''),
+            "goals": user.get('goals', '')
         }
-        user_nodes.append(user_node)
+        user_profiles.append(profile)
     
     prompt = f"""
-    Find semantically relevant users for query: "{query}"
-    
-    USER DATABASE:
-    ```
-    {json.dumps(user_nodes, ensure_ascii=False)}
-    ```
-    
-    Use an A*-inspired algorithm:
-    1. Start with the query as your "starting node"
-    2. For each user, calculate a "distance" based on:
-       - Semantic similarity between query and description
-       - Direct keyword matches (lower cost)
-       - Relevance of skills and specialization
-    3. Trace optimal "path" from query to most suitable users
-    
-    RULES:
-    - Return ONLY a JSON array of usernames, nothing else
-    - Find 2-5 most semantically relevant users
-    - Response format: ["username1", "username2"]
-    """
+You are an advanced semantic search system designed to find the most relevant users for a query.
+
+SEARCH QUERY: "{query}"
+
+USER PROFILES DATABASE:
+```json
+{json.dumps(user_profiles, ensure_ascii=False, indent=2)}
+```
+
+SEARCH ALGORITHM:
+1. Analyze the search query to extract key concepts, skills, roles, and requirements.
+2. Consider multiple interpretations of the query to cover different aspects of user intent.
+3. Examine each user profile for relevant information:
+   - Direct matches (skills, specialty, experience explicitly mentioned in the query)
+   - Semantic matches (related skills, transferable experience)
+   - Implied qualifications (experience suggesting relevant capabilities)
+   - Consider combinations of multiple attributes that together satisfy the query
+4. Evaluate match quality based on:
+   - Completeness (how many aspects of the query are satisfied)
+   - Specificity (how precisely the profile matches specialized requirements)
+   - Relevance weighting (prioritization of critical vs. optional criteria)
+
+IMPORTANT GUIDELINES:
+- Focus on deep semantic understanding, not just keyword matching
+- Account for synonyms, variations in professional terminology, and concept hierarchies
+- Infer implied skills based on specialties, education, and experience
+- Evaluate context and combinations of attributes that together indicate relevance
+- Fix typos in the user query and consider possible spelling variations
+
+RESPONSE FORMAT:
+Return ONLY a JSON array of the 3-7 most relevant user IDs, ordered by relevance:
+["most_relevant_user_id", "second_most_relevant_id", ...]
+
+Do not include any explanations, notes, or additional content - ONLY the JSON array.
+"""
     
     return prompt
-
 def parse_query_with_openai(query):
     try:
         user_data_list = get_users_data(limit=50)
@@ -8930,7 +8947,30 @@ def parse_query_with_openai(query):
     except Exception as error:
         print(f"Semantic search error: {str(error)}")
         return []
-    
+def get_all_users_from_firebase():
+    try:
+        users_ref = db.collection('users')
+        users = users_ref.stream()
+        
+        all_users = []
+        
+        for user_doc in users:
+            user_data = user_doc.to_dict()
+            user_data['id'] = user_doc.id
+            
+            if user_data.get('blocked', False):
+                continue
+                
+            all_users.append(user_data)
+            
+        print(f"Retrieved {len(all_users)} user profiles from Firebase")
+        return all_users
+        
+    except Exception as e:
+        print(f"Error retrieving users from Firebase: {e}")
+        import traceback
+        traceback.print_exc()
+        return []    
 def get_users_data(limit=50):
     users_ref = db.collection('users').limit(limit)
     users = users_ref.stream()
