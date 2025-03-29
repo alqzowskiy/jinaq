@@ -8,6 +8,7 @@ import uuid
 import datetime
 from flask import jsonify, request, abort
 import json
+import re
 import os
 from flask import jsonify, url_for
 from firebase_admin import firestore
@@ -8839,7 +8840,129 @@ def restart_career_test():
         print(f"Error resetting career test progress: {e}")
         flash('Произошла ошибка при перезапуске теста. Попробуйте еще раз.')
         return redirect(url_for('career_test'))
-       
+
+def create_search_prompt(query):   
+    prompt = f"""
+    You are an advanced query parser for a professional portfolio platform.Your task is to convert natural language search queries into structured JSON filters.
+
+    Available user fields for filtering:
+    - username: string
+    - full_name: string
+    - specialty: string (e.g., "UX Designer", "Developer", "Project Manager")
+    - skills: array of strings (e.g., ["Python", "JavaScript", "Figma"])
+    - education: string (e.g., "Computer Science degree", "Self-taught")
+    - bio: string
+    - goals: string
+    - verified: boolean
+    - location: object with city and country
+    - academic_info:
+      - gpa: string
+      - languages: array of objects with name and level
+      - achievements: array of strings
+    
+    Given a natural language query, extract all implied filters and return them as a JSON object with the following structure:
+    {{
+      "filters": {{
+        "specialty": ["UX Designer"],
+        "skills": ["Figma"],
+        "experience": ["startup"],
+        "location": {{"city": "New York", "country": "USA"}},
+        "education": "Computer Science",
+        "verified": true
+      }},
+      "sort_by": "relevance",
+      "search_priority": ["skills", "specialty", "experience"]
+    }}
+    
+    The search_priority field should list the most important search criteria based on the query, from most to least important.
+    show up only JSON 
+    Query: "{query}"
+    Response:
+    """
+    
+    return prompt
+
+def parse_query_with_openai(query):
+    try:
+        prompt = create_search_prompt(query)
+        
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are a search query parser that converts natural language to JSON filters."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.1,  
+            max_tokens=500
+        )
+        
+        result = response.choices[0].message.content.strip()
+        
+        
+        json_match = re.search(r'({.*})', result, re.DOTALL)
+        if json_match:
+            json_str = json_match.group(1)
+            filters = json.loads(json_str)
+        else:
+            filters = json.loads(result)
+            
+        return filters
+    except Exception as e:
+        print(f"Error parsing query with OpenAI: {str(e)}")
+        return {"filters": {}, "sort_by": "relevance", "search_priority": []}
+@app.route('/test-openai-search', methods=['GET'])
+def test_openai_search():
+    try:
+
+        test_query = "хочу найти python разраба"
+        
+
+        prompt = create_search_prompt(test_query)
+        
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are a search query parser that converts natural language to JSON filters."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.1
+        )
+
+        result = response.choices[0].message.content.strip()
+        
+        try:
+            json_match = re.search(r'({.*})', result, re.DOTALL)
+            if json_match:
+                json_str = json_match.group(1)
+                filters = json.loads(json_str)
+            else:
+                filters = json.loads(result)
+            json_pretty = json.dumps(filters, indent=2, ensure_ascii=False)
+        except json.JSONDecodeError:
+            json_pretty = "error parse. openai response:\n" + result
+        
+
+        return f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>test fr OpenAI</title>
+        </head>
+        <body>
+            <h1>test</h1>
+            <h2>prompt:</h2>
+            <pre>{test_query}</pre>
+            <h2>results:</h2>
+            <pre>{json_pretty}</pre>
+            <p class="{'success' if 'filters' in filters else 'error'}">
+                {'True! Openai is working fr.' if 'filters' in filters else 'Error'}
+            </p>
+        </body>
+        </html>
+        """
+    except Exception as e:
+        
+        print(e)
 @app.errorhandler(404)
 def page_not_found(e):
 
