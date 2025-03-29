@@ -8841,75 +8841,92 @@ def restart_career_test():
         flash('Произошла ошибка при перезапуске теста. Попробуйте еще раз.')
         return redirect(url_for('career_test'))
 
-def create_search_prompt(query):   
+def create_search_prompt(query):
     prompt = f"""
-    You are an advanced query parser for a professional portfolio platform.Your task is to convert natural language search queries into structured JSON filters.
-
-    Available user fields for filtering:
-    - username: string
-    - full_name: string
-    - specialty: string (e.g., "UX Designer", "Developer", "Project Manager")
-    - skills: array of strings (e.g., ["Python", "JavaScript", "Figma"])
-    - education: string (e.g., "Computer Science degree", "Self-taught")
-    - bio: string
-    - goals: string
-    - verified: boolean
-    - location: object with city and country
-    - academic_info:
-      - gpa: string
-      - languages: array of objects with name and level
-      - achievements: array of strings
+    As a professional talent search consultant, analyze this search query: "{query}"
     
-    Given a natural language query, extract all implied filters and return them as a JSON object with the following structure:
-    {{
-      "filters": {{
-        "specialty": ["UX Designer"],
-        "skills": ["Figma"],
-        "experience": ["startup"],
-        "location": {{"city": "New York", "country": "USA"}},
-        "education": "Computer Science",
-        "verified": true
-      }},
-      "sort_by": "relevance",
-      "search_priority": ["skills", "specialty", "experience"]
-    }}
+    Our platform contains detailed professional portfolios with these characteristics:
+    - Technical skills and expertise areas
+    - Professional background and specialty
+    - Education and qualifications
+    - Location and language proficiency
+    - Verified status and achievements
+    - Portfolio projects and contributions
     
-    The search_priority field should list the most important search criteria based on the query, from most to least important.
-    show up only JSON 
-    Query: "{query}"
-    Response:
+    Please provide a comprehensive search strategy as a JSON object with:
+    
+    "core_intent": The fundamental goal of this search query
+    "must_have_criteria": Essential requirements the candidates must possess
+    "preferred_qualities": Desirable attributes that enhance candidate fit
+    "implied_experience_level": Junior, Mid-level, Senior, or Expert based on query context
+    "relevant_domains": Professional domains or industries implied in the query
+    "skill_synonyms": Alternative terms for technical skills mentioned
+    "search_weights": Relative importance (1-10) of different profile aspects
+    "exclusion_factors": Any characteristics that would make a candidate unsuitable
+    
+    Focus on understanding both explicit and implicit requirements in the query.
+    Return only the JSON object without explanation.
     """
-    
     return prompt
+
 
 def parse_query_with_openai(query):
     try:
-        prompt = create_search_prompt(query)
+        search_prompt = create_search_prompt(query)
         
         response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": "You are a search query parser that converts natural language to JSON filters."},
-                {"role": "user", "content": prompt}
+                {"role": "system", "content": "You are a specialized talent search consultant with expertise in technical recruitment and professional matching."},
+                {"role": "user", "content": search_prompt}
             ],
-            temperature=0.1,  
-            max_tokens=500
+            temperature=0.4,
+            max_tokens=800
         )
         
         result = response.choices[0].message.content.strip()
         
-        
-        json_match = re.search(r'({.*})', result, re.DOTALL)
-        if json_match:
-            json_str = json_match.group(1)
-            filters = json.loads(json_str)
-        else:
-            filters = json.loads(result)
+        try:
+            if '{' in result and '}' in result:
+                json_pattern = re.compile(r'({[\s\S]*})')
+                match = json_pattern.search(result)
+                if match:
+                    json_str = match.group(1)
+                    search_strategy = json.loads(json_str)
+                else:
+                    search_strategy = json.loads(result)
+            else:
+                search_strategy = json.loads(result)
+                
+            return search_strategy
             
-        return filters
-    except Exception as e:
-        print(f"Error parsing query with OpenAI: {str(e)}")
-        return {"filters": {}, "sort_by": "relevance", "search_priority": []}
+        except json.JSONDecodeError:
+            print(f"Unable to parse JSON from OpenAI response: {result}")
+            
+            return {
+                "core_intent": query,
+                "must_have_criteria": [],
+                "preferred_qualities": [],
+                "implied_experience_level": "Any",
+                "relevant_domains": [],
+                "skill_synonyms": {},
+                "search_weights": {"skills": 8, "specialty": 7, "experience": 6},
+                "exclusion_factors": []
+            }
+            
+    except Exception as error:
+        print(f"Error during search query interpretation: {str(error)}")
+        
+        return {
+            "core_intent": query,
+            "must_have_criteria": [],
+            "preferred_qualities": [],
+            "implied_experience_level": "Any",
+            "relevant_domains": [],
+            "skill_synonyms": {},
+            "search_weights": {"skills": 8, "specialty": 7, "experience": 6},
+            "exclusion_factors": []
+        }
 @app.route('/test-openai-search', methods=['GET'])
 def test_openai_search():
     try:
