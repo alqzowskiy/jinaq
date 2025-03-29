@@ -8842,23 +8842,87 @@ def restart_career_test():
         return redirect(url_for('career_test'))
 
 
+def calculate_profile_completeness(user_info):
+    score = 0
+    
+    if user_info.get('bio') and len(user_info.get('bio', '')) > 10:
+        score += 15
+    
+    if user_info.get('specialty'):
+        score += 15
+    
+    if user_info.get('education'):
+        score += 10
+    
+
+    
+    skills = user_info.get('skills', [])
+    if skills:
+        skill_score = min(len(skills) * 4, 20)
+        score += skill_score
+    
+    projects = user_info.get('projects', [])
+    if projects:
+        project_score = min(len(projects) * 5, 15)
+        score += project_score
+    
+    certificates = user_info.get('certificates', [])
+    if certificates:
+        cert_score = min(len(certificates) * 2.5, 5)
+        score += cert_score
+    
+    return score
+
 def create_semantic_search_prompt(query, user_data_list):
+
+    
+    cert_count_match = re.search(r'(\d+)\s+certificates?', query.lower())
+    if cert_count_match:
+        count = int(cert_count_match.group(1))
+        cert_filtered_users = [user for user in user_data_list if len(user.get('certificates', [])) == count]
+        if cert_filtered_users:
+            user_data_list = cert_filtered_users
+    
+    project_count_match = re.search(r'(\d+)\s+projects?', query.lower())
+    if project_count_match:
+        count = int(project_count_match.group(1))
+
+        project_filtered_users = [user for user in user_data_list if len(user.get('projects', [])) == count]
+        if project_filtered_users:
+            user_data_list = project_filtered_users
+    
     user_profiles = []
-    for idx, user in enumerate(user_data_list):
+    for user in user_data_list:
+        projects_info = []
+        for project in user.get('projects', []):
+            projects_info.append({
+                "title": project.get('title', ''),
+                "description": project.get('description', '')[:100] if project.get('description') else '',
+                "tags": project.get('tags', [])
+            })
+            
+        certificates_info = [cert.get('title', '') for cert in user.get('certificates', [])]
+        
         profile = {
-            "id": user.get('id', f"user_{idx}"),
+            "id": user.get('id'),
             "username": user.get('display_username', user.get('username', '')),
             "full_name": user.get('full_name', ''),
             "bio": user.get('bio', ''),
             "specialty": user.get('specialty', ''),
             "skills": user.get('skills', []),
             "education": user.get('education', ''),
-            "goals": user.get('goals', '')
+            "goals": user.get('goals', ''),
+            "projects": projects_info,
+            "certificates": certificates_info,
+            "certificate_count": len(user.get('certificates', [])),
+            "project_count": len(user.get('projects', [])),
+            "profile_completeness": user.get('completeness_score', 0),
+            "searchable_text": user.get('searchable_text', '')
         }
         user_profiles.append(profile)
     
     prompt = f"""
-You are an advanced semantic search system designed to find the most relevant users for a query.
+You are a precise search engine that understands user queries and finds exact matches.
 
 SEARCH QUERY: "{query}"
 
@@ -8867,37 +8931,29 @@ USER PROFILES DATABASE:
 {json.dumps(user_profiles, ensure_ascii=False, indent=2)}
 ```
 
-SEARCH ALGORITHM:
-1. Analyze the search query to extract key concepts, skills, roles, and requirements.
-2. Consider multiple interpretations of the query to cover different aspects of user intent.
-3. Examine each user profile for relevant information:
-   - Direct matches (skills, specialty, experience explicitly mentioned in the query)
-   - Semantic matches (related skills, transferable experience)
-   - Implied qualifications (experience suggesting relevant capabilities)
-   - Consider combinations of multiple attributes that together satisfy the query
-4. Evaluate match quality based on:
-   - Completeness (how many aspects of the query are satisfied)
-   - Specificity (how precisely the profile matches specialized requirements)
-   - Relevance weighting (prioritization of critical vs. optional criteria)
+IMPORTANT SEARCH INSTRUCTIONS:
+1. For SPECIFIC searches like "someone who loves X", ONLY return users who explicitly mention loving X in their profile
+2. For NUMERICAL searches like "X certificates" or "Y projects", ONLY return users with EXACTLY that number
+3. For SKILL-BASED searches, ONLY return users who have that specific skill listed or in project descriptions
+4. QUALITY over QUANTITY - return ONLY truly relevant users, even if it's just 1-2 results
+5. For programming searches, require actual programming evidence (skills, projects, etc.)
+6. NEVER INCLUDE users with empty or mostly empty profiles
+7. If FEWER THAN 3 users match the query well, that's fine - return only the genuinely matching users
 
-IMPORTANT GUIDELINES:
-- Focus on deep semantic understanding, not just keyword matching
-- Account for synonyms, variations in professional terminology, and concept hierarchies
-- Infer implied skills based on specialties, education, and experience
-- Evaluate context and combinations of attributes that together indicate relevance
-- Fix typos in the user query and consider possible spelling variations
+CRITICAL: For this query "{query}" - you MUST verify that returned profiles contain explicit evidence matching the query. Irrelevant results should NOT be included just to have more results.
 
 RESPONSE FORMAT:
-Return ONLY a JSON array of the 3-7 most relevant user IDs, ordered by relevance:
+Return ONLY a JSON array of the most relevant user IDs, ordered by relevance:
 ["most_relevant_user_id", "second_most_relevant_id", ...]
 
-Do not include any explanations, notes, or additional content - ONLY the JSON array.
+Return ONLY the JSON array with no explanations.
 """
     
     return prompt
+
 def parse_query_with_openai(query):
     try:
-        user_data_list = get_users_data(limit=50)
+        user_data_list = get_users_data(limit=100)
         
         if not user_data_list:
             print("No users found in database")
@@ -8908,7 +8964,7 @@ def parse_query_with_openai(query):
         response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": "You are a search engine that finds users by query meaning and returns only a JSON array of names."},
+                {"role": "system", "content": "You are a search engine that understands any query and returns only a JSON array of user IDs."},
                 {"role": "user", "content": search_prompt}
             ],
             temperature=0.2,
@@ -8923,18 +8979,18 @@ def parse_query_with_openai(query):
             
             if match:
                 json_str = match.group(1)
-                matching_usernames = json.loads(json_str)
+                matching_user_ids = json.loads(json_str)
             else:
-                matching_usernames = json.loads(result)
+                matching_user_ids = json.loads(result)
                 
-            if not isinstance(matching_usernames, list):
-                print(f"API didn't return a list: {matching_usernames}")
+            if not isinstance(matching_user_ids, list):
+                print(f"API didn't return a list: {matching_user_ids}")
                 return []
-                
+            
             matching_users = []
-            for username in matching_usernames:
+            for user_id in matching_user_ids:
                 for user in user_data_list:
-                    if user['display_username'].lower() == username.lower():
+                    if user['id'] == user_id:
                         matching_users.append(user)
                         break
             
@@ -8945,8 +9001,156 @@ def parse_query_with_openai(query):
             return []
             
     except Exception as error:
-        print(f"Semantic search error: {str(error)}")
+        print(f"Search error: {str(error)}")
         return []
+    
+def a_star_search(query, user_data_list, max_results=5):
+    query_tokens = set(query.lower().split())
+    
+    user_scores = []
+    
+    for user in user_data_list:
+        g_score = 0
+        
+
+        matching_skills = 0
+        for skill in user.get('skills', []):
+            if any(token in skill.lower() for token in query_tokens):
+                matching_skills += 1
+                g_score += 10 
+        
+
+        matching_projects = 0
+        for project in user.get('projects', []):
+            project_title = project.get('title', '').lower()
+            project_desc = project.get('description', '').lower()
+            project_tags = [tag.lower() for tag in project.get('tags', [])]
+
+            if any(token in project_title for token in query_tokens):
+                matching_projects += 1
+                g_score += 8  
+                
+            if any(token in project_desc for token in query_tokens):
+                matching_projects += 0.5
+                g_score += 5 
+                
+            if any(token in tag for token in query_tokens for tag in project_tags):
+                matching_projects += 0.5
+                g_score += 6 
+        
+
+        matching_certs = 0
+        for cert in user.get('certificates', []):
+            cert_title = cert.get('title', '').lower()
+            if any(token in cert_title for token in query_tokens):
+                matching_certs += 1
+                g_score += 7  
+        
+
+        specialty = user.get('specialty', '').lower()
+        if any(token in specialty for token in query_tokens):
+            g_score += 9  
+
+        h_score = 0
+
+        bio = user.get('bio', '').lower()
+        education = user.get('education', '').lower()
+        goals = user.get('goals', '').lower()
+      
+        token_density = 0
+        for token in query_tokens:
+            token_density += bio.count(token) * 1.5
+            token_density += education.count(token) * 1.2
+            token_density += goals.count(token) * 1.0
+            token_density += specialty.count(token) * 2.0
+        
+        h_score = token_density * 2
+
+        h_score += len(user.get('projects', [])) * 1.5
+        h_score += len(user.get('certificates', [])) * 2
+        
+        f_score = g_score + h_score
+
+        user_scores.append({
+            'id': user.get('id'),
+            'f_score': f_score,
+            'g_score': g_score,
+            'h_score': h_score,
+            'display_username': user.get('display_username')
+        })
+    
+
+    user_scores.sort(key=lambda x: x['f_score'], reverse=True)
+
+    return [user['id'] for user in user_scores[:max_results]]
+
+
+def parse_query_with_openai(query):
+    try:
+        user_data_list = get_users_data(limit=50)
+        
+        if not user_data_list:
+            print("No users found in database")
+            return []
+            
+        search_prompt = create_semantic_search_prompt(query, user_data_list)
+        
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are a search engine that finds users by query meaning and returns only a JSON array of user IDs."},
+                {"role": "user", "content": search_prompt}
+            ],
+            temperature=0.2,
+            max_tokens=400
+        )
+        
+        result = response.choices[0].message.content.strip()
+        
+        try:
+            json_pattern = re.compile(r'(\[[\s\S]*\])')
+            match = json_pattern.search(result)
+            
+            if match:
+                json_str = match.group(1)
+                matching_user_ids = json.loads(json_str)
+            else:
+                matching_user_ids = json.loads(result)
+                
+            if not isinstance(matching_user_ids, list):
+                print(f"API didn't return a list: {matching_user_ids}")
+                matching_user_ids = a_star_search(query, user_data_list)
+        except json.JSONDecodeError:
+            print(f"Couldn't parse JSON from OpenAI response: {result}")
+            matching_user_ids = a_star_search(query, user_data_list)
+
+        matching_users = []
+        for user_id in matching_user_ids:
+            for user in user_data_list:
+                if user['id'] == user_id:
+                    matching_users.append(user)
+                    break
+        
+        return matching_users
+            
+    except Exception as error:
+        print(f"Semantic search error: {str(error)}")
+        try:
+            matching_user_ids = a_star_search(query, user_data_list)
+            
+            matching_users = []
+            for user_id in matching_user_ids:
+                for user in user_data_list:
+                    if user['id'] == user_id:
+                        matching_users.append(user)
+                        break
+            
+            return matching_users
+        except Exception as e:
+            print(f"A* search fallback error: {str(e)}")
+            return []
+
+
 def get_all_users_from_firebase():
     try:
         users_ref = db.collection('users')
@@ -8971,47 +9175,102 @@ def get_all_users_from_firebase():
         import traceback
         traceback.print_exc()
         return []    
-def get_users_data(limit=50):
+def get_users_data(limit=100):
     users_ref = db.collection('users').limit(limit)
     users = users_ref.stream()
     
     user_data_list = []
     for user_doc in users:
         user_data = user_doc.to_dict()
+        user_id = user_doc.id
         
         if user_data.get('blocked', False):
             continue
             
+        created_projects = []
+        try:
+            projects_ref = db.collection('projects').where('created_by', '==', user_id)
+            for project_doc in projects_ref.stream():
+                project_data = project_doc.to_dict()
+                created_projects.append({
+                    'id': project_doc.id,
+                    'title': project_data.get('title', ''),
+                    'description': project_data.get('description', ''),
+                    'tags': project_data.get('tags', [])
+                })
+        except Exception as e:
+            print(f"Error getting projects for user {user_id}: {e}")
+            
+        collaborative_projects = []
+        try:
+            collab_projects_ref = db.collection('projects')
+            for project_doc in collab_projects_ref.stream():
+                project_data = project_doc.to_dict()
+                collaborators = project_data.get('collaborators', [])
+                
+                if any(c.get('user_id') == user_id for c in collaborators):
+                    collaborative_projects.append({
+                        'id': project_doc.id,
+                        'title': project_data.get('title', ''),
+                        'description': project_data.get('description', ''),
+                        'tags': project_data.get('tags', [])
+                    })
+        except Exception as e:
+            print(f"Error getting collaborative projects for user {user_id}: {e}")
+            
+        certificates = []
+        try:
+            certs_ref = db.collection('users').document(user_id).collection('certificates')
+            for cert_doc in certs_ref.stream():
+                cert_data = cert_doc.to_dict()
+                certificates.append({
+                    'id': cert_doc.id,
+                    'title': cert_data.get('title', '')
+                })
+        except Exception as e:
+            print(f"Error getting certificates for user {user_id}: {e}")
+            
         user_info = {
-            'id': user_doc.id,
+            'id': user_id,
             'display_username': user_data.get('display_username', user_data.get('username', '')),
             'bio': user_data.get('bio', ''),
             'specialty': user_data.get('specialty', ''),
             'skills': user_data.get('skills', []),
             'education': user_data.get('education', ''),
             'goals': user_data.get('goals', ''),
-            'full_name': user_data.get('full_name', '')
+            'full_name': user_data.get('full_name', ''),
+            'projects': created_projects + collaborative_projects,
+            'certificates': certificates
         }
         
-        user_info['semantic_text'] = (
-            f"Name: {user_info['full_name']} "
-            f"Username: {user_info['display_username']} "
-            f"Bio: {user_info['bio']} "
-            f"Specialty: {user_info['specialty']} "
-            f"Skills: {', '.join(user_info['skills'])} "
-            f"Education: {user_info['education']} "
-            f"Goals: {user_info['goals']}"
-        )
+        completeness_score = calculate_profile_completeness(user_info)
+        user_info['completeness_score'] = completeness_score
+        
+        user_info['searchable_text'] = (
+            f"{user_info['display_username']} {user_info['full_name']} "
+            f"{user_info['bio']} {user_info['specialty']} {user_info['education']} "
+            f"{user_info['goals']} {' '.join(user_info['skills'])}"
+        ).lower()
+        
+        project_texts = []
+        for project in user_info['projects']:
+            project_texts.append(project.get('title', ''))
+            project_texts.append(project.get('description', ''))
+            project_texts.extend(project.get('tags', []))
+        
+        user_info['project_text'] = ' '.join(project_texts).lower()
+        
+        cert_texts = [cert.get('title', '') for cert in user_info['certificates']]
+        user_info['certificate_text'] = ' '.join(cert_texts).lower()
         
         user_data_list.append(user_info)
         
     return user_data_list
 
-
 @app.route('/test-openai-search', methods=['GET'])
 def test_openai_search():
     try:
-        test_query = "программмиста"
+        test_query = "someone who loves alibek"
         
         matching_users = parse_query_with_openai(test_query)
         
