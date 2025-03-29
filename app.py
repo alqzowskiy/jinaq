@@ -8841,145 +8841,200 @@ def restart_career_test():
         flash('Произошла ошибка при перезапуске теста. Попробуйте еще раз.')
         return redirect(url_for('career_test'))
 
-def create_search_prompt(query):
-    prompt = f"""
-    As a professional talent search consultant, analyze this search query: "{query}"
-    
-    Our platform contains detailed professional portfolios with these characteristics:
-    - Technical skills and expertise areas
-    - Professional background and specialty
-    - Education and qualifications
-    - Location and language proficiency
-    - Verified status and achievements
-    - Portfolio projects and contributions
-    
-    Please provide a comprehensive search strategy as a JSON object with:
-    
-    "core_intent": The fundamental goal of this search query
-    "must_have_criteria": Essential requirements the candidates must possess
-    "preferred_qualities": Desirable attributes that enhance candidate fit
-    "implied_experience_level": Junior, Mid-level, Senior, or Expert based on query context
-    "relevant_domains": Professional domains or industries implied in the query
-    "skill_synonyms": Alternative terms for technical skills mentioned
-    "search_weights": Relative importance (1-10) of different profile aspects
-    "exclusion_factors": Any characteristics that would make a candidate unsuitable
-    
-    Focus on understanding both explicit and implicit requirements in the query.
-    Return only the JSON object without explanation.
-    """
-    return prompt
 
+#новый промпт я старый убрал и вставил новый ес чо не перепутайте Арслан,Алибек
+def create_semantic_search_prompt(query, user_data_list):
+    """Create prompt with A* inspired algorithm for semantic search"""
+    user_nodes = []
+    for idx, user in enumerate(user_data_list):
+        user_node = {
+            "id": idx,
+            "name": user['display_username'],
+            "description": user['semantic_text'][:500]
+        }
+        user_nodes.append(user_node)
+    
+    prompt = f"""
+    Find semantically relevant users for query: "{query}"
+    
+    USER DATABASE:
+    ```
+    {json.dumps(user_nodes, ensure_ascii=False)}
+    ```
+    
+    Use an A*-inspired algorithm:
+    1. Start with the query as your "starting node"
+    2. For each user, calculate a "distance" based on:
+       - Semantic similarity between query and description
+       - Direct keyword matches (lower cost)
+       - Relevance of skills and specialization
+    3. Trace optimal "path" from query to most suitable users
+    
+    RULES:
+    - Return ONLY a JSON array of usernames, nothing else
+    - Find 2-5 most semantically relevant users
+    - Response format: ["username1", "username2"]
+    """
+    
+    return prompt
 
 def parse_query_with_openai(query):
     try:
-        search_prompt = create_search_prompt(query)
+        user_data_list = get_users_data(limit=50)
+        
+        if not user_data_list:
+            print("No users found in database")
+            return []
+            
+        search_prompt = create_semantic_search_prompt(query, user_data_list)
         
         response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": "You are a specialized talent search consultant with expertise in technical recruitment and professional matching."},
+                {"role": "system", "content": "You are a search engine that finds users by query meaning and returns only a JSON array of names."},
                 {"role": "user", "content": search_prompt}
             ],
-            temperature=0.4,
-            max_tokens=800
+            temperature=0.2,
+            max_tokens=400
         )
         
         result = response.choices[0].message.content.strip()
         
         try:
-            if '{' in result and '}' in result:
-                json_pattern = re.compile(r'({[\s\S]*})')
-                match = json_pattern.search(result)
-                if match:
-                    json_str = match.group(1)
-                    search_strategy = json.loads(json_str)
-                else:
-                    search_strategy = json.loads(result)
+            json_pattern = re.compile(r'(\[[\s\S]*\])')
+            match = json_pattern.search(result)
+            
+            if match:
+                json_str = match.group(1)
+                matching_usernames = json.loads(json_str)
             else:
-                search_strategy = json.loads(result)
+                matching_usernames = json.loads(result)
                 
-            return search_strategy
+            if not isinstance(matching_usernames, list):
+                print(f"API didn't return a list: {matching_usernames}")
+                return []
+                
+            matching_users = []
+            for username in matching_usernames:
+                for user in user_data_list:
+                    if user['display_username'].lower() == username.lower():
+                        matching_users.append(user)
+                        break
+            
+            return matching_users
             
         except json.JSONDecodeError:
-            print(f"Unable to parse JSON from OpenAI response: {result}")
-            
-            return {
-                "core_intent": query,
-                "must_have_criteria": [],
-                "preferred_qualities": [],
-                "implied_experience_level": "Any",
-                "relevant_domains": [],
-                "skill_synonyms": {},
-                "search_weights": {"skills": 8, "specialty": 7, "experience": 6},
-                "exclusion_factors": []
-            }
+            print(f"Couldn't parse JSON from OpenAI response: {result}")
+            return []
             
     except Exception as error:
-        print(f"Error during search query interpretation: {str(error)}")
+        print(f"Semantic search error: {str(error)}")
+        return []
+    
+def get_users_data(limit=50):
+    users_ref = db.collection('users').limit(limit)
+    users = users_ref.stream()
+    
+    user_data_list = []
+    for user_doc in users:
+        user_data = user_doc.to_dict()
         
-        return {
-            "core_intent": query,
-            "must_have_criteria": [],
-            "preferred_qualities": [],
-            "implied_experience_level": "Any",
-            "relevant_domains": [],
-            "skill_synonyms": {},
-            "search_weights": {"skills": 8, "specialty": 7, "experience": 6},
-            "exclusion_factors": []
+        if user_data.get('blocked', False):
+            continue
+            
+        user_info = {
+            'id': user_doc.id,
+            'display_username': user_data.get('display_username', user_data.get('username', '')),
+            'bio': user_data.get('bio', ''),
+            'specialty': user_data.get('specialty', ''),
+            'skills': user_data.get('skills', []),
+            'education': user_data.get('education', ''),
+            'goals': user_data.get('goals', ''),
+            'full_name': user_data.get('full_name', '')
         }
+        
+        user_info['semantic_text'] = (
+            f"Name: {user_info['full_name']} "
+            f"Username: {user_info['display_username']} "
+            f"Bio: {user_info['bio']} "
+            f"Specialty: {user_info['specialty']} "
+            f"Skills: {', '.join(user_info['skills'])} "
+            f"Education: {user_info['education']} "
+            f"Goals: {user_info['goals']}"
+        )
+        
+        user_data_list.append(user_info)
+        
+    return user_data_list
+
+
 @app.route('/test-openai-search', methods=['GET'])
 def test_openai_search():
     try:
-
-        test_query = "хочу найти python разраба"
+        test_query = "программмиста"
         
-
-        prompt = create_search_prompt(test_query)
+        matching_users = parse_query_with_openai(test_query)
         
-        response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": "You are a search query parser that converts natural language to JSON filters."},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.1
-        )
-
-        result = response.choices[0].message.content.strip()
-        
-        try:
-            json_match = re.search(r'({.*})', result, re.DOTALL)
-            if json_match:
-                json_str = json_match.group(1)
-                filters = json.loads(json_str)
-            else:
-                filters = json.loads(result)
-            json_pretty = json.dumps(filters, indent=2, ensure_ascii=False)
-        except json.JSONDecodeError:
-            json_pretty = "error parse. openai response:\n" + result
-        
+        results_html = ""
+        if matching_users:
+            results_html += "<h3>Found users:</h3><ul>"
+            for user in matching_users:
+                results_html += f"""
+                <li class="user-result">
+                    <strong>{user['display_username']}</strong>
+                    <p><em>{user['specialty']}</em></p>
+                    <p>{user['bio'][:200]}{"..." if len(user['bio']) > 200 else ""}</p>
+                    <p>Skills: {', '.join(user['skills'])}</p>
+                </li>
+                """
+            results_html += "</ul>"
+        else:
+            results_html = "<p>No matching users found</p>"
 
         return f"""
         <!DOCTYPE html>
         <html>
         <head>
-            <title>test fr OpenAI</title>
+            <title>Semantic Search Test</title>
+            <style>
+                body {{ font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }}
+                h1 {{ color: #2c3e50; }}
+                .search-query {{ background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 20px; }}
+                .user-result {{ background-color: #f1f8ff; padding: 12px; margin-bottom: 10px; border-radius: 4px; border-left: 4px solid #4285f4; }}
+                .stats {{ color: #666; font-size: 14px; }}
+                ul {{ list-style-type: none; padding: 0; }}
+            </style>
         </head>
         <body>
-            <h1>test</h1>
-            <h2>prompt:</h2>
-            <pre>{test_query}</pre>
-            <h2>results:</h2>
-            <pre>{json_pretty}</pre>
-            <p class="{'success' if 'filters' in filters else 'error'}">
-                {'True! Openai is working fr.' if 'filters' in filters else 'Error'}
-            </p>
+            <h1>Semantic Search Test</h1>
+            <div class="search-query">
+                <strong>Query:</strong> "{test_query}"
+            </div>
+            <div class="results">
+                {results_html}
+            </div>
+            <div class="stats">
+                <p>Found: {len(matching_users)} users</p>
+            </div>
         </body>
         </html>
         """
     except Exception as e:
-        
-        print(e)
+        return f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Search Error</title>
+        </head>
+        <body>
+            <h1>An error occurred</h1>
+            <p>{str(e)}</p>
+        </body>
+        </html>
+        """
+
+
+
 @app.errorhandler(404)
 def page_not_found(e):
 
